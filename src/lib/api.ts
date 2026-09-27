@@ -3,13 +3,18 @@ import type { ApiError, FieldError } from "@/shared/dto";
 export type ApiResult<T> = { ok: true; data: T } | { ok: false; status: number; code: string; message: string; fields: FieldError[] };
 
 /** Same-origin JSON call to a Route Handler. The browser sends Origin; the server checks it. */
-export async function api<T>(method: "GET" | "POST" | "PATCH" | "DELETE", url: string, body?: unknown): Promise<ApiResult<T>> {
+export async function api<T>(
+  method: "GET" | "POST" | "PATCH" | "DELETE",
+  url: string,
+  body?: unknown,
+  options?: { headers?: Record<string, string> },
+): Promise<ApiResult<T>> {
   let res: Response;
   try {
     res = await fetch(url, {
       method,
       credentials: "same-origin",
-      headers: body === undefined ? undefined : { "Content-Type": "application/json" },
+      headers: { ...(body === undefined ? {} : { "Content-Type": "application/json" }), ...options?.headers },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch {

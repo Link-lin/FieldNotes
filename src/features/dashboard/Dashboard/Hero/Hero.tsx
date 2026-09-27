@@ -1,5 +1,5 @@
 import type { DashboardDTO } from "@/shared/dto";
-import { Button } from "@/components/ui/Button/Button";
+import { Button, ButtonLink } from "@/components/ui/Button/Button";
 import { PlusIcon } from "@/components/ui/Icon/icons";
 import { cx } from "@/lib/cx";
 import { fmtShort, plural } from "@/lib/format";
@@ -23,6 +23,7 @@ export function Hero({ data, today, onCreate, className }: { data: DashboardDTO;
           <Button variant="fill" onClick={onCreate}>
             <PlusIcon /> New trip
           </Button>
+          <ButtonLink href="/import">Create from an AI plan</ButtonLink>
         </div>
       ) : null}
       <Tickets trips={data.trips} />

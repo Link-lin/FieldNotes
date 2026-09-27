@@ -1,0 +1,347 @@
+"use client";
+
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { FieldError } from "@/shared/dto";
+import { importCommitSchema, importMoneySchema, tripDraftSchema, type ImportCommitInput, type ImportPreviewDTO } from "@/shared/import";
+import { Banner } from "@/components/ui/Banner/Banner";
+import { Button } from "@/components/ui/Button/Button";
+import { FormError } from "@/components/ui/Field/Field";
+import { Modal, ModalActions } from "@/components/ui/Modal/Modal";
+import { useToast } from "@/components/ui/Toast/Toast";
+import { api } from "@/lib/api";
+import { buildConversionPrompt, buildImportPrompt, type TripBrief } from "../import-prompt";
+import { DraftItemEditor } from "./DraftItemEditor/DraftItemEditor";
+import { RepairOptions } from "./RepairOptions/RepairOptions";
+import { TripBrief as TripBriefForm } from "./TripBrief/TripBrief";
+import { TripPreview } from "./TripPreview/TripPreview";
+import { groupPreviewItems } from "./preview-groups";
+import styles from "./ImportPage.module.css";
+
+const KEY = "field-notes-import-idempotency-key";
+const SENSITIVE = "Do not include passport details, payment-card data or booking-confirmation codes. Your AI chat has its own data policies.";
+const CONVERSION_PROMPT = buildConversionPrompt();
+const asRecord = (value: unknown): Record<string, unknown> => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+const asText = (value: unknown): string => value == null ? "" : typeof value === "string" || typeof value === "number" ? String(value) : JSON.stringify(value);
+
+function setPath(values: Record<string, unknown>, path: string, value: unknown): Record<string, unknown> {
+  const keys = path.split(".");
+  const next = { ...values };
+  let part = next;
+  for (const key of keys.slice(0, -1)) {
+    part[key] = { ...asRecord(part[key]) };
+    part = part[key] as Record<string, unknown>;
+  }
+  part[keys[keys.length - 1]!] = value;
+  return next;
+}
+
+function issuePath(path: PropertyKey[], included: ImportPreviewDTO["items"]): string {
+  if (path[0] === "items" && typeof path[1] === "number") {
+    const original = included[path[1]]?.index ?? path[1];
+    return `items[${original}]${path.length > 2 ? `.${path.slice(2).join(".")}` : ""}`;
+  }
+  return path.join(".");
+}
+
+function rowErrors(errors: FieldError[], index: number): FieldError[] {
+  return errors.filter((error) => error.path.startsWith(`items[${index}]`) || error.path.startsWith(`items.${index}.`));
+}
+
+function initialBrief(): TripBrief {
+  return { title: "", destination: "", startDate: "", endDate: "", timeZone: "UTC", interests: "", pace: "", constraints: "", budgetAmount: "", budgetCurrency: "USD" };
+}
+
+/** New-trip AI import: explicit prompt copy, paste, editable preview, and confirmed atomic commit. */
+export function ImportPage() {
+  const router = useRouter();
+  const toast = useToast();
+  const [brief, setBrief] = useState<TripBrief>(initialBrief);
+  const [briefErrors, setBriefErrors] = useState<Record<string, string>>({});
+  const [responseText, setResponseText] = useState(""); // Private draft: page memory only.
+  const [preview, setPreview] = useState<ImportPreviewDTO | null>(null);
+  const [pasteErrors, setPasteErrors] = useState<FieldError[]>([]);
+  const [localErrors, setLocalErrors] = useState<FieldError[]>([]);
+  const [message, setMessage] = useState<string | null>(null);
+  const [busy, setBusy] = useState<"preview" | "commit" | null>(null);
+  const [confirming, setConfirming] = useState<ImportCommitInput | null>(null);
+  const [pending, setPending] = useState<{ body: ImportCommitInput; key: string } | null>(null);
+  const [commitState, setCommitState] = useState<"uncertain" | "conflict" | null>(null);
+  const [copyStatus, setCopyStatus] = useState<string | null>(null);
+  const [existingKey, setExistingKey] = useState(false);
+  const [builderOpen, setBuilderOpen] = useState(false);
+  const inputRevision = useRef(0);
+  const prompt = useMemo(() => buildImportPrompt(brief), [brief]);
+  const locked = busy === "commit" || pending !== null;
+  const included = preview?.items.filter((item) => item.included) ?? [];
+  const previewItems = preview?.items;
+  const previewZone = typeof preview?.trip.values.timeZone === "string" ? preview.trip.values.timeZone : null;
+  const groupedItems = useMemo(() => previewItems ? groupPreviewItems(previewItems, previewZone) : [], [previewItems, previewZone]);
+  const remaining = included.reduce((sum, item) => sum + item.errors.length + rowErrors(localErrors, item.index).length, 0) + (preview?.trip.errors.length ?? 0) + localErrors.filter((e) => e.path.startsWith("trip.")).length;
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      const browserZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+      setBrief((old) => old.timeZone === "UTC" ? { ...old, timeZone: browserZone } : old);
+      setExistingKey(!!sessionStorage.getItem(KEY));
+    });
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
+  async function copy(text: string, label: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopyStatus(label);
+      toast({ message: `${label}.` });
+    } catch {
+      setCopyStatus("Clipboard access failed. Select and copy the shown text instead.");
+    }
+  }
+
+  function budgetFromBrief() {
+    return brief.budgetAmount.trim() ? { amount: brief.budgetAmount.trim(), currency: brief.budgetCurrency } : null;
+  }
+
+  function validateBudget(): boolean {
+    const budget = budgetFromBrief();
+    if (!budget) { setBriefErrors((old) => ({ ...old, budget: "" })); return true; }
+    const result = importMoneySchema.safeParse(budget);
+    if (result.success) { setBriefErrors((old) => ({ ...old, budget: "" })); return true; }
+    setBriefErrors((old) => ({ ...old, budget: result.error.issues[0]?.message ?? "Correct the amount and currency." }));
+    setBuilderOpen(true);
+    requestAnimationFrame(() => document.getElementById("brief-budget")?.focus());
+    return false;
+  }
+
+  async function copyPrompt() {
+    const trip = { title: brief.title, destination: brief.destination, startDate: brief.startDate, endDate: brief.endDate, timeZone: brief.timeZone, budget: budgetFromBrief() };
+    const result = tripDraftSchema.safeParse(trip);
+    if (!result.success) {
+      const errors: Record<string, string> = {};
+      for (const issue of result.error.issues) errors[String(issue.path[0]) === "budget" ? "budget" : String(issue.path[0])] ??= issue.message;
+      setBriefErrors(errors);
+      const first = Object.keys(errors)[0];
+      requestAnimationFrame(() => document.getElementById(first === "budget" ? "brief-budget" : `brief-${first}`)?.focus());
+      return;
+    }
+    setBriefErrors({});
+    await copy(prompt, "Prompt copied");
+  }
+
+  async function validateResponse() {
+    if (!responseText.trim()) {
+      setMessage("Paste the JSON response first.");
+      document.getElementById("import-response")?.focus();
+      return;
+    }
+    if (!validateBudget()) return;
+    setBusy("preview");
+    setMessage(null);
+    setPasteErrors([]);
+    setCopyStatus(null);
+    const revision = inputRevision.current;
+    const submittedText = responseText;
+    const submittedBudget = budgetFromBrief();
+    const result = await api<ImportPreviewDTO>("POST", "/api/import/preview", { responseText: submittedText, ownerProvidedBudget: submittedBudget });
+    if (revision !== inputRevision.current) { setBusy(null); return; }
+    setBusy(null);
+    if (!result.ok) {
+      setPasteErrors(result.fields.length ? result.fields : [{ path: "Response", code: result.code, message: result.message }]);
+      setMessage(result.status === 413 ? "The response is too long. Ask the AI to shorten notes and omit optional links, then paste the complete response again." : result.message);
+      requestAnimationFrame(() => document.getElementById("import-paste-error")?.focus());
+      return;
+    }
+    setPreview(result.data);
+    setLocalErrors([]);
+    requestAnimationFrame(() => document.getElementById("import-preview-title")?.focus());
+  }
+
+  function editTrip(path: string, value: unknown) {
+    setPreview((old) => old ? { ...old, trip: { ...old.trip, values: setPath(old.trip.values, path, value), errors: old.trip.errors.filter((e) => e.code === "unknown_field") } } : old);
+    setLocalErrors((old) => old.filter((e) => !e.path.startsWith("trip.")));
+  }
+
+  function editItem(index: number, path: string, value: unknown) {
+    setPreview((old) => old ? { ...old, items: old.items.map((row) => row.index === index ? { ...row, values: setPath(row.values, path, value), errors: row.errors.filter((e) => e.code === "unknown_field") } : row) } : old);
+    setLocalErrors((old) => old.filter((e) => !rowErrors([e], index).length));
+  }
+
+  function setIncluded(index: number, value: boolean) {
+    setPreview((old) => old ? { ...old, items: old.items.map((row) => row.index === index ? { ...row, included: value } : row) } : old);
+  }
+
+  function removeUnsupported(index: number) {
+    setPreview((old) => old ? { ...old, items: old.items.map((row) => row.index === index ? { ...row, errors: row.errors.filter((error) => error.code !== "unknown_field") } : row) } : old);
+  }
+
+  function reviewCommit() {
+    if (!preview || locked) return;
+    if (remaining) {
+      setMessage("Correct trip errors and every included item, or explicitly skip an item with errors.");
+      requestAnimationFrame(() => document.getElementById("import-preview-error")?.focus());
+      return;
+    }
+    const candidate = { expectedFormatVersion: 1, ownerProvidedBudget: preview.trip.values.budget ?? null,
+      trip: preview.trip.values, items: included.map((row) => row.values) };
+    const parsed = importCommitSchema.safeParse(candidate);
+    if (!parsed.success) {
+      const errors = parsed.error.issues.map((issue) => ({ path: issuePath(issue.path, included), code: issue.code, message: issue.message }));
+      setLocalErrors(errors);
+      setMessage("Correct the highlighted fields or skip an invalid item before confirming.");
+      requestAnimationFrame(() => document.getElementById("import-preview-error")?.focus());
+      return;
+    }
+    setLocalErrors([]);
+    setMessage(null);
+    setConfirming(parsed.data);
+  }
+
+  async function sendCommit(body: ImportCommitInput, key: string) {
+    setBusy("commit");
+    setCommitState(null);
+    setMessage(null);
+    const result = await api<{ tripId: string }>("POST", "/api/import/commit", body, { headers: { "Idempotency-Key": key } });
+    setBusy(null);
+    if (result.ok) {
+      sessionStorage.removeItem(KEY);
+      setExistingKey(false);
+      setPending(null);
+      router.push(`/trips/${result.data.tripId}`);
+      router.refresh();
+      return;
+    }
+    setConfirming(null);
+    if (result.status === 0 || result.status >= 500) {
+      setPending({ body, key });
+      setCommitState("uncertain");
+      setMessage("The result is unknown. Retry the same import to check whether the trip was created. Keep this tab open.");
+      return;
+    }
+    if (result.status === 409 || result.status === 410) {
+      setPending({ body, key });
+      setCommitState("conflict");
+      setMessage(result.status === 410 ? "This import created a trip that was later deleted. Start a new attempt only if you want to create it again." : "This import key was used with different values. Start a new attempt only if a second trip is intended.");
+      return;
+    }
+    setPending(null);
+    setLocalErrors(result.fields);
+    setMessage(result.message);
+    requestAnimationFrame(() => document.getElementById("import-preview-error")?.focus());
+  }
+
+  function beginCommit() {
+    if (!confirming) return;
+    const key = sessionStorage.getItem(KEY) || crypto.randomUUID();
+    sessionStorage.setItem(KEY, key);
+    setExistingKey(true);
+    const body = confirming;
+    setConfirming(null);
+    setPending({ body, key });
+    void sendCommit(body, key);
+  }
+
+  function newAttempt() {
+    sessionStorage.removeItem(KEY);
+    setExistingKey(false);
+    setPending(null);
+    setCommitState(null);
+    setMessage("You can review and confirm again. A previous import may have created a trip; check the dashboard before repeating it.");
+  }
+
+  return (
+    <div className={styles.page}>
+      <nav aria-label="Breadcrumb"><Link href="/">← All trips</Link></nav>
+      <header className={styles.intro}>
+        <p className="mono muted">External AI import · JSON v1</p>
+        <h1>Create from an AI plan</h1>
+        <p>Already planned a trip in ChatGPT or Gemini? Convert that conversation to JSON v1 and paste it here. You can edit or skip suggestions before a trip is created.</p>
+      </header>
+
+      {existingKey && !pending ? (
+        <Banner tone="warn" role="status">
+          <p>This tab has a key from an earlier import attempt. If you are retrying after a lost response, paste the same JSON and repeat the same preview edits to check the result. Check the dashboard before creating another trip.</p>
+          <div className={styles.actions}><Button variant="quiet" onClick={newAttempt}>Start a different import attempt</Button></div>
+        </Banner>
+      ) : null}
+
+      {!preview ? (
+        <>
+          <section className={styles.section} aria-labelledby="paste-heading" aria-busy={busy === "preview"}>
+            <div className={styles.step}><span>1</span><h2 id="paste-heading">Bring in an existing plan</h2></div>
+            <p>In the chat where you planned your trip, paste the conversion prompt below. ChatGPT or Gemini can use your earlier conversation to return the required JSON. If you already have JSON v1, paste it directly.</p>
+            <div className={styles.actions}>
+              <Button variant="outline" onClick={() => copy(CONVERSION_PROMPT, "Conversion prompt copied")} disabled={busy === "preview"}>Copy conversion prompt</Button>
+              <a href="/api/import/schema" target="_blank" rel="noopener noreferrer">View JSON v1 schema ↗</a>
+            </div>
+            <details className={styles.prompt}><summary>Review the conversion prompt</summary><pre>{CONVERSION_PROMPT}</pre></details>
+            <Banner tone="info">Copying a prompt does not send anything from Field Notes. You decide what to share with your AI chat. {SENSITIVE}</Banner>
+            <label className={styles.pasteLabel} htmlFor="import-response">Paste the JSON response</label>
+            <p className="note">Paste one JSON v1 object. A surrounding Markdown code fence is okay. No response is saved before you confirm the preview. You can set or correct the trip budget in the preview.</p>
+            <textarea id="import-response" className={styles.paste} value={responseText} onChange={(e) => { inputRevision.current++; setResponseText(e.target.value); setPasteErrors([]); setMessage(null); }} rows={12} spellCheck={false} disabled={busy === "preview"} placeholder={'{ "formatVersion": 1, "trip": { ... }, "items": [ ... ] }'} />
+            <div className={styles.actions}><Button variant="fill" onClick={validateResponse} disabled={busy === "preview"}>{busy === "preview" ? "Validating…" : "Validate and preview"}</Button>{busy === "preview" ? <span role="status">Checking the response…</span> : null}</div>
+            {message ? <FormError id="import-paste-error">{message}</FormError> : null}
+            {pasteErrors.length ? <RepairOptions errors={pasteErrors} responseText={responseText} onCopy={copy} /> : null}
+          </section>
+          <details className={styles.builder} open={builderOpen} onToggle={(e) => setBuilderOpen(e.currentTarget.open)}>
+            <summary>Starting with an idea? Build a new trip prompt instead</summary>
+            <section className={styles.section} aria-labelledby="brief-heading">
+              <h2 id="brief-heading">Describe the trip for your AI chat</h2>
+              <p className="note">This optional form builds a planning prompt. It is never required to import a trip you already planned elsewhere.</p>
+              <fieldset className={styles.briefFieldset} disabled={busy === "preview"}>
+                <TripBriefForm value={brief} onChange={(patch) => { inputRevision.current++; setBrief((old) => ({ ...old, ...patch })); setBriefErrors({}); }} errors={briefErrors} />
+              </fieldset>
+              <div className={styles.actions}><Button variant="fill" onClick={copyPrompt} disabled={busy === "preview"}>Copy new trip prompt</Button></div>
+              <details className={styles.prompt}><summary>Review the new trip prompt</summary><pre>{prompt}</pre></details>
+            </section>
+          </details>
+        </>
+      ) : (
+        <section className={styles.section} aria-labelledby="import-preview-title">
+          <div className={styles.step}><span>2</span><h2 id="import-preview-title" tabIndex={-1}>Review your trip</h2></div>
+          <p className="note">Nothing has been saved. All AI suggestions and prices are unverified. Each included item can be edited or skipped.</p>
+          <div className={styles.actions}>
+            <Button variant="quiet" onClick={() => { setPreview(null); setLocalErrors([]); setMessage(null); }} disabled={locked}>← Back to paste</Button>
+            <span className="mono muted">{included.length} included · {preview.items.length - included.length} skipped</span>
+          </div>
+          <TripPreview values={preview.trip.values} errors={[...preview.trip.errors, ...localErrors.filter((e) => e.path.startsWith("trip."))]} warnings={preview.trip.warnings} busy={locked} onChange={editTrip} />
+          <div className={styles.itemsHead}><h2>Itinerary items</h2><p className="note">Flights are separate segments. Imported map links do not pin stops; you can choose a map link after creation.</p></div>
+          {preview.items.length ? (
+            groupedItems.map((group) => (
+              <section key={group.key} className={styles.dayGroup} aria-label={group.label}>
+                <h3>{group.label}</h3>
+                {group.timed.length ? <ol className={styles.items}>{group.timed.map((row) => <DraftItemEditor key={row.index} row={row} errors={[...row.errors, ...rowErrors(localErrors, row.index)]} busy={locked} onChange={(path, value) => editItem(row.index, path, value)} onIncluded={(value) => setIncluded(row.index, value)} onRemoveUnsupported={() => removeUnsupported(row.index)} />)}</ol> : null}
+                {group.unscheduled.length ? <><h4>{group.key === "undated" || group.key === "undated-flights" || group.key === "needs-correction" ? "Items to review" : "Unscheduled"}</h4><ol className={styles.items}>{group.unscheduled.map((row) => <DraftItemEditor key={row.index} row={row} errors={[...row.errors, ...rowErrors(localErrors, row.index)]} busy={locked} onChange={(path, value) => editItem(row.index, path, value)} onIncluded={(value) => setIncluded(row.index, value)} onRemoveUnsupported={() => removeUnsupported(row.index)} />)}</ol></> : null}
+              </section>
+            ))
+          ) : <Banner tone="info">This response has no items. You can still create an empty trip and add events later.</Banner>}
+          {message ? <FormError id="import-preview-error">{message}</FormError> : null}
+          {remaining ? <Banner tone="warn">{remaining} unresolved {remaining === 1 ? "issue" : "issues"} in included content. Correct each issue, skip the affected item, or repair the response in your AI chat.</Banner> : null}
+          {remaining ? <RepairOptions errors={[...preview.trip.errors, ...preview.items.flatMap((row) => row.included ? row.errors : []), ...localErrors]} responseText={responseText} onCopy={copy} /> : null}
+          {pending ? (
+            <Banner tone="warn" role="status">
+              <p>{message}</p>
+              <div className={styles.actions}>
+                {commitState === "uncertain" ? <Button variant="fill" onClick={() => void sendCommit(pending.body, pending.key)} disabled={busy === "commit"}>{busy === "commit" ? "Checking…" : "Retry the same import"}</Button> : null}
+                <Button variant="quiet" onClick={newAttempt} disabled={busy === "commit"}>Start a new attempt</Button>
+              </div>
+            </Banner>
+          ) : (
+            <div className={styles.finish}>
+              <p>Confirming creates <strong>{asText(preview.trip.values.title) || "this trip"}</strong> with {included.length} {included.length === 1 ? "item" : "items"}. {preview.items.length - included.length} skipped {preview.items.length - included.length === 1 ? "item is" : "items are"} not saved. A second confirmation is required.</p>
+              <Button data-import-create variant="fill" onClick={reviewCommit} disabled={locked}>Review creation</Button>
+            </div>
+          )}
+        </section>
+      )}
+      {copyStatus ? <p className="note" role="status">{copyStatus}</p> : null}
+      {confirming ? (
+        <Modal title="Create this trip?" onClose={() => setConfirming(null)} triggerSelector="[data-import-create]" subtitle="This is the first time the trip and its included items will be saved.">
+          <p><strong>{confirming.trip.title}</strong> · {confirming.items.length} {confirming.items.length === 1 ? "item" : "items"}</p>
+          <p className="note">Every imported item will be marked as an unverified AI draft. No item will be marked Booked.</p>
+          <ModalActions><Button variant="quiet" onClick={() => setConfirming(null)}>Keep reviewing</Button><Button variant="fill" onClick={beginCommit}>Create trip</Button></ModalActions>
+        </Modal>
+      ) : null}
+    </div>
+  );
+}

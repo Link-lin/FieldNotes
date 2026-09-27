@@ -1,0 +1,4 @@
+.wrap, .full { display: grid; gap: var(--space-3); }
+.actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.full { justify-items: start; }
+.full textarea { width: 100%; min-width: 0; resize: vertical; font: var(--text-sm)/1.5 var(--mono); }

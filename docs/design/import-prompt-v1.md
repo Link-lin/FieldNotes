@@ -1,6 +1,8 @@
 # Travel Planner import prompt v1
 
-Copy this prompt into the AI chat where you are drafting the trip. Replace the final trip brief block with your own details. The AI chat is outside Travel Planner; its data handling is controlled by that provider.
+Field Notes offers two copyable prompts. For an itinerary already discussed in ChatGPT, Gemini, or another AI chat, use **Copy conversion prompt** on the import page in that same conversation. It asks the AI to use the existing plan, ask there for any missing required trip details, and return JSON v1. No trip brief is required on the Field Notes page; a response already in JSON v1 can be pasted immediately.
+
+The prompt below is for starting with an idea. The optional brief form on the import page fills its final block. The AI chat is outside Field Notes; its data handling is controlled by that provider. Both prompts use the same JSON v1 rules and schema.
 
 ```text
 Create a draft travel itinerary for me from the trip brief at the end of this prompt.
