@@ -1,0 +1,25 @@
+.card { position: relative; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-2xl); padding: 18px var(--space-5) var(--space-3); box-shadow: var(--shadow-sm); display: grid; gap: 10px; transition: transform 0.25s, box-shadow 0.25s, border-color 0.2s; animation: var(--kf-rise) 0.5s both; }
+.card:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
+.card[data-selected="true"] { border-color: var(--ink); box-shadow: var(--shadow); }
+/* Status edge: vermilion upcoming, ink ongoing, quiet past. */
+.card::before { content: ""; position: absolute; left: 0; top: 22px; bottom: 22px; width: 3px; border-radius: 0 3px 3px 0; background: var(--line); }
+.card[data-status="upcoming"]::before { background: var(--vermilion); }
+.card[data-status="ongoing"]::before { background: var(--ink); }
+.top { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.when { color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.when b { color: var(--vermilion-ink); font-weight: 500; }
+.card[data-status="past"] .when b { color: var(--ink-3); }
+.title { margin: 0; font: 700 26px/1.12 var(--serif); }
+.title a { text-decoration: none; }
+.title a:hover { color: var(--vermilion-ink); }
+.dest { color: var(--ink-2); margin: -4px 0 0; }
+.actions { display: flex; gap: var(--space-2); flex-wrap: wrap; padding: 4px 0 6px; border-top: 1px dashed var(--line); }
+
+@media (min-width: 901px) and (min-height: 620px) {
+  .card { padding: var(--space-3) 18px 4px; gap: 6px; border-radius: var(--radius-xl); }
+  .card::before { top: 16px; bottom: 16px; }
+  .title { font-size: 22px; }
+  .dest { font-size: 14px; }
+  .actions { padding: 2px 0 4px; }
+}

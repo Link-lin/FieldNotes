@@ -1,0 +1,13 @@
+.hero { padding: var(--space-6) var(--space-8) var(--space-2) 0; display: grid; gap: 22px; align-content: start; }
+.eyebrow { color: var(--ink-3); letter-spacing: 0.2em; }
+.title {}
+.lede { color: var(--ink-2); max-width: 46ch; font-size: 16px; }
+.stats { color: var(--ink-3); }
+.stats b { color: var(--vermilion-ink); font-weight: 500; }
+
+@media (max-width: 900px) { .hero { padding-right: 0; } }
+@media (min-width: 901px) and (min-height: 620px) {
+  .hero { padding: 0; gap: 14px; }
+  .title { font-size: clamp(34px, min(3.9vw, 6.4vh), 56px); }
+  .lede { font-size: var(--text-base); }
+}

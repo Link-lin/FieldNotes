@@ -1,0 +1,19 @@
+/* Offsets follow the stage the page gives the globe (see Dashboard.module.css). */
+.hint { position: absolute; left: calc(var(--globe-inset-left, 0px) + 8px); top: var(--globe-hint-top, 30%); color: var(--ink-3); pointer-events: none; transition: opacity 0.6s; }
+.hint[data-gone="true"] { opacity: 0; }
+.legend { position: absolute; left: calc(var(--globe-inset-left, 0px) + 8px); bottom: var(--globe-bottom, 32px); display: grid; gap: var(--space-2); color: var(--ink-2); }
+.legend span { display: inline-flex; align-items: center; gap: 10px; }
+.zoom { position: absolute; right: var(--gutter); bottom: var(--globe-bottom, 32px); display: flex; gap: var(--space-2); }
+.zoom button { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--ink); background: var(--paper); display: grid; place-items: center; }
+.zoom button:hover { background: var(--card); }
+.zoom svg { width: 16px; height: 16px; }
+.mk { width: 12px; height: 12px; display: inline-block; flex: none; }
+.upcoming { background: var(--vermilion); border-radius: 50%; box-shadow: 0 0 0 2px var(--paper), 0 0 0 3px var(--vermilion); }
+.ongoing { background: var(--ink); transform: rotate(45deg) scale(0.8); box-shadow: 0 0 0 2px var(--paper), 0 0 0 3px var(--ink); }
+.past { border: 2px solid var(--ink-3); border-radius: 50%; background: var(--paper); }
+
+@media (max-width: 900px) {
+  .hint { display: none; }
+  .legend { left: 0; bottom: 12px; }
+  .zoom { bottom: 12px; right: 16px; }
+}

@@ -18,7 +18,7 @@
 .danger { border-color: var(--vermilion-ink); color: var(--vermilion-ink); }
 .danger:hover { background: var(--vermilion-soft); }
 .dangerFill { background: var(--vermilion-ink); border-color: var(--vermilion-ink); color: #fff; }
-.link { border: 0; border-bottom: 1px solid transparent; border-radius: 0; padding: 6px 2px; min-height: 0; font-weight: 600; }
+.link { border: 0; border-bottom: 1px solid transparent; border-radius: 0; padding: 6px 2px; min-height: 0; font-weight: 600; line-height: inherit; }
 .link:hover { background: none; border-bottom-color: var(--ink); color: var(--vermilion-ink); }
 .link:active { transform: none; }
 

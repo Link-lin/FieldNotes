@@ -44,134 +44,16 @@
 .menu .danger { color: var(--vermilion-ink); }
 .menu .danger:hover, .menu .danger:focus-visible { background: var(--vermilion-soft); }
 
-/* ---------- Dashboard ---------- */
-.split { display: grid; grid-template-columns: minmax(340px, 540px) minmax(0, 1fr); padding-left: var(--gutter); }
-.hero { padding: 24px 32px 8px 0; display: grid; gap: 22px; align-content: start; }
-.eyebrow { color: var(--ink-3); margin: 0; letter-spacing: 0.2em; }
-.lede { margin: 0; color: var(--ink-2); max-width: 46ch; font-size: 16px; }
-.stats-line { color: var(--ink-3); margin: 0; }
-.stats-line b { color: var(--vermilion-ink); font-weight: 500; }
-.tickets { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
-.ticket { text-align: left; display: grid; gap: 3px; padding: 14px 18px 14px 20px; background: var(--card); border: 1px solid var(--line); border-radius: 20px; text-decoration: none; transition: transform 0.25s, border-color 0.2s; }
-.ticket:hover { transform: translateY(-3px); border-color: var(--ink); }
-.ticket:focus-visible { outline-offset: 2px; }
-.ticket-kind { color: var(--ink-3); display: flex; align-items: center; gap: 8px; }
-.ticket-kind i { width: 8px; height: 8px; border-radius: 50%; background: var(--vermilion); animation: blink 1.8s ease-in-out 5; }
-.ticket-now .ticket-kind i { background: var(--ink); }
-.ticket-title { font: 700 20px/1.15 var(--serif); }
-.ticket-dest { color: var(--ink-2); font-size: 13px; }
-.ticket-foot { color: var(--ink-2); margin-top: 2px; }
-.ticket-foot b { font-size: 15px; color: var(--vermilion-ink); font-weight: 500; }
+/* ---------- Trip page ---------- */
 .bar { display: block; height: 4px; border-radius: 4px; background: var(--line); overflow: hidden; margin-top: 6px; }
 .bar i { display: block; height: 100%; background: var(--ink); border-radius: 4px; animation: grow 1.2s 0.4s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
-.trips-col { padding: 24px 32px 72px 0; display: grid; gap: 16px; align-content: start; }
-.trips-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
-.filters { display: flex; gap: 6px; flex-wrap: wrap; }
-.filters button { border: 1px solid var(--ctl); background: none; border-radius: 999px; padding: 5px 12px; color: var(--ink-2); min-height: 30px; }
-.filters button:hover { border-color: var(--ink); }
-.filters button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
-.trip-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
-.trip-card { position: relative; background: var(--card); border: 1px solid var(--line); border-radius: 24px; padding: 18px 20px 12px; box-shadow: var(--shadow-sm); display: grid; gap: 10px; transition: transform 0.25s, box-shadow 0.25s, border-color 0.2s; animation: rise 0.5s both; }
-.trip-card:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
-.trip-card[data-selected="true"] { border-color: var(--ink); box-shadow: var(--shadow); }
-.trip-card::before { content: ""; position: absolute; left: 0; top: 22px; bottom: 22px; width: 3px; border-radius: 0 3px 3px 0; background: var(--line); }
-.trip-card[data-status="upcoming"]::before { background: var(--vermilion); }
-.trip-card[data-status="ongoing"]::before { background: var(--ink); }
-.trip-card-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
-.trip-card .when { color: var(--ink-3); font-variant-numeric: tabular-nums; }
-.trip-card .when b { color: var(--vermilion-ink); font-weight: 500; }
-.trip-card[data-status="past"] .when b { color: var(--ink-3); }
-.trip-card h3 { margin: 0; font: 700 26px/1.12 var(--serif); }
-.trip-card h3 a { text-decoration: none; }
-.trip-card h3 a:hover { color: var(--vermilion-ink); }
-.trip-card .dest { color: var(--ink-2); margin: -4px 0 0; }
-.trip-card-actions { display: flex; gap: 8px; flex-wrap: wrap; padding: 4px 0 6px; border-top: 1px dashed var(--line); }
-.empty { color: var(--ink-2); padding: 20px; border: 1px dashed var(--ctl); border-radius: 20px; display: grid; gap: 10px; justify-items: start; }
 .tasks { display: grid; gap: 8px; }
 .task { display: flex; gap: 8px; align-items: flex-start; font-size: 13.5px; color: var(--ink-2); }
 .task svg { width: 15px; height: 15px; flex: none; margin-top: 3px; }
 .task.overdue { color: var(--vermilion-ink); font-weight: 600; }
 .task a { text-decoration: none; }
 .task a:hover { text-decoration: underline; }
-.foot { margin: 1em 0; padding: 0 var(--gutter) 32px; color: var(--ink-3); font-size: 13px; }
 
-/* Globe */
-.globe-col { grid-column: 2; grid-row: 1 / span 2; position: sticky; top: 0; height: 100vh; min-height: 560px; align-self: start; overflow: hidden; }
-.globe-col canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; animation: fade-in 1.2s; }
-.globe-col canvas:active { cursor: grabbing; }
-.globe-hint { position: absolute; left: 8px; top: 30%; color: var(--ink-3); pointer-events: none; transition: opacity 0.6s; }
-.globe-hint[data-gone="true"] { opacity: 0; }
-.globe-zoom { position: absolute; right: var(--gutter); bottom: 32px; display: flex; gap: 8px; }
-.globe-zoom button { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--ink); background: var(--paper); display: grid; place-items: center; }
-.globe-zoom button:hover { background: var(--card); }
-.globe-zoom svg { width: 16px; height: 16px; }
-.legend { position: absolute; left: 8px; bottom: 32px; display: grid; gap: 8px; color: var(--ink-2); }
-.legend span { display: inline-flex; align-items: center; gap: 10px; }
-.mk { width: 12px; height: 12px; display: inline-block; flex: none; }
-.mk-upcoming { background: var(--vermilion); border-radius: 50%; box-shadow: 0 0 0 2px var(--paper), 0 0 0 3px var(--vermilion); }
-.mk-ongoing { background: var(--ink); transform: rotate(45deg) scale(0.8); box-shadow: 0 0 0 2px var(--paper), 0 0 0 3px var(--ink); }
-.mk-past { border: 2px solid var(--ink-3); border-radius: 50%; background: var(--paper); }
-.callout { position: absolute; z-index: 3; width: 260px; background: var(--card); border: 1px solid var(--ink); border-radius: 18px; box-shadow: var(--shadow); padding: 14px; display: grid; gap: 8px; animation: pop-in 0.25s both; }
-.callout h3 { margin: 0; font: 700 20px/1.15 var(--serif); }
-.callout-list { display: grid; gap: 6px; }
-.callout-list button { text-align: left; border: 1px solid var(--line); background: var(--paper); border-radius: 12px; padding: 7px 10px; display: grid; }
-.callout-list button[aria-current="true"], .callout-list button:hover { border-color: var(--ink); }
-.callout-list small { color: var(--ink-3); }
-.callout-actions { display: flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
-.globe-fallback { position: absolute; inset: 16px 16px 16px 0; display: grid; place-content: center; text-align: center; gap: 8px; padding: 24px; border: 1px dashed var(--ctl); border-radius: 24px; background: var(--card); }
-.globe-fallback b { font: 700 22px var(--serif); }
-
-@media (max-width: 900px) {
-  .split { grid-template-columns: minmax(0, 1fr); padding-right: var(--gutter); }
-  .hero, .trips-col { padding-right: 0; }
-  .globe-col { grid-column: 1; grid-row: auto; position: relative; height: clamp(320px, 88vw, 460px); min-height: 0; margin-right: calc(-1 * var(--gutter)); }
-  .hero { order: -1; }
-  .globe-hint { display: none; }
-  .legend { left: 0; bottom: 12px; }
-  .globe-zoom { bottom: 12px; right: 16px; }
-}
-
-/* The left wrapper only groups content on desktop; on phones its children join the page grid. */
-.dash-left { display: contents; }
-.dash .hero { order: -1; }
-.dash .trips-col, .dash .foot { order: 1; }
-.globe-stage { position: absolute; inset: 0; pointer-events: none; }
-
-/* Desktop dashboard is one screen and the page never scrolls: intro and trips on the left (that
-   column scrolls when long), the globe on the right. A zoomed globe spills under the trip column,
-   which veils it so it reads faintly. Short windows (under 620px tall) and phones scroll normally. */
-@media (min-width: 901px) and (min-height: 620px) {
-  body:has(.dash) { overflow: hidden; }
-  body:has(.dash) #app-root { height: 100vh; height: 100dvh; display: flex; flex-direction: column; }
-  body:has(.dash) .top { flex: none; padding-top: 14px; padding-bottom: 14px; }
-  body:has(.dash) #main { flex: 1; min-height: 0; }
-  .dash { height: 100%; --left-w: clamp(380px, 34vw, 500px); }
-  .dash .split { position: relative; height: 100%; display: block; padding: 0; overflow: hidden; }
-  .dash .dash-left { display: flex; flex-direction: column; gap: 18px; position: relative; z-index: 1; width: var(--left-w); height: 100%; overflow-y: auto; overscroll-behavior: contain; padding: 4px 40px 0 var(--gutter); scrollbar-width: thin; scrollbar-color: var(--ctl) transparent;
-    background: linear-gradient(to right, color-mix(in srgb, var(--paper) 86%, transparent) calc(100% - 48px), color-mix(in srgb, var(--paper) 0%, transparent)); }
-  .dash .hero { padding: 0; gap: 14px; }
-  .dash .hero h1 { font-size: clamp(34px, min(3.9vw, 6.4vh), 56px); }
-  .dash .lede { font-size: 15px; }
-  .dash .tickets { gap: 10px; }
-  .dash .ticket { padding: 10px 16px 10px 18px; }
-  .dash .ticket-title { font-size: 18px; }
-  .dash .trips-col { padding: 0; gap: 12px; }
-  .dash .trips-scroll { display: grid; gap: 16px; align-content: start; }
-  .dash .trip-list { gap: 10px; }
-  .dash .trip-card { padding: 12px 18px 4px; gap: 6px; border-radius: 20px; }
-  .dash .trip-card::before { top: 16px; bottom: 16px; }
-  .dash .trip-card h3 { font-size: 22px; }
-  .dash .trip-card .dest { font-size: 14px; }
-  .dash .trip-card-actions { padding: 2px 0 4px; }
-  .dash .foot { margin-top: auto; padding: 8px 0 16px; font-size: 12px; }
-  .dash .globe-col { position: absolute; inset: 0; z-index: 0; height: auto; min-height: 0; margin: 0; align-self: normal; }
-  .dash .globe-stage { left: var(--left-w); }
-  .dash .globe-hint { left: calc(var(--left-w) + 8px); top: 8px; }
-  .dash .legend { left: calc(var(--left-w) + 8px); bottom: 20px; }
-  .dash .globe-zoom { bottom: 20px; }
-}
-
-/* ---------- Trip page ---------- */
 .trip-wrap { padding: 8px var(--gutter) 96px; }
 .trip { max-width: 1080px; margin: 0 auto; display: grid; gap: 28px; animation: rise 0.5s both; }
 .back { justify-self: start; text-decoration: none; color: var(--ink-2); border-bottom: 1px solid transparent; padding: 6px 0; }

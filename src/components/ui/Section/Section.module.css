@@ -1,0 +1,2 @@
+.section { display: grid; gap: var(--space-3); }
+.title { margin: 0; color: var(--ink-3); font: 500 11px/1 var(--mono); letter-spacing: 0.18em; text-transform: uppercase; }

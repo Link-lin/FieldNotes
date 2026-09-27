@@ -1,0 +1,7 @@
+/* The page decides where the globe sits and how big it is (className); this is what's inside. */
+.globe { overflow: hidden; }
+.stage { position: absolute; inset: 0; left: var(--globe-inset-left, 0px); pointer-events: none; }
+.canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; animation: var(--kf-fade-in) 1.2s; }
+.canvas:active { cursor: grabbing; }
+.fallback { position: absolute; inset: 16px 16px 16px 0; display: grid; place-content: center; text-align: center; gap: var(--space-2); padding: var(--space-6); border: 1px dashed var(--ctl); border-radius: var(--radius-2xl); background: var(--card); }
+.fallback b { font: 700 22px var(--serif); }

@@ -1,0 +1,7 @@
+.callout { position: absolute; z-index: 3; width: 260px; background: var(--card); border: 1px solid var(--ink); border-radius: var(--radius-lg); box-shadow: var(--shadow); padding: 14px; display: grid; gap: var(--space-2); animation: var(--kf-pop-in) 0.25s both; }
+.title { margin: 0; font: 700 20px/1.15 var(--serif); }
+.list { display: grid; gap: 6px; }
+.list button { text-align: left; border: 1px solid var(--line); background: var(--paper); border-radius: var(--radius-sm); padding: 7px 10px; display: grid; }
+.list button[aria-current="true"], .list button:hover { border-color: var(--ink); }
+.list small { color: var(--ink-3); }
+.actions { display: flex; gap: var(--space-2); align-items: center; justify-content: space-between; flex-wrap: wrap; }

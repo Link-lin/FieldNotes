@@ -13,7 +13,8 @@ import { EventRow } from "./EventRow";
 import { dateRangeLabel, fmtDay, fmtMonth, plural, relativeLabel, STATUS_LABEL, TYPE_LABEL } from "@/lib/format";
 import { ClockIcon, EditIcon, PlusIcon, StatusIcon, WarnIcon } from "@/components/ui/Icon/icons";
 import { ItemForm } from "./ItemForm";
-import { DASH_RETURN_KEY, dueText } from "./Dashboard";
+import { dashboardUrl } from "@/features/dashboard/dashboard-return";
+import { dueText } from "@/lib/format";
 import { useToast } from "@/components/ui/Toast/Toast";
 import { TripForm } from "./TripForm";
 
@@ -89,13 +90,6 @@ export function TripPage({ data, initialDay }: { data: TripDetailDTO; initialDay
   // Deleted this visit and still restorable, so Undo stays reachable after the toast closes.
   const [recentlyDeleted, setRecentlyDeleted] = useState<PlanItemDTO[]>([]);
 
-  const dashboardUrl = () => {
-    try {
-      const saved = JSON.parse(sessionStorage.getItem(DASH_RETURN_KEY) ?? "null") as { url?: string } | null;
-      if (saved?.url && saved.url.startsWith("/") && !saved.url.startsWith("//")) return saved.url;
-    } catch {}
-    return "/";
-  };
 
   function selectDay(d: string, focus = true) {
     setDay(d);

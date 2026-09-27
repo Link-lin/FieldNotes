@@ -1,0 +1,35 @@
+/*
+ * Page layout only; each part styles itself. Three arrangements:
+ * - phones (up to 900 px): one column, intro, globe, trips;
+ * - short desktop windows (under 620 px tall): two columns, the page scrolls, globe sticky;
+ * - desktop: one screen, the left column scrolls, the globe fills the rest and fades under it.
+ */
+.dash {}
+.split { display: grid; grid-template-columns: minmax(340px, 540px) minmax(0, 1fr); padding-left: var(--gutter); }
+.left { display: contents; } /* its children join the grid until the desktop layout */
+.hero { order: -1; grid-column: 1; }
+.trips, .foot { order: 1; grid-column: 1; }
+.globe { grid-column: 2; grid-row: 1 / span 3; position: sticky; top: 0; height: 100vh; min-height: 560px; align-self: start; }
+.foot { margin: 1em 0; padding: 0 0 32px; color: var(--ink-3); font-size: 13px; }
+
+@media (max-width: 900px) {
+  .split { grid-template-columns: minmax(0, 1fr); padding-right: var(--gutter); }
+  .globe { grid-column: 1; grid-row: auto; order: 0; position: relative; height: clamp(320px, 88vw, 460px); min-height: 0; margin-right: calc(-1 * var(--gutter)); }
+}
+
+@media (min-width: 901px) and (min-height: 620px) {
+  .dash { height: 100%; --left-w: clamp(380px, 34vw, 500px); }
+  .split { position: relative; height: 100%; display: block; padding: 0; overflow: hidden; }
+  .left {
+    display: flex; flex-direction: column; gap: 18px; position: relative; z-index: 1;
+    width: var(--left-w); height: 100%; overflow-y: auto; overscroll-behavior: contain;
+    padding: 4px 40px 0 var(--gutter); scrollbar-width: thin; scrollbar-color: var(--ctl) transparent;
+    /* A veil, so a zoomed globe reads faintly behind the trips. */
+    background: linear-gradient(to right, color-mix(in srgb, var(--paper) 86%, transparent) calc(100% - 48px), color-mix(in srgb, var(--paper) 0%, transparent));
+  }
+  .foot { margin-top: auto; padding: 8px 0 16px; font-size: 12px; }
+  .globe {
+    position: absolute; inset: 0; z-index: 0; height: auto; min-height: 0; margin: 0; align-self: normal;
+    --globe-inset-left: var(--left-w); --globe-hint-top: 8px; --globe-bottom: 20px;
+  }
+}

@@ -1,0 +1,5 @@
+.filters { display: flex; gap: 6px; flex-wrap: wrap; }
+.filters button { border: 1px solid var(--ctl); background: none; border-radius: var(--radius-pill); padding: 5px var(--space-3); color: var(--ink-2); min-height: 30px; }
+.filters button:hover { border-color: var(--ink); }
+.filters button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+@media (pointer: coarse) { .filters button { min-height: 44px; } }

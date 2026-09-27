@@ -39,3 +39,11 @@ export function relativeLabel(t: TripSummaryDTO): string {
 
 export const STATUS_LABEL = { upcoming: "Upcoming", ongoing: "Ongoing", past: "Past" } as const;
 export const TYPE_LABEL = { flight: "Flight", lodging: "Stay", transport: "Transport", meal: "Meal", activity: "Activity", other: "Other" } as const;
+
+/** Book-by wording for a booking task (BOOK-2). */
+export function dueText(due: string | null, state: string): string {
+  if (!due) return "No book-by date";
+  if (state === "overdue") return `Overdue since ${fmtShort(due)}`;
+  if (state === "due_today") return "Due today";
+  return `Book by ${fmtShort(due)}`;
+}

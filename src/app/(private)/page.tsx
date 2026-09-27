@@ -1,7 +1,8 @@
 import { getDb } from "@/server/db";
 import { pageActor } from "@/server/session";
 import { getDashboard } from "@/server/trips";
-import { Dashboard, type Filter } from "@/components/Dashboard";
+import { Dashboard } from "@/features/dashboard/Dashboard/Dashboard";
+import type { Filter } from "@/features/dashboard/Dashboard/TripList/TripList";
 
 const FILTERS = ["all", "upcoming", "ongoing", "past"] as const;
 
