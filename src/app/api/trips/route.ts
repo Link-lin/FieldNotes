@@ -1,19 +1,10 @@
-import { getDb } from "@/server/core/db/client";
-import { assertSameOrigin, readJson } from "@/server/core/http/request";
-import { handle, json } from "@/server/core/http/respond";
-import { requireActor } from "@/server/auth/session";
-import { createTrip, getDashboard } from "@/server/trips";
+import { route } from "@/server/core/http/route";
+import { getDashboard } from "@/server/modules/dashboard/dashboard.service";
+import { createTrip } from "@/server/modules/trips/trips.service";
 import { tripInputSchema } from "@/shared/schemas";
 
-export async function GET() {
-  return handle(async () => json(await getDashboard(getDb(), await requireActor())));
-}
+/** The dashboard data: every trip you can see, booking tasks and recent currencies. */
+export const GET = route({}, ({ db, actor }) => getDashboard(db, actor));
 
-export async function POST(req: Request) {
-  return handle(async () => {
-    assertSameOrigin(req);
-    const actor = await requireActor();
-    const input = await readJson(req, tripInputSchema);
-    return json(await createTrip(getDb(), actor, input), 201);
-  });
-}
+/** DASH-3: create a trip (allowlisted owners only). */
+export const POST = route({ body: tripInputSchema, status: 201 }, ({ db, actor, body }) => createTrip(db, actor, body));

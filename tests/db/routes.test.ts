@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { event, grant, makeActor, NOW, reset, tripInput } from "./helpers";
 import { testDb } from "./helpers";
-import { createTrip, getTripDetail } from "@/server/trips";
-import { createItem } from "@/server/items";
+import { createTrip, getTripDetail } from "@/server/modules/trips/trips.service";
+import { createItem } from "@/server/modules/items/items.service";
 import { allowSignIn } from "@/server/auth/sign-in-gate";
 import type { Actor } from "@/server/auth/actor";
 
@@ -23,6 +23,8 @@ const trips = await import("@/app/api/trips/route");
 const trip = await import("@/app/api/trips/[tripId]/route");
 const items = await import("@/app/api/trips/[tripId]/items/route");
 const item = await import("@/app/api/trips/[tripId]/items/[itemId]/route");
+const restore = await import("@/app/api/trips/[tripId]/items/[itemId]/restore/route");
+const places = await import("@/app/api/atlas/places/route");
 
 const ORIGIN = "http://localhost:3000";
 const req = (method: string, body?: unknown, origin: string | null = ORIGIN) =>
@@ -44,7 +46,7 @@ beforeEach(async () => {
 
 describe("route handlers", () => {
   it("returns 401 without a session, with no-store", async () => {
-    const r = await trips.GET();
+    const r = await trips.GET(req("GET", undefined));
     expect(r.status).toBe(401);
     expect(r.headers.get("cache-control")).toContain("no-store");
     expect((await trips.POST(req("POST", tripInput))).status).toBe(401);
@@ -77,6 +79,25 @@ describe("route handlers", () => {
     expect(await g.text()).not.toContain(t.title);
     expect((await items.POST(req("POST", event()), ctx({ tripId: t.id }))).status).toBe(404);
     expect((await trip.GET(req("GET", undefined), ctx({ tripId: "not-a-uuid" }))).status).toBe(404);
+  });
+
+  it("checks the origin on every state-changing route, with or without a body, but not on reads", async () => {
+    const t = await createTrip(testDb(), owner, tripInput, NOW);
+    const i = await createItem(testDb(), owner, t.id, event());
+    session.actor = owner;
+    const p = ctx({ tripId: t.id, itemId: i.id });
+    expect((await item.DELETE(req("DELETE", { expectedVersion: i.version }, null), p)).status).toBe(403);
+    expect((await restore.POST(req("POST", undefined, "https://evil.example"), p)).status).toBe(403);
+    expect((await trip.GET(req("GET", undefined, null), ctx({ tripId: t.id }))).status).toBe(200);
+  });
+
+  it("limits place search to owners", async () => {
+    session.actor = viewer;
+    expect((await places.GET(new Request(`${ORIGIN}/api/atlas/places?q=kyoto`))).status).toBe(403);
+    session.actor = owner;
+    const r = await places.GET(new Request(`${ORIGIN}/api/atlas/places?q=kyoto`));
+    expect(r.status).toBe(200);
+    expect((await r.json()).places[0].label).toBe("Kyoto, Japan");
   });
 
   it("rejects bodies over 1 MiB", async () => {

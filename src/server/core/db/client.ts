@@ -1,5 +1,5 @@
 import "server-only";
-import { Kysely, PostgresDialect } from "kysely";
+import { Kysely, PostgresDialect, type Transaction } from "kysely";
 import pg from "pg";
 import type { DB } from "@/server/core/db/schema";
 
@@ -26,3 +26,7 @@ export function getDb(): Kysely<DB> {
   }
   return globalForDb.__tpDb;
 }
+
+/** A connection or an open transaction; repositories accept either. */
+export type Tx = Transaction<DB>;
+export type Conn = Kysely<DB> | Tx;

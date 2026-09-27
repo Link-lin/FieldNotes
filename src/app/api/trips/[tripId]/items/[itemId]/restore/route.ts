@@ -1,14 +1,5 @@
-import { getDb } from "@/server/core/db/client";
-import { assertSameOrigin } from "@/server/core/http/request";
-import { handle, json } from "@/server/core/http/respond";
-import { requireActor } from "@/server/auth/session";
-import { restoreItem } from "@/server/items";
+import { route } from "@/server/core/http/route";
+import { restoreItem } from "@/server/modules/items/items.service";
 
-export async function POST(req: Request, { params }: { params: Promise<{ tripId: string; itemId: string }> }) {
-  return handle(async () => {
-    assertSameOrigin(req);
-    const actor = await requireActor();
-    const { tripId, itemId } = await params;
-    return json(await restoreItem(getDb(), actor, tripId, itemId));
-  });
-}
+/** TRIP-8: undo a delete within 10 minutes. */
+export const POST = route<{ tripId: string; itemId: string }>({}, ({ db, actor, params }) => restoreItem(db, actor, params.tripId, params.itemId));

@@ -1,39 +1,19 @@
 import "server-only";
-import type { PlanItemRow, TripRow } from "@/server/core/db/schema";
-import type { PlanItemDTO, Role, TripSummaryDTO } from "@/shared/dto";
-import { dateInZone, daysBetween, dueState, resolveLocal, tripStatus } from "@/shared/time";
+import type { PlanItemRow } from "@/server/core/db/schema";
+import type { PlanItemDTO } from "@/shared/dto";
 import { providerLabel } from "@/shared/map-links";
-import { airportPoint } from "@/server/modules/places/airports";
 import { trimAmount } from "@/shared/money";
+import { dueState, resolveLocal } from "@/shared/time";
+import { airportPoint } from "@/server/modules/places/airports";
 
 const ts = (v: string | null) => (v ? v.replace(" ", "T").slice(0, 16) : null);
 const hm = (v: string | null) => (v ? v.slice(0, 5) : null);
 const iso = (v: Date | string) => (v instanceof Date ? v.toISOString() : new Date(v).toISOString());
 
-export function tripSummary(trip: TripRow & { owner_name?: string | null }, role: Role, now: Date): TripSummaryDTO {
-  const today = dateInZone(trip.time_zone, now.getTime());
-  const status = tripStatus(trip.start_date, trip.end_date, today);
-  return {
-    id: trip.id,
-    title: trip.title,
-    destination: trip.destination,
-    startDate: trip.start_date,
-    endDate: trip.end_date,
-    timeZone: trip.time_zone,
-    status,
-    daysToStart: status === "upcoming" ? daysBetween(today, trip.start_date) : null,
-    dayIndex: status === "ongoing" ? daysBetween(trip.start_date, today) + 1 : null,
-    daysSinceEnd: status === "past" ? daysBetween(trip.end_date, today) : null,
-    dayCount: daysBetween(trip.start_date, trip.end_date) + 1,
-    role,
-    ownerName: role === "viewer" ? (trip.owner_name ?? null) : null,
-    atlasLocation:
-      trip.atlas_latitude !== null && trip.atlas_longitude !== null && trip.atlas_source
-        ? { latitude: Number(trip.atlas_latitude), longitude: Number(trip.atlas_longitude), source: trip.atlas_source }
-        : null,
-  };
-}
-
+/**
+ * Plan item row to the API shape: timeline date and sort instant from the schedule, coordinates
+ * from the map link (or a flight's arrival airport for manual or booked flights), due state.
+ */
 export function itemDto(row: PlanItemRow, tripZone: string, today: string): PlanItemDTO {
   const isFlight = row.type === "flight";
   let timelineDate: string | null = null;
@@ -111,6 +91,8 @@ export function itemDto(row: PlanItemRow, tripZone: string, today: string): Plan
 }
 
 /** Timeline order (PLAN-1): by date, timed items by instant, then untimed; creation order breaks ties. */
+
+/** Timeline order: date, then instant, then creation order (PLAN-1). */
 export function compareItems(a: PlanItemDTO, b: PlanItemDTO): number {
   const da = a.timelineDate ?? "9999-99-99";
   const dbb = b.timelineDate ?? "9999-99-99";

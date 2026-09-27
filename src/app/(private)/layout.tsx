@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { auth, signOut } from "@/server/auth/auth";
 import { getDb } from "@/server/core/db/client";
 import { currentActor } from "@/server/auth/session";
-import { getDashboard } from "@/server/trips";
+import { getDashboard } from "@/server/modules/dashboard/dashboard.service";
 import { AppHeader } from "@/components/layout/AppHeader/AppHeader";
 import { AppShell } from "@/components/layout/AppShell/AppShell";
 import { ToastProvider } from "@/components/ui/Toast/Toast";

@@ -155,3 +155,9 @@ export function toFieldErrors(error: z.ZodError): FieldError[] {
     message: i.message,
   }));
 }
+
+/** POST /api/trips/{id}/time-zone-preview */
+export const timeZonePreviewSchema = z.object({ timeZone: zone, expectedVersion: z.number().int().min(1) }).strict();
+
+/** DELETE /api/account: the owner typed DELETE. */
+export const accountDeleteSchema = z.object({ confirm: z.literal("DELETE") }).strict();

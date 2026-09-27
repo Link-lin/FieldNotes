@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { getDb } from "@/server/core/db/client";
 import { HttpError } from "@/server/core/http/errors";
 import { currentActor, pageActor } from "@/server/auth/session";
-import { getTripDetail } from "@/server/trips";
+import { getTripDetail } from "@/server/modules/trips/trips.service";
 import { TripPage } from "@/features/trips/TripPage/TripPage";
 
 type Props = { params: Promise<{ tripId: string }>; searchParams: Promise<{ day?: string }> };

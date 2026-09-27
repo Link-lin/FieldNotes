@@ -1,6 +1,6 @@
 import { getDb } from "@/server/core/db/client";
 import { pageActor } from "@/server/auth/session";
-import { getDashboard } from "@/server/trips";
+import { getDashboard } from "@/server/modules/dashboard/dashboard.service";
 import { Dashboard } from "@/features/dashboard/Dashboard/Dashboard";
 import type { Filter } from "@/features/dashboard/Dashboard/TripList/TripList";
 

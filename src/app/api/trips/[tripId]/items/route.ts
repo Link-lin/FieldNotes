@@ -1,15 +1,8 @@
-import { getDb } from "@/server/core/db/client";
-import { assertSameOrigin, readJson } from "@/server/core/http/request";
-import { handle, json } from "@/server/core/http/respond";
-import { requireActor } from "@/server/auth/session";
-import { createItem } from "@/server/items";
+import { route } from "@/server/core/http/route";
+import { createItem } from "@/server/modules/items/items.service";
 import { itemInputSchema } from "@/shared/schemas";
 
-export async function POST(req: Request, { params }: { params: Promise<{ tripId: string }> }) {
-  return handle(async () => {
-    assertSameOrigin(req);
-    const actor = await requireActor();
-    const input = await readJson(req, itemInputSchema);
-    return json(await createItem(getDb(), actor, (await params).tripId, input), 201);
-  });
-}
+/** TRIP-9: add an event. */
+export const POST = route<{ tripId: string }, typeof itemInputSchema>({ body: itemInputSchema, status: 201 }, ({ db, actor, params, body }) =>
+  createItem(db, actor, params.tripId, body),
+);

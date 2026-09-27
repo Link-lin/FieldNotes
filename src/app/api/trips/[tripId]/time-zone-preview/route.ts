@@ -1,18 +1,8 @@
-import { z } from "zod";
-import { getDb } from "@/server/core/db/client";
-import { assertSameOrigin, readJson } from "@/server/core/http/request";
-import { handle, json } from "@/server/core/http/respond";
-import { requireActor } from "@/server/auth/session";
-import { previewTimeZone } from "@/server/trips";
-import { canonicalTimeZone, isTimeZone } from "@/shared/time";
+import { route } from "@/server/core/http/route";
+import { previewTimeZone } from "@/server/modules/trips/time-zone.service";
+import { timeZonePreviewSchema } from "@/shared/schemas";
 
-const schema = z.object({ timeZone: z.string().refine(isTimeZone, { message: "Choose a valid time zone." }).transform(canonicalTimeZone), expectedVersion: z.number().int().min(1) }).strict();
-
-export async function POST(req: Request, { params }: { params: Promise<{ tripId: string }> }) {
-  return handle(async () => {
-    assertSameOrigin(req);
-    const actor = await requireActor();
-    const body = await readJson(req, schema);
-    return json(await previewTimeZone(getDb(), actor, (await params).tripId, body.timeZone, body.expectedVersion));
-  });
-}
+/** TRIP-4: what a trip time-zone change would do, without changing anything. */
+export const POST = route<{ tripId: string }, typeof timeZonePreviewSchema>({ body: timeZonePreviewSchema }, ({ db, actor, params, body }) =>
+  previewTimeZone(db, actor, params.tripId, body.timeZone, body.expectedVersion),
+);

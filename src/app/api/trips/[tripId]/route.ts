@@ -1,31 +1,11 @@
-import { getDb } from "@/server/core/db/client";
-import { assertSameOrigin, readJson } from "@/server/core/http/request";
-import { handle, json, noContent } from "@/server/core/http/respond";
-import { requireActor } from "@/server/auth/session";
-import { deleteTrip, getTripDetail, updateTrip } from "@/server/trips";
+import { route } from "@/server/core/http/route";
+import { deleteTrip, getTripDetail, updateTrip } from "@/server/modules/trips/trips.service";
 import { tripDeleteSchema, tripPatchSchema } from "@/shared/schemas";
 
-type Ctx = { params: Promise<{ tripId: string }> };
+type P = { tripId: string };
 
-export async function GET(_req: Request, { params }: Ctx) {
-  return handle(async () => json(await getTripDetail(getDb(), await requireActor(), (await params).tripId)));
-}
+export const GET = route<P>({}, ({ db, actor, params }) => getTripDetail(db, actor, params.tripId));
 
-export async function PATCH(req: Request, { params }: Ctx) {
-  return handle(async () => {
-    assertSameOrigin(req);
-    const actor = await requireActor();
-    const patch = await readJson(req, tripPatchSchema);
-    return json(await updateTrip(getDb(), actor, (await params).tripId, patch));
-  });
-}
+export const PATCH = route<P, typeof tripPatchSchema>({ body: tripPatchSchema }, ({ db, actor, params, body }) => updateTrip(db, actor, params.tripId, body));
 
-export async function DELETE(req: Request, { params }: Ctx) {
-  return handle(async () => {
-    assertSameOrigin(req);
-    const actor = await requireActor();
-    const body = await readJson(req, tripDeleteSchema);
-    await deleteTrip(getDb(), actor, (await params).tripId, body.expectedVersion);
-    return noContent();
-  });
-}
+export const DELETE = route<P, typeof tripDeleteSchema>({ body: tripDeleteSchema }, ({ db, actor, params, body }) => deleteTrip(db, actor, params.tripId, body.expectedVersion));

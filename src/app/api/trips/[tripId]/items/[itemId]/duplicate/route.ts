@@ -1,16 +1,8 @@
-import { getDb } from "@/server/core/db/client";
-import { assertSameOrigin, readJson } from "@/server/core/http/request";
-import { handle, json } from "@/server/core/http/respond";
-import { requireActor } from "@/server/auth/session";
-import { duplicateItem } from "@/server/items";
+import { route } from "@/server/core/http/route";
+import { duplicateItem } from "@/server/modules/items/items.service";
 import { versionSchema } from "@/shared/schemas";
 
-export async function POST(req: Request, { params }: { params: Promise<{ tripId: string; itemId: string }> }) {
-  return handle(async () => {
-    assertSameOrigin(req);
-    const actor = await requireActor();
-    const body = await readJson(req, versionSchema);
-    const { tripId, itemId } = await params;
-    return json(await duplicateItem(getDb(), actor, tripId, itemId, body.expectedVersion), 201);
-  });
-}
+/** PLAN-3: copy an event. */
+export const POST = route<{ tripId: string; itemId: string }, typeof versionSchema>({ body: versionSchema, status: 201 }, ({ db, actor, params, body }) =>
+  duplicateItem(db, actor, params.tripId, params.itemId, body.expectedVersion),
+);

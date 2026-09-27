@@ -1,8 +1,12 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { sql } from "kysely";
 import { event, flight, grant, makeActor, NOW, reset, testDb, tripInput } from "./helpers";
-import { createTrip, deleteAccount, deleteTrip, getDashboard, getTripDetail, previewTimeZone, recentCurrencies, updateTrip } from "@/server/trips";
-import { createItem, deleteItem, duplicateItem, restoreItem, updateItem, ITEM_CAP } from "@/server/items";
+import { createTrip, deleteTrip, getTripDetail, updateTrip } from "@/server/modules/trips/trips.service";
+import { previewTimeZone } from "@/server/modules/trips/time-zone.service";
+import { recentCurrencies } from "@/server/modules/trips/budget.repository";
+import { getDashboard } from "@/server/modules/dashboard/dashboard.service";
+import { deleteAccount } from "@/server/modules/account/account.service";
+import { createItem, deleteItem, duplicateItem, restoreItem, updateItem, ITEM_CAP } from "@/server/modules/items/items.service";
 import { HttpError } from "@/server/core/http/errors";
 import type { Actor } from "@/server/auth/actor";
 
@@ -333,10 +337,10 @@ describe("recent currencies", () => {
     const eur = await createItem(db(), owner, t.id, event({ plannedPrice: { amount: "5", currency: "EUR", label: "quote" } }));
     await sql`update trips set created_at = now() - interval '2 days'`.execute(db());
     await sql`update plan_items set updated_at = now() - interval '1 day' where id <> ${eur.id}`.execute(db());
-    expect(await recentCurrencies(db(), owner)).toEqual(["EUR", "JPY", "USD"]);
+    expect(await recentCurrencies(db(), owner.userId)).toEqual(["EUR", "JPY", "USD"]);
     // A deleted price no longer counts.
     await deleteItem(db(), owner, t.id, eur.id, eur.version);
-    expect(await recentCurrencies(db(), owner)).toEqual(["JPY", "USD"]);
+    expect(await recentCurrencies(db(), owner.userId)).toEqual(["JPY", "USD"]);
     await grant(t.id, viewer);
     expect((await getTripDetail(db(), viewer, t.id, NOW)).recentCurrencies).toEqual([]);
     expect((await getDashboard(db(), owner, NOW)).recentCurrencies[0]).toBe("JPY");
