@@ -161,3 +161,11 @@ export const timeZonePreviewSchema = z.object({ timeZone: zone, expectedVersion:
 
 /** DELETE /api/account: the owner typed DELETE. */
 export const accountDeleteSchema = z.object({ confirm: z.literal("DELETE") }).strict();
+
+/** ACCESS-3: invite one email address as a viewer. Stored trimmed and lowercased. */
+export const invitationCreateSchema = z
+  .object({ email: z.string().trim().toLowerCase().max(254, { message: "That email address is too long." }).pipe(z.email({ message: "Enter an email address, like sam@example.com." })) })
+  .strict();
+
+/** The token from an invitation link's fragment. Its format is checked by the service, which answers with one generic error. */
+export const invitationStageSchema = z.object({ token: z.string().max(200) }).strict();

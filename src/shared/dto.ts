@@ -111,3 +111,19 @@ export type ApiError = { error: { code: string; message: string; fields?: FieldE
 
 /** A bundled catalog place. `timeZones`: likely IANA zones, best first (a city has one; a country may list several). */
 export type PlaceDTO = { id: string; label: string; latitude: number; longitude: number; kind: "city" | "country"; timeZones: string[] };
+
+/** ACCESS-6/11. `expired` is derived from a pending invitation whose expiry has passed. */
+export type InvitationStatus = "pending" | "accepted" | "expired" | "revoked";
+
+/** One viewer or invitation in the owner's Share dialog. Never carries the link or its hash. */
+export type InvitationDTO = {
+  id: string;
+  email: string;
+  status: InvitationStatus;
+  expiresAt: string | null;
+  acceptedAt: string | null;
+  revokedAt: string | null;
+};
+
+/** Returned once when an invitation is created or given a new link; the URL is never stored or listed. */
+export type InvitationLinkDTO = { invitationId: string; invitationUrl: string; expiresAt: string; invitation: InvitationDTO };

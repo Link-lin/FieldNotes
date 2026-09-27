@@ -48,3 +48,19 @@ export function route<P extends Record<string, string> = Record<string, never>, 
       return result === undefined ? noContent() : json(result, options.status ?? 200);
     });
 }
+
+/**
+ * A Route Handler that needs no session: only invitation staging, which runs before Google sign-in
+ * (ACCESS-7: it returns no trip data). Every other rule of `route()` applies: the Origin check on
+ * state-changing methods, the body limit and validation, the stable error body and no caching.
+ */
+export function publicRoute<S extends z.ZodType>(options: { body: S }, handler: (ctx: { db: Kysely<DB>; body: z.infer<S>; req: Request }) => Promise<unknown>) {
+  return (req: Request): Promise<Response> =>
+    handle(async () => {
+      if (req.method !== "GET" && req.method !== "HEAD") assertSameOrigin(req);
+      const body = await readJson(req, options.body);
+      const result = await handler({ db: getDb(), body, req });
+      if (result instanceof Response) return result;
+      return result === undefined ? noContent() : json(result);
+    });
+}
