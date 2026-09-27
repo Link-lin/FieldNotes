@@ -1,0 +1,6 @@
+.combo { position: relative; }
+.list { position: absolute; z-index: 6; left: 0; right: 0; top: calc(100% + 4px); margin: 0; padding: 6px; list-style: none; background: var(--card); border: 1px solid var(--ink); border-radius: var(--radius-md); box-shadow: var(--shadow); max-height: 280px; overflow-y: auto; animation: var(--kf-pop-in) 0.15s both; }
+.list[hidden] { display: none; }
+.list li { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-3); padding: var(--space-2) 10px; border-radius: 9px; cursor: pointer; font-size: 14px; color: var(--ink); }
+.list li span { color: var(--ink-3); font-size: var(--text-sm); text-align: right; }
+.list li[aria-selected="true"] { background: var(--paper); box-shadow: inset 3px 0 0 var(--vermilion); }

@@ -1,0 +1,4 @@
+.money { display: flex; }
+.money input { flex: 1; min-width: 0; border-radius: var(--radius-md) 0 0 var(--radius-md); }
+.money select { width: 200px; flex: none; text-overflow: ellipsis; border-radius: 0 var(--radius-md) var(--radius-md) 0; border-left: 0; background-color: var(--card); }
+.money input:focus-visible, .money select:focus-visible { position: relative; z-index: 1; }

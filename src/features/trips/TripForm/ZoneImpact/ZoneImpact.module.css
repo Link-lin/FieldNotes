@@ -1,0 +1,5 @@
+.impact {}
+.list, .warnings { margin: 0; padding-left: 18px; color: var(--ink-2); font-size: var(--text-md); }
+.list { max-height: 160px; overflow: auto; }
+.choice { display: grid; gap: var(--space-1); font-size: var(--text-sm); color: var(--ink-2); }
+.choice select { width: 100%; min-height: var(--control-h); padding: 9px 14px; border: 1px solid var(--ctl); border-radius: var(--radius-md); background: var(--paper); color: var(--ink); }

@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import type { DashboardDTO } from "@/shared/dto";
-import { TripForm } from "@/components/TripForm";
+import { TripForm } from "@/features/trips/TripForm/TripForm";
 import { rememberReturn, innerScroller, takeReturn } from "../dashboard-return";
 import { BookingTasks } from "./BookingTasks/BookingTasks";
 import { GlobeLoading } from "./Globe/GlobeLoading/GlobeLoading";

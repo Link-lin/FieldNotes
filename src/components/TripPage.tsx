@@ -16,7 +16,7 @@ import { ItemForm } from "./ItemForm";
 import { dashboardUrl } from "@/features/dashboard/dashboard-return";
 import { dueText } from "@/lib/format";
 import { useToast } from "@/components/ui/Toast/Toast";
-import { TripForm } from "./TripForm";
+import { TripForm } from "@/features/trips/TripForm/TripForm";
 
 const TYPE_COLOR: Record<string, string> = { flight: "#3a3026", lodging: "#5e8fa0", activity: "#9a8c70", meal: "#c9b48a", transport: "#23414b", other: "#b8ab8c" };
 const pad2 = (n: number) => String(n).padStart(2, "0");

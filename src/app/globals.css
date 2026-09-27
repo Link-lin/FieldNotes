@@ -204,8 +204,6 @@
 
 /* Dialog content still styled globally (moves with the forms) */
 [data-modal] .pills { justify-content: flex-end; }
-.danger-zone { display: grid; gap: 8px; border-top: 1px dashed var(--line); padding-top: 14px; }
-.danger-zone b { color: var(--vermilion-ink); }
 .warnings { margin: 0; padding-left: 18px; color: var(--ink-2); font-size: 13.5px; }
 
 @media (pointer: coarse) {
@@ -220,24 +218,10 @@
 .deleted-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
 .deleted-list li { display: flex; justify-content: space-between; align-items: center; gap: 12px; color: var(--ink-3); }
 .deleted-list li span { text-decoration: line-through; text-decoration-color: var(--ctl); }
-.impact-list { max-height: 160px; overflow: auto; }
 
-/* Destination suggestions (combobox list). */
-.combo { position: relative; }
-.combo-list { position: absolute; z-index: 6; left: 0; right: 0; top: calc(100% + 4px); margin: 0; padding: 6px; list-style: none; background: var(--card); border: 1px solid var(--ink); border-radius: 14px; box-shadow: var(--shadow); max-height: 280px; overflow-y: auto; animation: pop-in 0.15s both; }
-.combo-list[hidden] { display: none; }
-.combo-list li { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 8px 10px; border-radius: 9px; cursor: pointer; font-size: 14px; color: var(--ink); }
-.combo-list li span { color: var(--ink-3); font-size: 12.5px; text-align: right; }
-.combo-list li[aria-selected="true"] { background: var(--paper); box-shadow: inset 3px 0 0 var(--vermilion); }
 .field-hint { margin: 0; color: var(--ink-3); font-size: 12px; }
 
 /* Inputs and selects share one height; selects draw their own chevron so both sides match. */
 .field input, .field select { min-height: 42px; font: inherit; font-size: 15px; line-height: 1.35; }
 .field select { appearance: none; -webkit-appearance: none; padding-right: 36px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%233A3026' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; }
 .field > label { color: var(--ink-2); }
-/* Amount and currency read as one control. */
-.money { display: flex; }
-.money input { flex: 1; min-width: 0; border-radius: 14px 0 0 14px; }
-.money select { width: 200px; text-overflow: ellipsis; flex: none; border-radius: 0 14px 14px 0; border-left: 0; background-color: var(--card); }
-.money input:focus-visible, .money select:focus-visible { position: relative; z-index: 1; }
-.hint-link { font-size: 12px; padding: 0; }

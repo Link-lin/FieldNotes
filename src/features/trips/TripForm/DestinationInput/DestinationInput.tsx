@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import type { PlaceDTO } from "@/shared/dto";
 import { api } from "@/lib/api";
+import styles from "./DestinationInput.module.css";
 
 /**
  * Destination field with suggestions from the bundled place catalog (WAI-ARIA combobox with a
@@ -77,7 +78,7 @@ export function DestinationInput({
   }
 
   return (
-    <div className="combo">
+    <div className={styles.combo}>
       <input
         id={id}
         role="combobox"
@@ -100,7 +101,7 @@ export function DestinationInput({
         onFocus={() => results.length && query !== null && setOpen(true)}
         onBlur={() => setOpen(false)}
       />
-      <ul className="combo-list" id={listId} role="listbox" aria-label="Suggested places" hidden={!shown}>
+      <ul className={styles.list} id={listId} role="listbox" aria-label="Suggested places" hidden={!shown}>
         {results.map((p, i) => {
           const comma = p.label.lastIndexOf(",");
           const name = p.kind === "country" || comma < 0 ? p.label : p.label.slice(0, comma);
