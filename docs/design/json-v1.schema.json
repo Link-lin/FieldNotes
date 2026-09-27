@@ -1,0 +1,148 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Travel Planner external itinerary import v1",
+  "description": "Strict input contract for an itinerary drafted outside the application. Semantic validation must additionally check calendar dates, IANA time zones, currency codes, safe URL schemes, and trip date ordering.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["formatVersion", "trip", "items"],
+  "properties": {
+    "formatVersion": { "const": 1 },
+    "trip": { "$ref": "#/$defs/trip" },
+    "items": {
+      "type": "array",
+      "maxItems": 250,
+      "items": { "$ref": "#/$defs/item" }
+    }
+  },
+  "$defs": {
+    "decimalAmount": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]{0,13})(\\.[0-9]{1,4})?$",
+      "description": "Nonnegative decimal string with at most 14 integer digits and four fractional digits; do not use a JSON number."
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$",
+      "description": "Uppercase ISO 4217 code; server validates membership in its supported currency list."
+    },
+    "money": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["amount", "currency"],
+      "properties": {
+        "amount": { "$ref": "#/$defs/decimalAmount" },
+        "currency": { "$ref": "#/$defs/currency" }
+      }
+    },
+    "trip": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["title", "destination", "startDate", "endDate", "timeZone"],
+      "properties": {
+        "title": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "destination": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "startDate": { "type": "string", "format": "date" },
+        "endDate": { "type": "string", "format": "date" },
+        "timeZone": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "budget": {
+          "$ref": "#/$defs/money",
+          "description": "Optional owner-supplied budget copied exactly from the trip brief; never invent or estimate this value."
+        }
+      }
+    },
+    "link": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "url"],
+      "properties": {
+        "label": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "url": {
+          "type": "string",
+          "maxLength": 2048,
+          "pattern": "^https?://",
+          "format": "uri"
+        }
+      }
+    },
+    "flightEndpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "airportCode": {
+          "type": "string",
+          "pattern": "^[A-Z0-9]{3,4}$",
+          "description": "IATA or ICAO-style code; this format check does not verify that an airport exists."
+        },
+        "localDateTime": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T([01][0-9]|2[0-3]):[0-5][0-9]$",
+          "description": "Airport-local calendar date and 24-hour time, without an offset."
+        },
+        "timeZone": { "type": "string", "minLength": 1, "maxLength": 100 }
+      },
+      "allOf": [
+        {
+          "if": { "required": ["localDateTime"] },
+          "then": { "required": ["timeZone"] }
+        }
+      ]
+    },
+    "flightDetails": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "plannedDepartureDate": { "type": "string", "format": "date" },
+        "airline": { "type": "string", "maxLength": 120 },
+        "flightNumber": { "type": "string", "maxLength": 24 },
+        "departure": { "$ref": "#/$defs/flightEndpoint" },
+        "arrival": { "$ref": "#/$defs/flightEndpoint" }
+      }
+    },
+    "item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "title", "bookingStatus"],
+      "properties": {
+        "type": {
+          "enum": ["flight", "lodging", "transport", "meal", "activity", "other"]
+        },
+        "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "bookingStatus": { "enum": ["Needs booking", "Not required"] },
+        "location": { "type": "string", "maxLength": 500 },
+        "notes": { "type": "string", "maxLength": 5000 },
+        "links": { "type": "array", "maxItems": 20, "items": { "$ref": "#/$defs/link" } },
+        "plannedPrice": { "$ref": "#/$defs/money" },
+        "localDate": { "type": "string", "format": "date" },
+        "localTime": {
+          "type": "string",
+          "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+        },
+        "timeZone": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "durationMinutes": { "type": "integer", "minimum": 1, "maximum": 1440 },
+        "flightDetails": { "$ref": "#/$defs/flightDetails" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "type": { "const": "flight" } }, "required": ["type"] },
+          "then": {
+            "required": ["flightDetails"],
+            "properties": { "bookingStatus": { "const": "Needs booking" } },
+            "not": {
+              "anyOf": [
+                { "required": ["localDate"] },
+                { "required": ["localTime"] },
+                { "required": ["timeZone"] },
+                { "required": ["durationMinutes"] }
+              ]
+            }
+          },
+          "else": { "not": { "required": ["flightDetails"] } }
+        },
+        {
+          "if": { "required": ["localTime"] },
+          "then": { "required": ["localDate"] }
+        }
+      ]
+    }
+  }
+}

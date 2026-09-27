@@ -1,0 +1,42 @@
+{
+  "formatVersion": 1,
+  "trip": {
+    "title": "Example Tokyo trip",
+    "destination": "Tokyo, Japan",
+    "startDate": "2027-04-14",
+    "endDate": "2027-04-18",
+    "timeZone": "Asia/Tokyo",
+    "budget": {
+      "amount": "1200.00",
+      "currency": "USD"
+    }
+  },
+  "items": [
+    {
+      "type": "flight",
+      "title": "Flight to Tokyo",
+      "bookingStatus": "Needs booking",
+      "flightDetails": {
+        "plannedDepartureDate": "2027-04-14"
+      }
+    },
+    {
+      "type": "lodging",
+      "title": "Choose accommodation",
+      "bookingStatus": "Needs booking",
+      "location": "Tokyo",
+      "localDate": "2027-04-14",
+      "plannedPrice": {
+        "amount": "540.00",
+        "currency": "USD"
+      }
+    },
+    {
+      "type": "activity",
+      "title": "Explore a neighborhood",
+      "bookingStatus": "Not required",
+      "localDate": "2027-04-15",
+      "notes": "Illustrative suggestion; confirm current details before going."
+    }
+  ]
+}
