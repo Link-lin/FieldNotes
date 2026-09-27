@@ -1,14 +1,14 @@
 import { z } from "zod";
 import { AMOUNT_PATTERN } from "./money";
 import { isCurrencyCode } from "./currencies";
-import { isDate, isTime, isLocalDateTime, isTimeZone } from "./time";
+import { canonicalTimeZone, isDate, isTime, isLocalDateTime, isTimeZone } from "./time";
 import { parseWebUrl, MAX_URL_LENGTH } from "./map-links";
 import type { FieldError } from "./dto";
 
 const dateStr = z.string().refine(isDate, { message: "Use a real date (YYYY-MM-DD)." });
 const timeStr = z.string().refine(isTime, { message: "Use a 24-hour time (HH:MM)." });
 const localDateTime = z.string().refine(isLocalDateTime, { message: "Use a local date and time (YYYY-MM-DDTHH:MM)." });
-const zone = z.string().refine(isTimeZone, { message: "Choose a valid time zone." });
+const zone = z.string().refine(isTimeZone, { message: "Choose a valid time zone." }).transform(canonicalTimeZone);
 const currency = z.string().refine(isCurrencyCode, { message: "Choose a real currency code, like USD." });
 const amount = z.string().regex(AMOUNT_PATTERN, { message: "Use zero or more, with up to 4 decimals." });
 const optionalText = (max: number) =>

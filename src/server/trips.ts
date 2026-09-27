@@ -12,6 +12,27 @@ import type { BookingTaskDTO, BudgetComparisonDTO, DashboardDTO, FieldError, Pla
 import { trimAmount } from "@/shared/money";
 
 /** Owned trips (owner still allowlisted) plus trips with an accepted grant for this user. */
+/**
+ * The owner's currencies across their own trips (budgets and live item prices), most recently
+ * used first, then most used. Drives the order of currency pickers. A budget counts from its
+ * trip's creation, because every event change touches the trip's updated_at.
+ */
+export async function recentCurrencies(db: Kysely<DB>, actor: Actor, limit = 5): Promise<string[]> {
+  if (!actor.isOwner) return [];
+  const r = await sql<{ currency: string }>`
+    select currency from (
+      select budget_currency as currency, created_at as at from trips
+       where owner_user_id = ${actor.userId} and budget_currency is not null
+      union all
+      select p.planned_currency, p.updated_at from plan_items p join trips t on t.id = p.trip_id
+       where t.owner_user_id = ${actor.userId} and p.planned_currency is not null and p.deleted_at is null
+    ) u
+    group by currency
+    order by max(at) desc, count(*) desc, currency
+    limit ${limit}`.execute(db);
+  return r.rows.map((x) => x.currency);
+}
+
 export async function getDashboard(db: Kysely<DB>, actor: Actor, now = new Date()): Promise<DashboardDTO> {
   const rows = await db
     .selectFrom("trips")
@@ -61,7 +82,7 @@ export async function getDashboard(db: Kysely<DB>, actor: Actor, now = new Date(
       })
       .sort((a, b) => (a.dueDate ?? "9999") < (b.dueDate ?? "9999") ? -1 : (a.dueDate ?? "9999") > (b.dueDate ?? "9999") ? 1 : 0);
   }
-  return { canCreateTrips: actor.isOwner, trips, ownerBookingTasks };
+  return { canCreateTrips: actor.isOwner, trips, ownerBookingTasks, recentCurrencies: await recentCurrencies(db, actor) };
 }
 
 async function totals(db: Kysely<DB>, tripId: string): Promise<PlannedTotalDTO[]> {
@@ -111,6 +132,7 @@ export async function getTripDetail(db: Kysely<DB>, actor: Actor, tripId: string
     items,
     plannedTotals: await totals(db, trip.id),
     budgetComparison: await comparison(db, trip.id),
+    recentCurrencies: role === "owner" ? await recentCurrencies(db, actor) : [],
   };
 }
 
@@ -163,19 +185,29 @@ async function zoneImpact(db: Kysely<DB>, tripId: string, zone: string): Promise
   });
 }
 
-export async function previewTimeZone(db: Kysely<DB>, actor: Actor, tripId: string, zone: string, expectedVersion: number) {
+export async function previewTimeZone(db: Kysely<DB>, actor: Actor, tripId: string, zone: string, expectedVersion: number, now = new Date()) {
   const { trip } = await requireTripOwner(db, actor, tripId);
   if (trip.version !== expectedVersion) throw conflict();
   const items = await zoneImpact(db, trip.id, zone);
-  const dueCount = await db
+  const due = await db
     .selectFrom("plan_items")
-    .select((eb) => eb.fn.countAll<number>().as("n"))
+    .select(["id", "title", "booking_due_date"])
     .where("trip_id", "=", trip.id)
     .where("deleted_at", "is", null)
     .where("booking_status", "=", "needs_booking")
     .where("booking_due_date", "is not", null)
-    .executeTakeFirst();
-  return { items, bookingTasksAffected: Number(dueCount?.n ?? 0) };
+    .orderBy("booking_due_date")
+    .execute();
+  const before = dateInZone(trip.time_zone, now.getTime());
+  const after = dateInZone(zone, now.getTime());
+  const bookingTasks = due.map((r) => ({
+    itemId: r.id,
+    title: r.title,
+    dueDate: r.booking_due_date!,
+    before: dueState(r.booking_due_date!, before),
+    after: dueState(r.booking_due_date!, after),
+  }));
+  return { items, bookingTasksAffected: bookingTasks.length, bookingTasks };
 }
 
 export async function updateTrip(db: Kysely<DB>, actor: Actor, tripId: string, patch: TripPatch, now = new Date()): Promise<TripSummaryDTO> {

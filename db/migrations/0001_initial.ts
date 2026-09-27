@@ -29,7 +29,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
       session_state text,
       unique (provider, "providerAccountId")
     );
-    create index account_user on "Account"("userId");
+    create index account_user_idx on "Account"("userId");
 
     create table "Session" (
       id uuid primary key default gen_random_uuid(),
@@ -37,7 +37,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
       "sessionToken" text not null unique,
       expires timestamptz not null
     );
-    create index session_user on "Session"("userId");
+    create index session_user_idx on "Session"("userId");
 
     create table "VerificationToken" (
       identifier text not null,

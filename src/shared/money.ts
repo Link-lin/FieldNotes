@@ -21,10 +21,14 @@ export function isMoney(value: unknown): value is Money {
  */
 export function formatMoney(amount: string, currency: string, locale = "en-US"): string {
   try {
+    // Whole amounts show no decimals ("$1,600"); otherwise show at least the currency's usual
+    // minor digits so "12.5" reads "$12.50", and up to the 4 digits that are stored.
+    const hasFraction = /\.\d*[1-9]/.test(amount);
+    const minor = new Intl.NumberFormat(locale, { style: "currency", currency }).resolvedOptions().maximumFractionDigits ?? 2;
     return new Intl.NumberFormat(locale, {
       style: "currency",
       currency,
-      minimumFractionDigits: 0,
+      minimumFractionDigits: hasFraction ? Math.min(minor, 4) : 0,
       maximumFractionDigits: 4,
     }).format(amount as unknown as number);
   } catch {

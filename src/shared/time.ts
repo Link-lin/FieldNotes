@@ -37,8 +37,21 @@ export function isTimeZone(value: unknown): value is string {
   } catch {
     ok = false;
   }
+  if (zoneCache.size > 1000) zoneCache.clear(); // bounded: names come from user input
   zoneCache.set(value, ok);
   return ok;
+}
+
+let zoneNames: Map<string, string> | null = null;
+/** Canonical spelling of a valid zone name ("asia/tokyo" → "Asia/Tokyo"); aliases are kept as given. */
+export function canonicalTimeZone(value: string): string {
+  if (!zoneNames) {
+    zoneNames = new Map([["utc", "UTC"]]);
+    try {
+      for (const z of Intl.supportedValuesOf("timeZone")) zoneNames.set(z.toLowerCase(), z);
+    } catch {}
+  }
+  return zoneNames.get(value.toLowerCase()) ?? value;
 }
 
 const partsCache = new Map<string, Intl.DateTimeFormat>();

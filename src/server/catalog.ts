@@ -2,7 +2,7 @@ import "server-only";
 import placesData from "@/data/places.json";
 import type { PlaceDTO } from "@/shared/dto";
 
-type Place = { id: string; name: string; country: string; lat: number; lon: number; kind: "city" | "country" };
+type Place = { id: string; name: string; country: string; lat: number; lon: number; kind: "city" | "country"; tz: string[]; rank: number };
 const places = placesData as unknown as Place[];
 
 /** Atlas matching normalization: Unicode NFKC, trim, case folding, collapsed whitespace. */
@@ -65,16 +65,21 @@ const labelled = places.map((p) => ({
   norm: normalizePlace(p.kind === "country" ? p.name : `${p.name}, ${p.country}`),
 }));
 
-/** Owner point search over the bundled catalog only (at most 10 results). */
-export function searchPlaces(query: string): PlaceDTO[] {
+/**
+ * Search over the bundled catalog only (at most `limit` results): names that start with the
+ * query first, then words that start with it, then any match; more prominent places first.
+ */
+export function searchPlaces(query: string, limit = 10): PlaceDTO[] {
   const q = normalizePlace(query);
   if (q.length < 2) return [];
-  const prefix: typeof labelled = [];
-  const inner: typeof labelled = [];
+  const tiers: Array<typeof labelled> = [[], [], []];
   for (const l of labelled) {
-    if (l.norm.startsWith(q)) prefix.push(l);
-    else if (l.norm.includes(q)) inner.push(l);
-    if (prefix.length >= 10) break;
+    if (l.norm.startsWith(q)) tiers[0]!.push(l);
+    else if (l.norm.includes(` ${q}`) || l.norm.includes(`,${q}`)) tiers[1]!.push(l);
+    else if (l.norm.includes(q)) tiers[2]!.push(l);
   }
-  return [...prefix, ...inner].slice(0, 10).map((l) => ({ id: l.p.id, label: l.label, latitude: l.p.lat, longitude: l.p.lon }));
+  return tiers
+    .flatMap((t) => t.sort((a, b) => a.p.rank - b.p.rank || a.label.length - b.label.length))
+    .slice(0, limit)
+    .map((l) => ({ id: l.p.id, label: l.label, latitude: l.p.lat, longitude: l.p.lon, kind: l.p.kind, timeZones: l.p.tz }));
 }

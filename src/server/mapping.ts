@@ -23,6 +23,7 @@ export function tripSummary(trip: TripRow & { owner_name?: string | null }, role
     status,
     daysToStart: status === "upcoming" ? daysBetween(today, trip.start_date) : null,
     dayIndex: status === "ongoing" ? daysBetween(trip.start_date, today) + 1 : null,
+    daysSinceEnd: status === "past" ? daysBetween(trip.end_date, today) : null,
     dayCount: daysBetween(trip.start_date, trip.end_date) + 1,
     role,
     ownerName: role === "viewer" ? (trip.owner_name ?? null) : null,

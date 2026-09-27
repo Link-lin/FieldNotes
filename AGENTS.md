@@ -2,16 +2,15 @@
 
 ## Repository status
 
-This workspace is currently a planning-only project. It contains:
+The core app is implemented (see [README.md](README.md) for setup and what is built). AI import and viewer invitations are not built yet.
 
-- `AGENTS.md`: concise project-wide guidance; task workflows live in `.codex/skills/`.
 - [`PRD.md`](PRD.md): product scope, flows, requirements, assumptions, and open decisions.
-- [`docs/design/technical-design.md`](docs/design/technical-design.md): proposed architecture, data model, API contracts, security, test strategy, and implementation sequence.
+- [`docs/design/technical-design.md`](docs/design/technical-design.md): architecture, data model, API contracts, security, test strategy; section 20 records implementation decisions.
 - [`docs/design/atlas-v1.md`](docs/design/atlas-v1.md) and [`docs/design/trip-page-v1.md`](docs/design/trip-page-v1.md): dashboard globe, and the trip page, day map, costs, dialogs and visual direction.
 - [`docs/design/json-v1.schema.json`](docs/design/json-v1.schema.json), [`import-prompt-v1.md`](docs/design/import-prompt-v1.md), and [`import-example-v1.json`](docs/design/import-example-v1.json): external AI import contract.
 - `.codex/skills/`: focused workflows for design, feature development, UI, backend, testing, and review.
 
-There is no application source, package manifest, environment configuration, migration, test suite, CI, or deployment setup yet. The technical design proposes a Next.js/TypeScript app, Auth.js, PostgreSQL, and Kysely; those are design decisions, not existing code conventions. When an implementation appears, inspect it before choosing tools or changing the design. No `.git` directory is present in this workspace currently.
+Stack: Next.js 16 (App Router, `src/proxy.ts`), React 19, TypeScript (strict), Auth.js v5 with the Kysely adapter and database sessions, Kysely 0.28 on PostgreSQL (`pg`), zod for input validation, d3-geo canvas globe, Vitest 3 with embedded PostgreSQL. Code lives in `src/app` (pages and route handlers), `src/server` (server-only DAL; `access.ts` is the authorization boundary), `src/shared` (schemas, time, money, map links, DTOs) and `src/components` (client UI; styles in `src/app/globals.css`).
 
 ## Product and architecture constraints
 
@@ -35,7 +34,7 @@ There is no application source, package manifest, environment configuration, mig
 ## UI principles
 
 - Reuse the implemented design system and shared components. Keep the style hierarchy: **global tokens → reusable global styles → shared components → component-specific CSS**.
-- This repository has no implemented CSS/SCSS or component system yet. Do not introduce a competing styling method or presume tokens, breakpoints, utility classes, or CSS Modules exist; inspect the scaffold first.
+- Styling is plain global CSS in `src/app/globals.css`: color tokens on `:root` first, then shared classes (`pill`, `tag`, `card-surface`, `field`, `modal`, `toast`), then component sections. Reuse these; do not add CSS Modules, Tailwind or a second styling method.
 - Prefer semantic HTML, meaningful component/class names, and CSS classes over unnecessary inline styles. Avoid duplicated common styling.
 - Preserve consistency and consider keyboard use, focus, labels, error/loading/empty states, and responsive layouts.
 - See [frontend-ui](.codex/skills/frontend-ui/SKILL.md) for detailed UI work.
@@ -55,7 +54,7 @@ Skills add task-specific workflow; they do not override the PRD or this project 
 
 ## Validation
 
-There are currently no application test, lint, typecheck, build, or development commands. Do not invent commands or frameworks. Once an app scaffold exists, inspect its manifest and documentation and use its actual scripts.
+Use the package scripts: `npm run lint`, `npm run typecheck`, `npm test` (unit and PostgreSQL integration; `npm run test:unit` / `npm run test:db` separately) and `npm run build`. Database tests start their own embedded PostgreSQL. Local development uses `npm run db:start` and `npm run db:migrate` (see README).
 
 For changes to the import JSON files, validate JSON syntax with:
 
@@ -68,5 +67,5 @@ Syntax parsing is not full JSON Schema validation. Run other relevant checks onl
 ## Change hygiene and done criteria
 
 - Keep each change focused; review the files you changed and remove temporary/debug code.
-- Do not overwrite user work or use destructive Git operations. Check workspace and version-control state before relying on Git; version-control metadata is absent here today.
+- Do not overwrite user work or use destructive Git operations. Check workspace and version-control state before relying on Git.
 - Before finishing, verify the requested requirements are addressed, documentation and contracts agree, relevant validation passes, and remaining assumptions or blockers are stated.

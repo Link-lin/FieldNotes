@@ -27,3 +27,23 @@ describe("money", () => {
     expect(trimAmount("0.0000")).toBe("0");
   });
 });
+
+import { fmtDay, fmtMonth, fmtShort } from "@/components/format";
+describe("date labels", () => {
+  it("are identical on server and client and never shift by zone", () => {
+    expect(fmtDay("2026-11-15")).toBe("Sun 15 Nov");
+    expect(fmtShort("2027-01-01")).toBe("1 Jan");
+    expect(fmtMonth("2026-09-26")).toBe("SEP");
+  });
+});
+
+describe("formatMoney keeps minor units when there is a fraction", () => {
+  it("pads to the currency's usual digits", () => {
+    expect(formatMoney("12.5", "USD")).toBe("$12.50");
+    expect(formatMoney("12.5000", "USD")).toBe("$12.50");
+    expect(formatMoney("1600", "USD")).toBe("$1,600");
+    expect(formatMoney("1600.0000", "USD")).toBe("$1,600");
+    expect(formatMoney("12.345", "USD")).toBe("$12.345");
+    expect(formatMoney("52200", "JPY")).toBe("¥52,200");
+  });
+});

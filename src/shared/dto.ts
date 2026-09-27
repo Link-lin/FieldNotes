@@ -16,6 +16,7 @@ export type TripSummaryDTO = {
   status: TripStatus;
   daysToStart: number | null; // upcoming only, in the trip time zone
   dayIndex: number | null; // ongoing only, 1-based
+  daysSinceEnd: number | null; // past only, in the trip time zone
   dayCount: number;
   role: Role;
   ownerName: string | null; // shown to viewers only ("shared by")
@@ -33,6 +34,8 @@ export type BookingTaskDTO = {
 
 export type DashboardDTO = {
   canCreateTrips: boolean;
+  /** Currencies the owner used most recently (budgets and prices), newest first; empty for viewers. */
+  recentCurrencies: string[];
   trips: TripSummaryDTO[];
   ownerBookingTasks: BookingTaskDTO[];
 };
@@ -99,9 +102,12 @@ export type TripDetailDTO = {
   items: PlanItemDTO[];
   plannedTotals: PlannedTotalDTO[];
   budgetComparison: BudgetComparisonDTO | null;
+  /** As in DashboardDTO; empty for viewers. */
+  recentCurrencies: string[];
 };
 
 export type FieldError = { path: string; code: string; message: string };
 export type ApiError = { error: { code: string; message: string; fields?: FieldError[] } };
 
-export type PlaceDTO = { id: string; label: string; latitude: number; longitude: number };
+/** A bundled catalog place. `timeZones`: likely IANA zones, best first (a city has one; a country may list several). */
+export type PlaceDTO = { id: string; label: string; latitude: number; longitude: number; kind: "city" | "country"; timeZones: string[] };

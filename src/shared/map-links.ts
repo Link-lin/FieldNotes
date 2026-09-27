@@ -62,7 +62,9 @@ export function cleanMapUrl(value: string): string | null {
     if (TRACKING_PARAM.test(k)) drop.push(k);
   });
   for (const k of drop) url.searchParams.delete(k);
-  return url.toString();
+  const out = url.toString();
+  // Normalizing can lengthen a link (percent-encoding); the stored limit is 2048.
+  return out.length <= 2048 ? out : null;
 }
 
 function coordinate(lat: string | undefined, lon: string | undefined): [number, number] | null {

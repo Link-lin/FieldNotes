@@ -59,3 +59,10 @@ describe("day hand-off (MAP-6)", () => {
     expect(Math.round(haversineKm([34.9671, 135.7727], [35.0037, 135.7756]))).toBe(4);
   });
 });
+
+describe("cleanMapUrl length", () => {
+  it("rejects a link that grows past 2048 characters when normalized", () => {
+    expect(cleanMapUrl(`https://maps.google.com/?q=${"é".repeat(400)}`)).toBeNull();
+    expect(cleanMapUrl("https://maps.google.com/?q=Kyoto&utm_source=x")).toBe("https://maps.google.com/?q=Kyoto");
+  });
+});

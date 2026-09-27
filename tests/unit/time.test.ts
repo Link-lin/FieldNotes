@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dateInZone, dueState, isDate, isLocalDateTime, isTimeZone, localCandidates, resolveLocal, tripStatus, dateRange, daysBetween } from "@/shared/time";
+import { canonicalTimeZone, dateInZone, dueState, isDate, isLocalDateTime, isTimeZone, localCandidates, resolveLocal, tripStatus, dateRange, daysBetween } from "@/shared/time";
 
 describe("calendar values", () => {
   it("accepts only real dates", () => {
@@ -65,5 +65,13 @@ describe("status and due dates", () => {
   it("counts days across month ends", () => {
     expect(daysBetween("2026-09-26", "2026-11-15")).toBe(50);
     expect(dateRange("2026-12-30", "2027-01-02")).toEqual(["2026-12-30", "2026-12-31", "2027-01-01", "2027-01-02"]);
+  });
+});
+
+describe("canonicalTimeZone", () => {
+  it("fixes case and keeps valid aliases", () => {
+    expect(canonicalTimeZone("asia/tokyo")).toBe("Asia/Tokyo");
+    expect(canonicalTimeZone("utc")).toBe("UTC");
+    expect(canonicalTimeZone("America/New_York")).toBe("America/New_York");
   });
 });

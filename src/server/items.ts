@@ -8,6 +8,7 @@ import { itemDto } from "./mapping";
 import { conflict, HttpError, invalid, isUuid, notFound } from "./http";
 import type { ItemInput } from "@/shared/schemas";
 import { cleanMapUrl, coordinatesFromMapUrl } from "@/shared/map-links";
+import { trimAmount } from "@/shared/money";
 import { dateInZone, resolveLocal } from "@/shared/time";
 import type { FieldError, PlanItemDTO } from "@/shared/dto";
 
@@ -46,7 +47,7 @@ function mapFields(input: ItemInput, current: PlanItemRow | null): { map_url: st
   }
   if (!raw) return { map_url: null, latitude: null, longitude: null };
   const clean = cleanMapUrl(raw);
-  if (!clean) return { path: "mapUrl", code: "invalid_url", message: "Use a full https link without a user name, for example one copied from Google Maps." };
+  if (!clean) return { path: "mapUrl", code: "invalid_url", message: "Use a full https link (at most 2048 characters) without a user name, for example one copied from Google Maps." };
   if (current && clean === current.map_url) return { map_url: current.map_url, latitude: current.latitude, longitude: current.longitude };
   const c = coordinatesFromMapUrl(clean);
   return { map_url: clean, latitude: c ? c[0].toFixed(5) : null, longitude: c ? c[1].toFixed(5) : null };
@@ -59,7 +60,7 @@ function priceFields(input: ItemInput, current: PlanItemRow | null) {
   const unchangedAi =
     current?.price_source === "ai" &&
     current.planned_amount !== null &&
-    Number(current.planned_amount) === Number(p.amount) &&
+    trimAmount(current.planned_amount) === trimAmount(p.amount) &&
     current.planned_currency === p.currency &&
     current.price_label === p.label;
   return { planned_amount: p.amount, planned_currency: p.currency, price_label: p.label, price_source: unchangedAi ? ("ai" as const) : ("owner" as const) };
@@ -161,6 +162,7 @@ export async function updateItem(
 ): Promise<PlanItemDTO> {
   return db.transaction().execute(async (tx) => {
     const { trip } = await requireTripOwner(tx, actor, tripId, true);
+    await purgeExpired(tx, trip.id);
     const current = await loadItem(tx, trip.id, itemId);
     if (current.version !== body.expectedVersion) throw conflict();
     const input = body.item;
@@ -189,6 +191,7 @@ export async function updateItem(
 export async function deleteItem(db: Kysely<DB>, actor: Actor, tripId: string, itemId: string, expectedVersion: number): Promise<void> {
   await db.transaction().execute(async (tx) => {
     const { trip } = await requireTripOwner(tx, actor, tripId, true);
+    await purgeExpired(tx, trip.id);
     const current = await loadItem(tx, trip.id, itemId);
     if (current.version !== expectedVersion) throw conflict();
     await tx.updateTable("plan_items").set({ deleted_at: sql`now()`, version: sql`version + 1` }).where("id", "=", current.id).execute();
@@ -205,6 +208,14 @@ export async function restoreItem(db: Kysely<DB>, actor: Actor, tripId: string, 
       throw new HttpError(410, "restore_expired", "This event was deleted more than 10 minutes ago and can't be restored.");
     }
     if ((await liveCount(tx, trip.id)) >= ITEM_CAP) throw new HttpError(409, "item_cap", `A trip can have at most ${ITEM_CAP} events.`);
+    // The trip time zone may have changed since the delete; the restored time must still exist.
+    if (current.type !== "flight" && current.local_date && current.local_time && !current.time_zone) {
+      const r = resolveLocal(current.local_date, current.local_time.slice(0, 5), trip.time_zone, current.time_disambiguation);
+      if (!r.ok) {
+        throw new HttpError(409, "restore_time_invalid", `This event's time ${current.local_time.slice(0, 5)} ${r.reason === "gap" ? "doesn't exist" : "happens twice"} on ${current.local_date} in ${trip.time_zone}, so it can't be restored. Add it again with a new time.`);
+      }
+    }
+    await purgeExpired(tx, trip.id);
     const row = await tx
       .updateTable("plan_items")
       .set({ deleted_at: null, version: sql`version + 1` })
