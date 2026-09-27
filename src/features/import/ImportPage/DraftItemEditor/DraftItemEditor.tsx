@@ -9,7 +9,7 @@ import { Tag } from "@/components/ui/Tag/Tag";
 import styles from "./DraftItemEditor.module.css";
 
 type Row = ImportPreviewDTO["items"][number];
-type Props = { row: Row; errors: FieldError[]; busy: boolean; onChange: (path: string, value: unknown) => void; onIncluded: (included: boolean) => void; onRemoveUnsupported: () => void };
+type Props = { row: Row; errors: FieldError[]; busy: boolean; canRemoveEmptySourceValues: boolean; onChange: (path: string, value: unknown) => void; onIncluded: (included: boolean) => void; onRemoveUnsupported: () => void; onRemoveEmptySourceValues: () => void };
 const TYPES = ["flight", "lodging", "transport", "meal", "activity", "other"];
 
 function record(value: unknown): Record<string, unknown> { return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {}; }
@@ -22,7 +22,7 @@ function emptyFlightDetails() {
 }
 
 /** One unsaved AI item. Each field is corrected here or the whole item is explicitly skipped. */
-export function DraftItemEditor({ row, errors, busy, onChange, onIncluded, onRemoveUnsupported }: Props) {
+export function DraftItemEditor({ row, errors, busy, canRemoveEmptySourceValues, onChange, onIncluded, onRemoveUnsupported, onRemoveEmptySourceValues }: Props) {
   const [expanded, setExpanded] = useState(errors.length > 0);
   const id = (path: string) => `import-item-${row.index}-${path.replace(/[^a-zA-Z0-9]/g, "-")}`;
   const err = (path: string) => errors.find((e) => normalizedPath(e.path) === path)?.message;
@@ -77,6 +77,12 @@ export function DraftItemEditor({ row, errors, busy, onChange, onIncluded, onRem
               <p className="note">You can also skip the item or send the errors back to your AI chat for repair.</p>
             </div>
           ) : null}
+          {canRemoveEmptySourceValues ? (
+            <div className={styles.cleanAction}>
+              <p className="note">The AI included empty values where JSON v1 requires them to be omitted.</p>
+              <Button variant="quiet" onClick={onRemoveEmptySourceValues} disabled={busy}>Omit invalid empty values</Button>
+            </div>
+          ) : null}
           <fieldset disabled={busy} className={styles.fields}>
             <FieldGrid>
               <Field label="Type" htmlFor={id("type")} {...field("type")}>
@@ -123,6 +129,13 @@ export function DraftItemEditor({ row, errors, busy, onChange, onIncluded, onRem
                   {(["departure", "arrival"] as const).map((side) => (
                     <fieldset key={side} className={styles.endpoint}>
                       <legend className="mono">{side === "departure" ? "Departure" : "Arrival"}</legend>
+                      {row.values.flightDetails && typeof row.values.flightDetails === "object" &&
+                        (record(row.values.flightDetails)[side] === null || Array.isArray(record(row.values.flightDetails)[side])) ? (
+                        <div className={styles.cleanAction}>
+                          <p className="note">This endpoint must be an object. Replace the invalid value or skip the item.</p>
+                          <Button variant="quiet" onClick={() => set(`flightDetails.${side}`, emptyFlightDetails()[side])}>Replace invalid {side} details</Button>
+                        </div>
+                      ) : null}
                       <FieldGrid>
                         <Field label="Airport code" htmlFor={id(`flightDetails.${side}.airportCode`)} {...field(`flightDetails.${side}.airportCode`)}>
                           <input id={id(`flightDetails.${side}.airportCode`)} value={val(`flightDetails.${side}.airportCode`)} maxLength={4} onChange={(e) => set(`flightDetails.${side}.airportCode`, e.target.value.toUpperCase() || null)} {...aria(`flightDetails.${side}.airportCode`)} />

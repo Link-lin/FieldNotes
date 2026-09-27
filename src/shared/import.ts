@@ -136,6 +136,8 @@ export type ImportPreviewDTO = {
   items: Array<{
     index: number;
     values: Partial<Record<keyof PlanItemDraftDTO, unknown>>;
+    /** Source-only contract errors remain until the owner corrects or removes that field. */
+    sourceErrors: FieldError[];
     errors: FieldError[];
     included: boolean;
   }>;

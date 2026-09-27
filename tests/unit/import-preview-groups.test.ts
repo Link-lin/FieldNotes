@@ -3,7 +3,7 @@ import { groupPreviewItems } from "@/features/import/ImportPage/preview-groups";
 import type { ImportPreviewDTO } from "@/shared/import";
 
 type Row = ImportPreviewDTO["items"][number];
-const row = (index: number, values: Record<string, unknown>): Row => ({ index, values, errors: [], included: true });
+const row = (index: number, values: Record<string, unknown>): Row => ({ index, values, sourceErrors: [], errors: [], included: true });
 
 describe("AI import day-by-day preview", () => {
   it("groups dated, unscheduled, undated, and flight items without changing source indices", () => {

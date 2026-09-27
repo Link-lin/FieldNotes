@@ -144,14 +144,14 @@ function normalizedItem(value: JsonObject): Partial<Record<keyof PlanItemDraftDT
   for (const key of ["location", "notes", "plannedPrice", "localDate", "localTime", "timeZone", "durationMinutes", "flightDetails"] as const) {
     if (!(key in out)) out[key] = null;
   }
-  out.links ??= [];
+  if (out.links === undefined) out.links = [];
   out.bookingDueDate = null;
   out.timeDisambiguation = null;
   if (object(out.flightDetails)) {
     const details = out.flightDetails;
     for (const key of ["plannedDepartureDate", "airline", "flightNumber"] as const) details[key] ??= null;
     for (const side of ["departure", "arrival"] as const) {
-      if (!object(details[side])) details[side] ??= {};
+      if (details[side] === undefined) details[side] = {};
       if (object(details[side])) {
         for (const key of ["airportCode", "localDateTime", "timeZone"] as const) details[side][key] ??= null;
         details[side].timeDisambiguation = null;
@@ -257,15 +257,19 @@ export function previewImport(responseText: string, ownerProvidedBudget: MoneyDT
   const tripZone = tripParsed.success ? tripParsed.data.timeZone : null;
   const items: ImportPreviewDTO["items"] = value.items.map((raw, index) => {
     const prefix = `items[${index}]`;
-    if (!object(raw)) return { index, values: {}, errors: [field(prefix, "invalid_item", "This item must be an object. Skip it or ask the AI to repair it.")], included: true };
-    const errors = itemUnknowns(raw, prefix);
+    if (!object(raw)) {
+      const errors = [field(prefix, "invalid_item", "This item must be an object. Skip it or ask the AI to repair it.")];
+      return { index, values: {}, sourceErrors: errors, errors, included: true };
+    }
+    const sourceErrors = itemUnknowns(raw, prefix);
     const sourceChecked = sourceItemSchema.safeParse(raw);
-    if (!sourceChecked.success) errors.push(...zodErrors(sourceChecked.error, prefix));
+    if (!sourceChecked.success) sourceErrors.push(...zodErrors(sourceChecked.error, prefix));
     const values = normalizedItem(raw);
+    const errors = [...sourceErrors];
     const checked = planItemDraftSchema.safeParse(values);
     if (!checked.success) errors.push(...zodErrors(checked.error, prefix));
     else if (tripZone) errors.push(...itemSemanticErrors(checked.data, tripZone, prefix));
-    return { index, values, errors: uniqueErrors(errors), included: true };
+    return { index, values, sourceErrors: uniqueErrors(sourceErrors), errors: uniqueErrors(errors), included: true };
   });
   return { ok: true, preview: { trip: { values: tripValues, errors: tripErrors, warnings: warning ? [warning] : [] }, items } };
 }

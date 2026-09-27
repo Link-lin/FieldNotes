@@ -2,7 +2,7 @@
 
 ## Repository status
 
-The core app is implemented (see [README.md](README.md) for setup and what is built). AI import and viewer invitations are not built yet.
+The core app and owner-only AI import are implemented (see [README.md](README.md) for setup and what is built). Viewer invitations are not built yet.
 
 - [`PRD.md`](PRD.md): product scope, flows, requirements, assumptions, and open decisions.
 - [`docs/design/technical-design.md`](docs/design/technical-design.md): architecture, data model, API contracts, security, test strategy; section 20 records implementation decisions.
@@ -16,7 +16,7 @@ Stack: Next.js 16 (App Router, `src/proxy.ts`), React 19, TypeScript (strict), A
 
 - Follow the sequence **PRD → technical design → implementation → testing → code review**. Update product/design documents when implementation changes a material decision.
 - The PRD defines scope. Keep later milestones—paid-spend reporting, email reminders, in-app AI, live weather/flight data, booking, packing, attachments, offline, and shared editing—out of MVP changes unless the user explicitly changes scope.
-- The planned import uses an external AI chat. The app accepts supported JSON, validates and previews it, then commits only after owner confirmation. Do not add an in-app AI provider or silently repair/discard submitted data.
+- AI import uses an external AI chat. The app accepts supported JSON, validates and previews it, then commits only after owner confirmation. Do not add an in-app AI provider or silently repair/discard submitted data.
 - Treat trip content and pasted responses as private. Follow the technical design’s authentication, per-trip authorization, invitation, no-store, logging, and deletion requirements. A viewer is read-only and access is tied to an accepted grant.
 - Imported prices are estimates; money stays exact and grouped by currency. Do not convert currencies or present AI suggestions as confirmed bookings, current prices, or availability.
 - A flight item represents one segment. Preserve airport-local dates, times, and IANA zones; non-flight items inherit the trip zone only when no item zone is supplied.

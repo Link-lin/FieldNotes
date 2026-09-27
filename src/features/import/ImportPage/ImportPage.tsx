@@ -17,25 +17,13 @@ import { RepairOptions } from "./RepairOptions/RepairOptions";
 import { TripBrief as TripBriefForm } from "./TripBrief/TripBrief";
 import { TripPreview } from "./TripPreview/TripPreview";
 import { groupPreviewItems } from "./preview-groups";
+import { editPreviewItem, editPreviewTrip, hasRemovableEmptySourceValues, removePreviewEmptySourceValues, removePreviewUnknownFields } from "./preview-validation";
 import styles from "./ImportPage.module.css";
 
 const KEY = "field-notes-import-idempotency-key";
 const SENSITIVE = "Do not include passport details, payment-card data or booking-confirmation codes. Your AI chat has its own data policies.";
 const CONVERSION_PROMPT = buildConversionPrompt();
-const asRecord = (value: unknown): Record<string, unknown> => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 const asText = (value: unknown): string => value == null ? "" : typeof value === "string" || typeof value === "number" ? String(value) : JSON.stringify(value);
-
-function setPath(values: Record<string, unknown>, path: string, value: unknown): Record<string, unknown> {
-  const keys = path.split(".");
-  const next = { ...values };
-  let part = next;
-  for (const key of keys.slice(0, -1)) {
-    part[key] = { ...asRecord(part[key]) };
-    part = part[key] as Record<string, unknown>;
-  }
-  part[keys[keys.length - 1]!] = value;
-  return next;
-}
 
 function issuePath(path: PropertyKey[], included: ImportPreviewDTO["items"]): string {
   if (path[0] === "items" && typeof path[1] === "number") {
@@ -158,12 +146,12 @@ export function ImportPage() {
   }
 
   function editTrip(path: string, value: unknown) {
-    setPreview((old) => old ? { ...old, trip: { ...old.trip, values: setPath(old.trip.values, path, value), errors: old.trip.errors.filter((e) => e.code === "unknown_field") } } : old);
+    setPreview((old) => old ? editPreviewTrip(old, path, value) : old);
     setLocalErrors((old) => old.filter((e) => !e.path.startsWith("trip.")));
   }
 
   function editItem(index: number, path: string, value: unknown) {
-    setPreview((old) => old ? { ...old, items: old.items.map((row) => row.index === index ? { ...row, values: setPath(row.values, path, value), errors: row.errors.filter((e) => e.code === "unknown_field") } : row) } : old);
+    setPreview((old) => old ? editPreviewItem(old, index, path, value) : old);
     setLocalErrors((old) => old.filter((e) => !rowErrors([e], index).length));
   }
 
@@ -172,7 +160,11 @@ export function ImportPage() {
   }
 
   function removeUnsupported(index: number) {
-    setPreview((old) => old ? { ...old, items: old.items.map((row) => row.index === index ? { ...row, errors: row.errors.filter((error) => error.code !== "unknown_field") } : row) } : old);
+    setPreview((old) => old ? removePreviewUnknownFields(old, index) : old);
+  }
+
+  function removeEmptySourceValues(index: number) {
+    setPreview((old) => old ? removePreviewEmptySourceValues(old, index) : old);
   }
 
   function reviewCommit() {
@@ -310,8 +302,8 @@ export function ImportPage() {
             groupedItems.map((group) => (
               <section key={group.key} className={styles.dayGroup} aria-label={group.label}>
                 <h3>{group.label}</h3>
-                {group.timed.length ? <ol className={styles.items}>{group.timed.map((row) => <DraftItemEditor key={row.index} row={row} errors={[...row.errors, ...rowErrors(localErrors, row.index)]} busy={locked} onChange={(path, value) => editItem(row.index, path, value)} onIncluded={(value) => setIncluded(row.index, value)} onRemoveUnsupported={() => removeUnsupported(row.index)} />)}</ol> : null}
-                {group.unscheduled.length ? <><h4>{group.key === "undated" || group.key === "undated-flights" || group.key === "needs-correction" ? "Items to review" : "Unscheduled"}</h4><ol className={styles.items}>{group.unscheduled.map((row) => <DraftItemEditor key={row.index} row={row} errors={[...row.errors, ...rowErrors(localErrors, row.index)]} busy={locked} onChange={(path, value) => editItem(row.index, path, value)} onIncluded={(value) => setIncluded(row.index, value)} onRemoveUnsupported={() => removeUnsupported(row.index)} />)}</ol></> : null}
+                {group.timed.length ? <ol className={styles.items}>{group.timed.map((row) => <DraftItemEditor key={row.index} row={row} errors={[...row.errors, ...rowErrors(localErrors, row.index)]} busy={locked} canRemoveEmptySourceValues={hasRemovableEmptySourceValues(row, preview.trip.values)} onChange={(path, value) => editItem(row.index, path, value)} onIncluded={(value) => setIncluded(row.index, value)} onRemoveUnsupported={() => removeUnsupported(row.index)} onRemoveEmptySourceValues={() => removeEmptySourceValues(row.index)} />)}</ol> : null}
+                {group.unscheduled.length ? <><h4>{group.key === "undated" || group.key === "undated-flights" || group.key === "needs-correction" ? "Items to review" : "Unscheduled"}</h4><ol className={styles.items}>{group.unscheduled.map((row) => <DraftItemEditor key={row.index} row={row} errors={[...row.errors, ...rowErrors(localErrors, row.index)]} busy={locked} canRemoveEmptySourceValues={hasRemovableEmptySourceValues(row, preview.trip.values)} onChange={(path, value) => editItem(row.index, path, value)} onIncluded={(value) => setIncluded(row.index, value)} onRemoveUnsupported={() => removeUnsupported(row.index)} onRemoveEmptySourceValues={() => removeEmptySourceValues(row.index)} />)}</ol></> : null}
               </section>
             ))
           ) : <Banner tone="info">This response has no items. You can still create an empty trip and add events later.</Banner>}
