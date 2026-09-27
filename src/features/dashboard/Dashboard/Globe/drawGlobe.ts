@@ -2,6 +2,7 @@ import { geoDistance, geoGraticule10, type GeoPath, type GeoPermissibleObjects, 
 import { feature } from "topojson-client";
 import type { Topology, GeometryCollection } from "topojson-specification";
 import land110 from "world-atlas/land-110m.json";
+import { BORDERS, COUNTRY_LABELS } from "./countries";
 import type { TripSummaryDTO } from "@/shared/dto";
 
 const topo = land110 as unknown as Topology;
@@ -65,6 +66,15 @@ export function drawGlobe(ctx: CanvasRenderingContext2D, projection: GeoProjecti
   ctx.fill();
   ctx.strokeStyle = colors.landLine;
   ctx.stroke();
+  // Country borders: thinner and lighter than coastlines.
+  ctx.beginPath();
+  path(BORDERS);
+  ctx.save();
+  ctx.strokeStyle = colors.landLine;
+  ctx.globalAlpha = 0.75;
+  ctx.lineWidth = 0.6;
+  ctx.stroke();
+  ctx.restore();
   if (Math.min(cx - s.sx, s.sx + s.sw - cx, cy - s.sy, s.sy + s.sh - cy) > R * 1.13) {
     ctx.save();
     ctx.setLineDash([2, 8]);
@@ -81,6 +91,19 @@ export function drawGlobe(ctx: CanvasRenderingContext2D, projection: GeoProjecti
   const out: Pin[] = [];
   const boxes: Array<[number, number, number, number]> = [];
   const groups = [...allGroups].sort((a, b) => Number(a.trips.some((t) => t.id === selectedId)) - Number(b.trips.some((t) => t.id === selectedId)));
+  // Country names go under the markers and never cover a marker or its label.
+  const markerFont = "600 11.5px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+  ctx.font = markerFont;
+  const keepOut: Box[] = [];
+  for (const g of groups) {
+    if (geoDistance([g.lon, g.lat], center) > Math.PI / 2 - 0.05) continue;
+    const p = projection([g.lon, g.lat]);
+    if (!p) continue;
+    const name = g.trips[0]!.title + (g.trips.length > 1 ? `  +${g.trips.length - 1}` : "");
+    const bw = ctx.measureText(name).width + 16;
+    keepOut.push([p[0] - 14, p[1] - 14, 28, 28], [p[0] + 14 + bw > s.w - 6 ? p[0] - 14 - bw : p[0] + 14, p[1] - 30, bw, 22]);
+  }
+  drawCountryNames(ctx, projection, center, R, s, colors, keepOut);
   for (const g of groups) {
     if (geoDistance([g.lon, g.lat], center) > Math.PI / 2 - 0.05) continue;
     const p = projection([g.lon, g.lat]);
@@ -161,4 +184,44 @@ export function drawGlobe(ctx: CanvasRenderingContext2D, projection: GeoProjecti
     }
   }
   return out;
+}
+
+type Box = [x: number, y: number, w: number, h: number];
+const overlaps = (a: Box, b: Box) => a[0] < b[0] + b[2] && a[0] + a[2] > b[0] && a[1] < b[1] + b[3] && a[1] + a[3] > b[1];
+
+/**
+ * Country names, largest countries first. A name shows only when the country is big enough on
+ * screen to hold it, faces the viewer, sits in the globe's own stage (not under the trip list),
+ * and clears the markers and every name already placed. Zooming in reveals smaller countries.
+ */
+function drawCountryNames(ctx: CanvasRenderingContext2D, projection: GeoProjection, center: [number, number], R: number, s: GlobeView, colors: GlobeColors, keepOut: Box[]) {
+  ctx.save();
+  ctx.font = "500 10px 'IBM Plex Mono', ui-monospace, monospace";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.lineJoin = "round";
+  if ("letterSpacing" in ctx) (ctx as CanvasRenderingContext2D & { letterSpacing: string }).letterSpacing = "0.08em";
+  const placed: Box[] = [];
+  for (const c of COUNTRY_LABELS) {
+    const span = Math.sqrt(c.area) * R; // rough on-screen size of the country in pixels
+    if (span < 34) break; // sorted by area: every later country is smaller still
+    if (geoDistance(c.at, center) > Math.PI / 2 - 0.3) continue;
+    const p = projection(c.at);
+    if (!p) continue;
+    const text = c.name.toUpperCase();
+    const w = ctx.measureText(text).width;
+    if (w > span * 1.1) continue;
+    const box: Box = [p[0] - w / 2 - 3, p[1] - 8, w + 6, 16];
+    if (box[0] < s.sx + 8 || box[0] + box[2] > s.w - 8 || box[1] < 4 || box[1] + box[3] > s.h - 4) continue;
+    if (keepOut.some((k) => overlaps(k, box)) || placed.some((k) => overlaps(k, box))) continue;
+    placed.push(box);
+    ctx.strokeStyle = colors.land;
+    ctx.lineWidth = 3;
+    ctx.globalAlpha = 0.9;
+    ctx.strokeText(text, p[0], p[1]);
+    ctx.fillStyle = colors.ink3;
+    ctx.globalAlpha = 0.85;
+    ctx.fillText(text, p[0], p[1]);
+  }
+  ctx.restore();
 }

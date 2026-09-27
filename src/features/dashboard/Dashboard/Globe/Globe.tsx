@@ -5,6 +5,7 @@ import { geoOrthographic, geoPath } from "d3-geo";
 import type { TripSummaryDTO } from "@/shared/dto";
 import { cx } from "@/lib/cx";
 import { drawGlobe, groupsOf, type GlobeView, type Pin } from "./drawGlobe";
+import { clampLat, clampZoom, glide, type Motion } from "./globe-motion";
 import { GlobeCallout } from "./GlobeCallout/GlobeCallout";
 import { GlobeControls } from "./GlobeControls/GlobeControls";
 import styles from "./Globe.module.css";
@@ -35,7 +36,7 @@ export function Globe({ trips, selectedId, focusKey, onSelect, className }: Prop
   const callout = useRef<HTMLDivElement>(null);
   const [failed, setFailed] = useState(false);
   const [hintGone, setHintGone] = useState(false);
-  const state = useRef<GlobeView & { lastAct: number; anim: number; intro: boolean }>({ rot: [HOME[0] + 90, HOME[1] + 14], zoom: 0.8, w: 0, h: 0, sx: 0, sy: 0, sw: 0, sh: 0, dpr: 1, pulse: 0, lastAct: 0, anim: 0, intro: true });
+  const state = useRef<GlobeView & Motion & { lastAct: number; anim: number; intro: boolean; lastFrame: number }>({ rot: [HOME[0] + 90, HOME[1] + 14], zoom: 0.8, target: 0.8, vel: [0, 0], lastFrame: 0, w: 0, h: 0, sx: 0, sy: 0, sw: 0, sh: 0, dpr: 1, pulse: 0, lastAct: 0, anim: 0, intro: true });
   const data = useRef({ trips, selectedId, groups: groupsOf(trips) });
   const pins = useRef<Pin[]>([]);
   const reduce = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -96,11 +97,13 @@ export function Globe({ trips, selectedId, focusKey, onSelect, className }: Prop
       s.intro = false;
       setHintGone(true);
     };
-    let drag: { x: number; y: number; rot: [number, number]; moved: boolean } | null = null;
+    // During a drag we also track the recent angular speed, so a release can coast.
+    let drag: { x: number; y: number; rot: [number, number]; moved: boolean; lx: number; ly: number; lt: number; v: [number, number] } | null = null;
     const onDown = (e: PointerEvent) => {
       touch();
       el.setPointerCapture(e.pointerId);
-      drag = { x: e.clientX, y: e.clientY, rot: [...s.rot] as [number, number], moved: false };
+      s.vel = [0, 0];
+      drag = { x: e.clientX, y: e.clientY, rot: [...s.rot] as [number, number], moved: false, lx: e.clientX, ly: e.clientY, lt: performance.now(), v: [0, 0] };
       cancelAnimationFrame(s.anim);
     };
     const onMove = (e: PointerEvent) => {
@@ -110,11 +113,18 @@ export function Globe({ trips, selectedId, focusKey, onSelect, className }: Prop
       const dy = e.clientY - drag.y;
       if (Math.abs(dx) + Math.abs(dy) > 4) drag.moved = true;
       const k = 60 / (Math.min(s.sw, s.sh) * 0.43 * s.zoom);
-      s.rot = [drag.rot[0] + dx * k, Math.max(-80, Math.min(80, drag.rot[1] - dy * k))];
+      s.rot = [drag.rot[0] + dx * k, clampLat(drag.rot[1] - dy * k)];
+      const t = performance.now();
+      const step = Math.max(1, t - drag.lt);
+      const inst: [number, number] = [((e.clientX - drag.lx) * k) / step, (-(e.clientY - drag.ly) * k) / step];
+      drag.v = [drag.v[0] * 0.5 + inst[0] * 0.5, drag.v[1] * 0.5 + inst[1] * 0.5];
+      [drag.lx, drag.ly, drag.lt] = [e.clientX, e.clientY, t];
       draw();
     };
     const onUp = (e: PointerEvent) => {
       const click = drag && !drag.moved;
+      // A release while still moving keeps the globe turning; a pause before release doesn't.
+      if (drag?.moved && !reduce && performance.now() - drag.lt < 80) s.vel = drag.v;
       drag = null;
       if (!click) return;
       const r = el.getBoundingClientRect();
@@ -134,10 +144,11 @@ export function Globe({ trips, selectedId, focusKey, onSelect, className }: Prop
     const onWheel = (e: WheelEvent) => {
       touch();
       const dy = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1);
-      const next = Math.max(0.8, Math.min(4, s.zoom * Math.exp(-dy * (e.ctrlKey ? 0.01 : 0.0018))));
-      if (next === s.zoom) return; // let the page scroll at the limits
+      const next = clampZoom(s.target * Math.exp(-dy * (e.ctrlKey ? 0.01 : 0.0018)));
+      if (next === s.target) return; // let the page scroll at the limits
       e.preventDefault();
-      s.zoom = next;
+      s.target = next; // the frame loop glides toward it
+      if (reduce) s.zoom = next;
       draw();
     };
     const onKey = (e: KeyboardEvent) => {
@@ -147,15 +158,17 @@ export function Globe({ trips, selectedId, focusKey, onSelect, className }: Prop
       else if (k === "ArrowRight") s.rot = [s.rot[0] - 10, s.rot[1]];
       else if (k === "ArrowUp") s.rot = [s.rot[0], Math.max(-80, s.rot[1] - 8)];
       else if (k === "ArrowDown") s.rot = [s.rot[0], Math.min(80, s.rot[1] + 8)];
-      else if (k === "+" || k === "=") s.zoom = Math.min(4, s.zoom * 1.2);
-      else if (k === "-") s.zoom = Math.max(0.8, s.zoom / 1.2);
+      else if (k === "+" || k === "=") s.target = clampZoom(s.target * 1.2);
+      else if (k === "-") s.target = clampZoom(s.target / 1.2);
       else if (k === "0") {
         s.rot = [...HOME];
-        s.zoom = 1;
+        s.vel = [0, 0];
+        s.target = 1;
       } else used = false;
       if (used) {
         e.preventDefault();
         touch();
+        if (reduce) s.zoom = s.target;
         draw();
       }
     };
@@ -176,20 +189,32 @@ export function Globe({ trips, selectedId, focusKey, onSelect, className }: Prop
     s.lastAct = start;
     if (reduce) {
       s.rot = [...HOME];
-      s.zoom = 1;
+      s.zoom = s.target = 1;
       draw();
     }
     let frame = 0;
     let idleDrawn = false;
     const loop = (now: number) => {
       frame = requestAnimationFrame(loop);
-      if (reduce || document.hidden) return;
+      if (reduce || document.hidden) {
+        s.lastFrame = 0;
+        return;
+      }
+      const dt = s.lastFrame ? Math.min(64, now - s.lastFrame) : 16;
+      s.lastFrame = now;
       if (s.intro) {
         const k = Math.min(1, (now - start) / 1800);
         const e = 1 - Math.pow(1 - k, 3);
         s.rot = [HOME[0] + 90 * (1 - e), HOME[1] + 14 * (1 - e)];
-        s.zoom = 0.8 + 0.2 * e;
+        s.zoom = s.target = 0.8 + 0.2 * e;
         if (k >= 1) s.intro = false;
+        draw();
+        return;
+      }
+      // Zoom glide and drag coast: draw every frame until they settle.
+      if (glide(s, dt, !!drag)) {
+        s.lastAct = now;
+        s.pulse = now;
         draw();
         return;
       }
@@ -231,6 +256,7 @@ export function Globe({ trips, selectedId, focusKey, onSelect, className }: Prop
     if (!t?.atlasLocation) return;
     const s = state.current;
     s.intro = false;
+    s.vel = [0, 0];
     s.lastAct = performance.now();
     const target: [number, number] = [-t.atlasLocation.longitude, -Math.max(-45, Math.min(50, t.atlasLocation.latitude))];
     if (reduce) {
@@ -258,7 +284,8 @@ export function Globe({ trips, selectedId, focusKey, onSelect, className }: Prop
     const s = state.current;
     s.intro = false;
     s.lastAct = performance.now();
-    s.zoom = Math.max(0.8, Math.min(4, s.zoom * f));
+    s.target = clampZoom(s.target * f); // the frame loop glides toward it
+    if (reduce) s.zoom = s.target;
     drawRef.current();
   };
 
@@ -279,7 +306,8 @@ export function Globe({ trips, selectedId, focusKey, onSelect, className }: Prop
             onZoomOut={() => zoomBy(0.8)}
             onReset={() => {
               state.current.rot = [...HOME];
-              zoomBy(1 / state.current.zoom);
+              state.current.vel = [0, 0];
+              zoomBy(1 / state.current.target);
             }}
           />
           {selected ? <GlobeCallout ref={callout} selected={selected} trips={trips} onSelect={(id) => onSelect(id, true)} /> : null}
