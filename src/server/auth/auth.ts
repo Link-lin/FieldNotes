@@ -3,9 +3,9 @@ import Google from "next-auth/providers/google";
 import { KyselyAdapter } from "@auth/kysely-adapter";
 import type { Kysely } from "kysely";
 import type { Database as AuthDatabase } from "@auth/kysely-adapter";
-import { getDb } from "@/server/db";
-import { appOrigin } from "@/server/env";
-import { allowSignIn } from "@/server/sign-in-gate";
+import { getDb } from "@/server/core/db/client";
+import { appOrigin } from "@/server/core/env";
+import { allowSignIn } from "@/server/auth/sign-in-gate";
 
 /**
  * Google sign-in with database sessions (ACCESS-1). New accounts are limited to the

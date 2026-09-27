@@ -1,8 +1,8 @@
 import "server-only";
 import { redirect } from "next/navigation";
-import { auth } from "@/auth";
-import { actorFor, type Actor } from "./actor";
-import { HttpError } from "./http";
+import { auth } from "@/server/auth/auth";
+import { actorFor, type Actor } from "@/server/auth/actor";
+import { HttpError } from "@/server/core/http/errors";
 
 export async function currentActor(): Promise<Actor | null> {
   const session = await auth();

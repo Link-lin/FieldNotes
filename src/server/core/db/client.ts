@@ -1,7 +1,7 @@
 import "server-only";
 import { Kysely, PostgresDialect } from "kysely";
 import pg from "pg";
-import type { DB } from "./db-schema";
+import type { DB } from "@/server/core/db/schema";
 
 // Keep calendar values as the strings PostgreSQL stores; never let the driver
 // reinterpret a DATE or TIMESTAMP WITHOUT TIME ZONE in the server's local zone.

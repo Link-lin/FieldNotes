@@ -1,7 +1,7 @@
 import { sql, type Kysely } from "kysely";
-import { createDb } from "@/server/db";
-import type { DB } from "@/server/db-schema";
-import { actorFor, type Actor } from "@/server/actor";
+import { createDb } from "@/server/core/db/client";
+import type { DB } from "@/server/core/db/schema";
+import { actorFor, type Actor } from "@/server/auth/actor";
 import type { ItemInput } from "@/shared/schemas";
 
 let db: Kysely<DB> | null = null;

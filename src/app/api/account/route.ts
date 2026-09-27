@@ -1,7 +1,8 @@
 import { z } from "zod";
-import { getDb } from "@/server/db";
-import { assertSameOrigin, handle, noContent, readJson } from "@/server/http";
-import { requireActor } from "@/server/session";
+import { getDb } from "@/server/core/db/client";
+import { assertSameOrigin, readJson } from "@/server/core/http/request";
+import { handle, noContent } from "@/server/core/http/respond";
+import { requireActor } from "@/server/auth/session";
 import { deleteAccount } from "@/server/trips";
 
 const schema = z.object({ confirm: z.literal("DELETE") }).strict();

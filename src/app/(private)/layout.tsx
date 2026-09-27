@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
-import { auth, signOut } from "@/auth";
-import { getDb } from "@/server/db";
-import { currentActor } from "@/server/session";
+import { auth, signOut } from "@/server/auth/auth";
+import { getDb } from "@/server/core/db/client";
+import { currentActor } from "@/server/auth/session";
 import { getDashboard } from "@/server/trips";
 import { AppHeader } from "@/components/layout/AppHeader/AppHeader";
 import { AppShell } from "@/components/layout/AppShell/AppShell";

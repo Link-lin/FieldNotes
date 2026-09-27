@@ -1,7 +1,8 @@
-import { handle, HttpError, json } from "@/server/http";
-import { requireActor } from "@/server/session";
-import { requireOwnerAccount } from "@/server/access";
-import { searchPlaces } from "@/server/catalog";
+import { HttpError } from "@/server/core/http/errors";
+import { handle, json } from "@/server/core/http/respond";
+import { requireActor } from "@/server/auth/session";
+import { requireOwnerAccount } from "@/server/auth/access";
+import { searchPlaces } from "@/server/modules/places/catalog";
 
 /** Bundled catalog search for the owner's globe-point editor; no external geocoder. */
 export async function GET(req: Request) {

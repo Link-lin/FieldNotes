@@ -1,9 +1,9 @@
 import "server-only";
-import type { PlanItemRow, TripRow } from "./db-schema";
+import type { PlanItemRow, TripRow } from "@/server/core/db/schema";
 import type { PlanItemDTO, Role, TripSummaryDTO } from "@/shared/dto";
 import { dateInZone, daysBetween, dueState, resolveLocal, tripStatus } from "@/shared/time";
 import { providerLabel } from "@/shared/map-links";
-import { airportPoint } from "./airports";
+import { airportPoint } from "@/server/modules/places/airports";
 import { trimAmount } from "@/shared/money";
 
 const ts = (v: string | null) => (v ? v.replace(" ", "T").slice(0, 16) : null);

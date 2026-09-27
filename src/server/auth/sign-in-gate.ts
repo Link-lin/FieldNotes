@@ -1,7 +1,7 @@
 import "server-only";
 import type { Kysely } from "kysely";
-import type { DB } from "./db-schema";
-import { normalizeEmail, ownerEmails } from "./env";
+import type { DB } from "@/server/core/db/schema";
+import { normalizeEmail, ownerEmails } from "@/server/core/env";
 
 export type SignInAttempt = {
   provider: string | undefined;

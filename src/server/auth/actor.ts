@@ -1,5 +1,5 @@
 import "server-only";
-import { normalizeEmail, ownerEmails } from "./env";
+import { normalizeEmail, ownerEmails } from "@/server/core/env";
 
 /** The signed-in person as the DAL sees them. Built only from a server-validated session. */
 export type Actor = { userId: string; email: string; isOwner: boolean };

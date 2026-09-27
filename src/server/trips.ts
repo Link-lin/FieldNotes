@@ -1,11 +1,11 @@
 import "server-only";
 import { sql, type Kysely } from "kysely";
-import type { DB } from "./db-schema";
-import type { Actor } from "./actor";
-import { requireOwnerAccount, requireTripOwner, requireTripRead } from "./access";
-import { compareItems, itemDto, tripSummary } from "./mapping";
-import { conflict, HttpError, invalid } from "./http";
-import { matchDestination } from "./catalog";
+import type { DB } from "@/server/core/db/schema";
+import type { Actor } from "@/server/auth/actor";
+import { requireOwnerAccount, requireTripOwner, requireTripRead } from "@/server/auth/access";
+import { compareItems, itemDto, tripSummary } from "@/server/mapping";
+import { conflict, HttpError, invalid } from "@/server/core/http/errors";
+import { matchDestination } from "@/server/modules/places/catalog";
 import { dateInZone, dueState, resolveLocal } from "@/shared/time";
 import type { TripInput, TripPatch } from "@/shared/schemas";
 import type { BookingTaskDTO, BudgetComparisonDTO, DashboardDTO, FieldError, PlannedTotalDTO, TripDetailDTO, TripSummaryDTO } from "@/shared/dto";

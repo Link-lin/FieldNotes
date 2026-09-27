@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { auth, signIn } from "@/auth";
+import { auth, signIn } from "@/server/auth/auth";
 import { SignInCard, type SignInState } from "@/features/auth/SignInCard/SignInCard";
 import { safePath } from "@/shared/safe-path";
 

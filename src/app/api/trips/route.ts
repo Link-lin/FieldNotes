@@ -1,6 +1,7 @@
-import { getDb } from "@/server/db";
-import { assertSameOrigin, handle, json, readJson } from "@/server/http";
-import { requireActor } from "@/server/session";
+import { getDb } from "@/server/core/db/client";
+import { assertSameOrigin, readJson } from "@/server/core/http/request";
+import { handle, json } from "@/server/core/http/respond";
+import { requireActor } from "@/server/auth/session";
 import { createTrip, getDashboard } from "@/server/trips";
 import { tripInputSchema } from "@/shared/schemas";
 

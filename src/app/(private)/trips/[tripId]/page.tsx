@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
-import { getDb } from "@/server/db";
-import { HttpError } from "@/server/http";
-import { currentActor, pageActor } from "@/server/session";
+import { getDb } from "@/server/core/db/client";
+import { HttpError } from "@/server/core/http/errors";
+import { currentActor, pageActor } from "@/server/auth/session";
 import { getTripDetail } from "@/server/trips";
 import { TripPage } from "@/features/trips/TripPage/TripPage";
 

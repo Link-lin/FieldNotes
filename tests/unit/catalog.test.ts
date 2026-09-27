@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { matchDestination, searchPlaces } from "@/server/catalog";
+import { matchDestination, searchPlaces } from "@/server/modules/places/catalog";
 
 describe("destination matching (ATLAS-3)", () => {
   it("matches exact city, country pairs and country names", () => {

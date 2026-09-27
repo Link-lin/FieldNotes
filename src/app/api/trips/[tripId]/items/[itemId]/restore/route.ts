@@ -1,6 +1,7 @@
-import { getDb } from "@/server/db";
-import { assertSameOrigin, handle, json } from "@/server/http";
-import { requireActor } from "@/server/session";
+import { getDb } from "@/server/core/db/client";
+import { assertSameOrigin } from "@/server/core/http/request";
+import { handle, json } from "@/server/core/http/respond";
+import { requireActor } from "@/server/auth/session";
 import { restoreItem } from "@/server/items";
 
 export async function POST(req: Request, { params }: { params: Promise<{ tripId: string; itemId: string }> }) {

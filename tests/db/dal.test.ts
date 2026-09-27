@@ -3,8 +3,8 @@ import { sql } from "kysely";
 import { event, flight, grant, makeActor, NOW, reset, testDb, tripInput } from "./helpers";
 import { createTrip, deleteAccount, deleteTrip, getDashboard, getTripDetail, previewTimeZone, recentCurrencies, updateTrip } from "@/server/trips";
 import { createItem, deleteItem, duplicateItem, restoreItem, updateItem, ITEM_CAP } from "@/server/items";
-import { HttpError } from "@/server/http";
-import type { Actor } from "@/server/actor";
+import { HttpError } from "@/server/core/http/errors";
+import type { Actor } from "@/server/auth/actor";
 
 const db = () => testDb();
 async function expectHttp(p: Promise<unknown>, status: number, code?: string) {

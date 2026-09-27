@@ -1,8 +1,9 @@
 import "server-only";
 import type { Kysely, Transaction } from "kysely";
-import type { DB, TripRow } from "./db-schema";
-import type { Actor } from "./actor";
-import { forbidden, isUuid, notFound } from "./http";
+import type { DB, TripRow } from "@/server/core/db/schema";
+import type { Actor } from "@/server/auth/actor";
+import { forbidden, notFound } from "@/server/core/http/errors";
+import { isUuid } from "@/server/core/http/request";
 import type { Role } from "@/shared/dto";
 
 type Conn = Kysely<DB> | Transaction<DB>;

@@ -3,13 +3,13 @@ import { event, grant, makeActor, NOW, reset, tripInput } from "./helpers";
 import { testDb } from "./helpers";
 import { createTrip, getTripDetail } from "@/server/trips";
 import { createItem } from "@/server/items";
-import { allowSignIn } from "@/server/sign-in-gate";
-import type { Actor } from "@/server/actor";
+import { allowSignIn } from "@/server/auth/sign-in-gate";
+import type { Actor } from "@/server/auth/actor";
 
 // Route handlers are exercised end to end with only the session lookup replaced.
 const session = vi.hoisted(() => ({ actor: null as Actor | null }));
-vi.mock("@/server/session", async () => {
-  const { HttpError } = await import("@/server/http");
+vi.mock("@/server/auth/session", async () => {
+  const { HttpError } = await import("@/server/core/http/errors");
   return {
     currentActor: async () => session.actor,
     requireActor: async () => {
