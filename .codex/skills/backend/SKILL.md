@@ -5,11 +5,16 @@ description: Implement or change Travel Planner server behavior, APIs, authentic
 
 # Backend
 
-Use this skill for server routes, validation, business rules, auth, data access, integrations, and database changes. There is no backend code yet. The technical design proposes same-origin Next.js Route Handlers, Auth.js, a server-only DAL, PostgreSQL, and Kysely; verify the implemented stack before applying it.
+Use this skill for server routes, validation, business rules, auth, data access, integrations, and database changes. The server is same-origin Next.js Route Handlers, Auth.js with database sessions, and a server-only data layer on PostgreSQL through Kysely.
 
 ## Architecture and domain logic
 
-- Follow the architecture already present. Keep transport parsing, business rules, and persistence responsibilities clear, but do not add controller/service/manager/repository layers automatically.
+- Follow the layers already present:
+  - `src/app/api/**/route.ts`: a few lines on `route()` from `server/core/http/route.ts`, which requires a session, checks the Origin on every state-changing method, validates the body with a schema from `src/shared/schemas.ts`, and maps errors. Never bypass it.
+  - `src/server/modules/<feature>/<feature>.service.ts`: business rules, transactions and access checks (`requireTripRead`, `requireTripOwner`, `requireOwnerAccount` from `server/auth/access.ts`). No `next/*` imports.
+  - `*.repository.ts`: SQL only; no access checks, no response shapes. `*.mapper.ts`: rows to DTOs. Pure rules that need no database go in a `*.rules.ts` next to the service.
+  - `server/core`: database client and schema types, env, HTTP helpers. `server/auth`: Auth.js setup, session, actor, sign-in gate, access.
+- A new feature gets its own `modules/<feature>/` folder with the same files. Don't add further layers.
 - Reuse validation, auth, database, time, money, and response helpers. Keep business rules explicit and testable; do not duplicate a rule across routes.
 - Keep the app server as the only database client if the approved server-only DAL design remains in use. Never expose database credentials or privileged data access to browser code.
 

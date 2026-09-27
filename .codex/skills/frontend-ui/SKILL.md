@@ -5,7 +5,7 @@ description: Design and implement Travel Planner UI changes that fit the establi
 
 # Frontend and UI
 
-Use this skill for screens, components, interactions, forms, and visual behavior. The current repository has no implemented UI or styling system. The technical design proposes a Next.js/TypeScript UI, but verify the scaffold before relying on it.
+Use this skill for screens, components, interactions, forms, and visual behavior. The UI is Next.js App Router with React client components and CSS modules; the structure is below and in the README.
 
 ## Inspect before changing
 
@@ -13,23 +13,37 @@ Use this skill for screens, components, interactions, forms, and visual behavior
 - Reuse the project's existing components and style architecture. Do not create parallel button/form/card systems or introduce a new CSS methodology because it is familiar.
 - Before adding styles, search in this order: existing component, global style, design token, utility/mixin, then component-specific CSS.
 
+## Where things go
+
+- One component per folder: `Name/Name.tsx` (markup and behavior) and `Name/Name.module.css` (its styles). A component made only of shared building blocks may have no CSS file. Tiny parts that only make sense inside one component (a tab button, a list row) may share its file.
+- Nest a child inside the folder of the component that uses it (`TripPage/Timeline/EventRow/FlightCard/`). When two children of one parent share a component, it sits at the parent's level (`TripPage/StopNumber/`). When different screens share it, it moves to `src/components/ui/`.
+- Screens live in `src/features/<feature>/`; app-wide frame in `src/components/layout/`; pages in `src/app` only fetch data and render a screen. Browser helpers are in `src/lib/`.
+
 ## Styling hierarchy
 
 Keep the project's style layers coherent:
 
 ```text
-Global design tokens
+Global design tokens          src/styles/tokens.css
         ↓
-Reusable global styles
+Reusable global styles        src/styles/base.css, utilities.css, motion.css
         ↓
-Shared components
+Shared components             src/components/ui/<Name>/<Name>.module.css
         ↓
-Component-specific CSS
+Component-specific CSS        <Component>/<Component>.module.css
 ```
 
-Use this hierarchy where the actual application architecture supports it. Travel Planner currently has no global CSS, SCSS, tokens, breakpoints, CSS Modules, or utility framework; inspect what is introduced before choosing a place for styles. Do not create arbitrary tokens or global abstractions for one-off values.
+The global files load in cascade layers (tokens, base, utilities, motion); CSS modules are unlayered and always win. Use tokens (`--ink`, `--space-3`, `--radius-md`, `--text-sm`, `--z-modal`, ...) instead of raw values; add a token only when a value repeats. Utilities are few (`mono`, `muted`, `note`, `cluster`, `stack`, `visually-hidden`); don't add one for a single use.
 
-Component styles should contain only genuinely unique rules. Reuse common colors, typography, spacing, borders, radii, shadows, and layout patterns. Avoid unnecessary inline styles; use a meaningful class or component state/attribute where appropriate. Use semantic class names that describe purpose, such as `trip-summary` or `booking-task-list`; follow the established naming convention rather than imposing BEM, utility classes, or another system.
+Rules that come from CSS modules:
+
+- Class names are scoped, so state that CSS reacts to is a `data-*` or ARIA attribute (`data-lit`, `aria-selected`), not a class toggled from script. Tests and scripts select by role, label or `data-*`, never by class.
+- Animation names are renamed too: use the shared keyframes through their variables, `animation: var(--kf-rise) 0.3s both`.
+- To change a shared component's look from a parent, pass `className` and qualify the rule with the parent (`.event > .menu`, `p > .toggle`) so it wins whatever order the CSS loads in.
+- Refer to global utilities inside a module with `:global(.mono)`.
+- No fixed inline styles; inline styles only for values computed at run time (a bar's width).
+
+Use semantic class names that describe purpose (`trip-summary` style: `.tiles`, `.dayChip`), camelCase inside modules.
 
 ## Product-specific interaction
 

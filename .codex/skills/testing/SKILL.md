@@ -5,7 +5,7 @@ description: Choose and run focused, maintainable tests for Travel Planner behav
 
 # Testing
 
-Use this skill when selecting, adding, or running tests. No test framework or application test suite exists in the current planning-only workspace. The technical design identifies future unit, PostgreSQL integration, API, and browser E2E coverage but does not choose a runner; inspect the implemented app and use its actual tools.
+Use this skill when selecting, adding, or running tests. Tests use Vitest: `tests/unit` for pure logic and `tests/db` for the data layer, route handlers and sign-in gate against an embedded PostgreSQL started by the test setup (`npm test`, or `npm run test:unit` / `npm run test:db`). Browser checks run against a production build; select elements by role, label or `data-*` attribute, never by CSS-module class.
 
 ## Choose the right level
 

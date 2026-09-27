@@ -45,9 +45,26 @@ npm run build
 
 ## Layout
 
-- `src/app`: pages and route handlers (`api/`). `(private)` pages require a session.
-- `src/server`: server-only data access. `access.ts` is the authorization boundary; every route calls the DAL, never the database directly.
-- `src/shared`: code used on both sides (validation schemas, time, money, map links, DTO types).
-- `src/components`: client components. Styles live in `src/app/globals.css` (tokens first, then components).
-- `db/migrations`: SQL migrations run by `npm run db:migrate`.
-- `tests/unit`, `tests/db`: Vitest projects.
+```text
+src/
+  app/                  routes: pages and API route handlers (thin)
+  features/             screens, one folder per component, children nested inside
+    dashboard/Dashboard/        Hero, TripList, BookingTasks, Globe, ...
+    trips/TripPage/             TripHeader, DayTabs, Timeline, MapPanel, CostsSection, ...
+    trips/TripForm/, trips/ItemForm/, currency/, auth/SignInCard/
+  components/
+    ui/                 shared building blocks: Button, Field, Modal, Menu, Tag, Card, ...
+    layout/             AppShell, AppHeader (with AccountMenu), PageMessage
+  styles/               global CSS: tokens, base, utilities, motion (cascade layers)
+  lib/                  browser helpers: api, format, cx
+  shared/               used by browser and server: zod schemas, DTO types, time, money, map links
+  server/
+    core/               db client and schema types, env, HTTP helpers and the route() wrapper
+    auth/               Auth.js setup, session, actor, sign-in gate, per-trip access checks
+    modules/<feature>/  service (rules), repository (SQL), mapper (DTOs): trips, items, dashboard, account, places
+  data/                 bundled place and airport lists
+db/migrations/          SQL migrations
+tests/unit, tests/db    Vitest projects
+```
+
+Each component folder holds `Name.tsx` (markup and behavior) and `Name.module.css` (its styles). Components made only of shared building blocks have no CSS file of their own. Route handlers call services; services check access with `server/auth/access.ts` and never skip it.

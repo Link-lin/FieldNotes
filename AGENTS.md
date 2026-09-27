@@ -10,7 +10,7 @@ The core app is implemented (see [README.md](README.md) for setup and what is bu
 - [`docs/design/json-v1.schema.json`](docs/design/json-v1.schema.json), [`import-prompt-v1.md`](docs/design/import-prompt-v1.md), and [`import-example-v1.json`](docs/design/import-example-v1.json): external AI import contract.
 - `.codex/skills/`: focused workflows for design, feature development, UI, backend, testing, and review.
 
-Stack: Next.js 16 (App Router, `src/proxy.ts`), React 19, TypeScript (strict), Auth.js v5 with the Kysely adapter and database sessions, Kysely 0.28 on PostgreSQL (`pg`), zod for input validation, d3-geo canvas globe, Vitest 3 with embedded PostgreSQL. Code lives in `src/app` (pages and route handlers), `src/server` (server-only DAL; `access.ts` is the authorization boundary), `src/shared` (schemas, time, money, map links, DTOs) and `src/components` (client UI; styles in `src/app/globals.css`).
+Stack: Next.js 16 (App Router, `src/proxy.ts`), React 19, TypeScript (strict), Auth.js v5 with the Kysely adapter and database sessions, Kysely 0.28 on PostgreSQL (`pg`), zod for input validation, d3-geo canvas globe, Vitest 3 with embedded PostgreSQL. Structure (details in README): `src/app` holds routes only; screens live in `src/features/<feature>/<Component>/` with child components nested inside; shared building blocks in `src/components/ui` and `src/components/layout`; global CSS in `src/styles`; the server in `src/server/{core,auth,modules/<feature>}` with services, repositories and mappers; `src/server/auth/access.ts` is the authorization boundary.
 
 ## Product and architecture constraints
 
@@ -34,7 +34,7 @@ Stack: Next.js 16 (App Router, `src/proxy.ts`), React 19, TypeScript (strict), A
 ## UI principles
 
 - Reuse the implemented design system and shared components. Keep the style hierarchy: **global tokens → reusable global styles → shared components → component-specific CSS**.
-- Styling is plain global CSS in `src/app/globals.css`: color tokens on `:root` first, then shared classes (`pill`, `tag`, `card-surface`, `field`, `modal`, `toast`), then component sections. Reuse these; do not add CSS Modules, Tailwind or a second styling method.
+- Every component has its own folder with `Name.tsx` and `Name.module.css`, nested under the component that uses it. Shared styles are tokens, element defaults and a few utilities in `src/styles`; shared controls are components in `src/components/ui`. Use tokens instead of raw values, no fixed inline styles, and no Tailwind or other styling method. See the `frontend-ui` skill.
 - Prefer semantic HTML, meaningful component/class names, and CSS classes over unnecessary inline styles. Avoid duplicated common styling.
 - Preserve consistency and consider keyboard use, focus, labels, error/loading/empty states, and responsive layouts.
 - See [frontend-ui](.codex/skills/frontend-ui/SKILL.md) for detailed UI work.

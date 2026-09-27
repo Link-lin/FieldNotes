@@ -17,7 +17,7 @@ Understand → Inspect → Plan → Implement → Test → Review → Validate
 
 - Read the relevant PRD requirements, acceptance criteria, non-goals, and technical design. Identify assumptions and any contradiction before coding.
 - Inspect the current source tree, package scripts, routes, database migrations, UI components/styles, auth checks, and tests. Reuse established code and patterns.
-- The current repository has no app scaffold or build/test scripts. If implementation is requested before one exists, confirm the intended product scope and use the technical design as the proposed baseline; do not invent a package manager, test runner, style system, or production settings silently.
+- The app is built (see README.md for setup and layout). Use its npm scripts (`lint`, `typecheck`, `test`, `build`) and its structure: screens in `src/features`, shared UI in `src/components`, server modules in `src/server/modules`. Don't add a new package manager, test runner or style system.
 - Decide whether the request is documentation/design-only or asks for code. Keep changes within the requested outcome.
 
 ### Plan and implement
