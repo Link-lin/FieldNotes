@@ -10,7 +10,7 @@ Last updated 27 Sep 2026. Read this first when picking the project up in a new s
   - A one-screen dashboard on desktop: trips on the left; a globe on the right that fades under the list when zoomed.
   - The trip page: day tabs, events with a menu, Recently deleted, costs, day map, globe location.
   - Account deletion.
-- **AI import is implemented on `feat/ai-import`, with review corrections on `fix/ai-import-review` (not yet merged):**
+- **AI import is implemented on `main`:**
   - An owner with an existing ChatGPT/Gemini plan can copy a conversion prompt into that conversation and paste its JSON v1 response directly, without entering destination or dates in Field Notes. An optional trip brief builds a new-planning prompt for owners starting with an idea.
   - The owner can correct or skip items in a day-by-day preview, then confirm creation of a new trip. A pasted plan's budget is set or confirmed by the owner in preview; an AI-supplied budget alone is ignored.
   - Preview is read-only and explains malformed or unsupported JSON, trip and item errors, unknown fields, budget changes, and DST problems. The owner must explicitly remove unsupported item fields or skip the item.
@@ -32,7 +32,7 @@ Last updated 27 Sep 2026. Read this first when picking the project up in a new s
   - One component per folder (`Name.tsx` and `Name.module.css`), nested under the component that uses it. Screens are in `src/features`; shared parts are in `src/components/{ui,layout}`.
   - Global CSS is in `src/styles`, in cascade layers, so component modules always win.
   - The server lives in `src/server/{core,auth,modules/<feature>}`, split into service, repository and mapper files. Route handlers are thin, using the `route()` wrapper in `src/server/core/http/route.ts`.
-- **Checks on `fix/ai-import-review` passed:** `npm run lint`, `npm run typecheck`, `npm test` (119 unit and DB tests), and `npm run build`. The earlier core milestone also passed browser checks against a standalone build. External ChatGPT/Gemini response quality still needs a real-plan pilot.
+- **Checks on the AI import work now in `main` passed:** `npm run lint`, `npm run typecheck`, `npm test` (119 unit and DB tests), and `npm run build`. The earlier core milestone also passed browser checks against a standalone build. External ChatGPT/Gemini response quality still needs a real-plan pilot.
 - **Not built yet:**
   - TRIP-7 (append an imported plan to an existing trip) remains proposed.
   - Viewer invitations: ACCESS-3 to ACCESS-7.
