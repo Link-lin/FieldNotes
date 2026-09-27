@@ -1,0 +1,13 @@
+/*
+ * Global styles, imported once from app/layout.tsx. Everything here is shared by the whole app;
+ * a style only one component needs lives in that component's .module.css instead.
+ *
+ * Layer order: tokens < base < utilities < motion. Component CSS modules are unlayered, so they
+ * always win over these defaults without extra specificity.
+ */
+@layer tokens, base, utilities, motion;
+
+@import "./tokens.css";
+@import "./base.css";
+@import "./utilities.css";
+@import "./motion.css";
