@@ -1,0 +1,2 @@
+.page { padding: var(--space-2) var(--gutter) 96px; }
+.body { max-width: 1080px; margin: 0 auto; display: grid; gap: var(--space-7); justify-items: start; animation: var(--kf-rise) 0.5s both; }

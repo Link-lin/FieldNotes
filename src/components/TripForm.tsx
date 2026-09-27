@@ -6,10 +6,10 @@ import type { FieldError, PlaceDTO, TripDetailDTO, TripSummaryDTO } from "@/shar
 import { CurrencyOptions, defaultCurrency } from "./CurrencyOptions";
 import { DestinationInput } from "./DestinationInput";
 import { commonZones, offsetMinutes, zoneLabel } from "./zones";
-import { Modal } from "./Modal";
-import { api } from "./api";
-import { useToast } from "./Toast";
-import { plural } from "./format";
+import { Modal } from "@/components/ui/Modal/Modal";
+import { api } from "@/lib/api";
+import { useToast } from "@/components/ui/Toast/Toast";
+import { plural } from "@/lib/format";
 
 type Trip = TripDetailDTO["trip"];
 type DueWord = "upcoming" | "due_today" | "overdue";

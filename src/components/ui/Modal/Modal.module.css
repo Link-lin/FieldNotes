@@ -1,0 +1,6 @@
+.backdrop { position: fixed; inset: 0; z-index: var(--z-modal); display: grid; place-items: center; padding: var(--space-4); background: var(--scrim); animation: var(--kf-fade-in) 0.2s; overflow: auto; }
+.sheet { width: min(580px, 100%); max-height: calc(100vh - 32px); overflow: auto; background: var(--card); border: 1px solid var(--ink); border-radius: var(--radius-2xl); box-shadow: var(--shadow); padding: 22px; display: grid; gap: 14px; animation: var(--kf-pop-in) 0.28s both; }
+.title { font-size: 28px; }
+.subtitle { margin: -6px 0 0; color: var(--ink-2); font-size: 14px; }
+/* Buttons at the foot of a dialog sit on the right. */
+.actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; }

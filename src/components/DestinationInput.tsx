@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import type { PlaceDTO } from "@/shared/dto";
-import { api } from "./api";
+import { api } from "@/lib/api";
 
 /**
  * Destination field with suggestions from the bundled place catalog (WAI-ARIA combobox with a

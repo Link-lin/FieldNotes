@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef } from "react";
 import { createPortal } from "react-dom";
+import styles from "./Modal.module.css";
 
 type Props = {
   title: string;
@@ -72,13 +73,18 @@ export function Modal({ title, subtitle, onClose, children, fallbackFocus, trigg
   }
 
   return createPortal(
-    <div className="modal" onMouseDown={(e) => e.target === e.currentTarget && close.current()}>
-      <div className="sheet" role="dialog" aria-modal="true" aria-labelledby={titleId} ref={ref} onKeyDown={onKeyDown}>
-        <h2 id={titleId}>{title}</h2>
-        {subtitle ? <p className="sub">{subtitle}</p> : null}
+    <div className={styles.backdrop} data-modal onMouseDown={(e) => e.target === e.currentTarget && close.current()}>
+      <div className={styles.sheet} role="dialog" aria-modal="true" aria-labelledby={titleId} ref={ref} onKeyDown={onKeyDown}>
+        <h2 className={styles.title} id={titleId}>{title}</h2>
+        {subtitle ? <p className={styles.subtitle}>{subtitle}</p> : null}
         {children}
       </div>
     </div>,
     document.body,
   );
+}
+
+/** The row of buttons at the foot of a dialog, aligned right. */
+export function ModalActions({ children }: { children: React.ReactNode }) {
+  return <div className={styles.actions}>{children}</div>;
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import styles from "./Toast.module.css";
 
 type ToastSpec = {
   message: string;
@@ -62,7 +63,8 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       <div aria-live="polite" role="status" className="visually-hidden">{toast?.message}</div>
       {toast ? (
         <div
-          className="toast"
+          className={styles.toast}
+          data-toast
           ref={box}
           key={toast.key}
           onKeyDown={(e) => {

@@ -28,7 +28,7 @@ describe("money", () => {
   });
 });
 
-import { fmtDay, fmtMonth, fmtShort } from "@/components/format";
+import { fmtDay, fmtMonth, fmtShort } from "@/lib/format";
 describe("date labels", () => {
   it("are identical on server and client and never shift by zone", () => {
     expect(fmtDay("2026-11-15")).toBe("Sun 15 Nov");

@@ -1,5 +1,20 @@
-/* Shared keyframes. All motion is decorative and switched off for reduced motion. */
+/*
+ * Shared keyframes. All motion is decorative and switched off for reduced motion.
+ * CSS modules rename animation names they see, so components refer to these through the
+ * --kf-* variables: `animation: var(--kf-rise) 0.3s both;`.
+ */
 @layer motion {
+  :root {
+    --kf-rise: rise;
+    --kf-fade-in: fade-in;
+    --kf-pop-in: pop-in;
+    --kf-grow: grow;
+    --kf-march: march;
+    --kf-fly: fly;
+    --kf-stamp-in: stamp-in;
+    --kf-blink: blink;
+  }
+
   @keyframes rise { from { opacity: 0; transform: translateY(16px); } }
   @keyframes fade-in { from { opacity: 0; } }
   @keyframes pop-in { from { opacity: 0; transform: scale(0.94) translateY(6px); } }

@@ -1,0 +1,2 @@
+.avatar { width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--ink); background: var(--card); font: 500 12px var(--mono); letter-spacing: 0.06em; display: grid; place-items: center; }
+.avatar[aria-expanded="true"], .avatar:hover { background: var(--ink); color: var(--paper); }

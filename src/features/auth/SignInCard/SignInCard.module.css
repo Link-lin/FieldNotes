@@ -1,0 +1,4 @@
+.page { min-height: 100vh; display: grid; place-items: center; padding: var(--space-6) var(--space-4); }
+.card { width: min(440px, 100%); display: grid; gap: var(--space-4); background: var(--card); border: 1px solid var(--line); border-radius: 28px; padding: var(--space-8) var(--space-7); box-shadow: var(--shadow); animation: var(--kf-rise) 0.6s both; }
+.title { font-size: clamp(30px, 6vw, 40px); }
+.lead { color: var(--ink-2); }

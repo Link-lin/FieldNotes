@@ -1,9 +1,5 @@
 /* Remaining component styles. They move into component CSS modules step by step (see the code structure plan). */
 
-/* Skip link (moves to the app shell in step 3). */
-.skip-link { position: absolute; left: 12px; top: -48px; background: var(--ink); color: var(--paper); padding: 8px 14px; border-radius: 999px; z-index: 100; }
-.skip-link:focus { top: 12px; }
-
 /* ---------- Shared controls ---------- */
 .pill { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid var(--ink); background: none; border-radius: 999px; padding: 9px 16px; font-size: 13.5px; font-weight: 500; line-height: 1.2; text-decoration: none; transition: background 0.2s, transform 0.15s, border-color 0.2s, opacity 0.2s; min-height: 36px; }
 .pill:hover { background: var(--card); }
@@ -39,24 +35,9 @@
 .form-error { margin: 0; color: var(--vermilion-ink); font-weight: 600; font-size: 13.5px; }
 @media (max-width: 560px) { .form-grid { grid-template-columns: minmax(0, 1fr); } }
 
-/* ---------- Header ---------- */
-.top { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 20px var(--gutter); position: relative; z-index: 5; }
-.logo { display: inline-flex; align-items: center; gap: 12px; text-decoration: none; }
-.logo i { width: 32px; height: 32px; border-radius: 50%; background: var(--ink); display: grid; place-items: center; }
-.logo svg { width: 16px; height: 16px; color: var(--paper); }
-.top-right { display: flex; align-items: center; gap: 18px; }
-.top nav { display: flex; gap: 20px; }
-.top nav a { text-decoration: none; color: var(--ink-2); border-bottom: 1px solid transparent; padding: 4px 0; }
-.top nav a[aria-current="page"], .top nav a:hover { color: var(--ink); border-bottom-color: var(--ink); }
-.top nav b { color: var(--vermilion-ink); font-weight: 500; }
-.account { position: relative; }
-.avatar { width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--ink); background: var(--card); font: 500 12px var(--mono); letter-spacing: 0.06em; display: grid; place-items: center; }
-.avatar[aria-expanded="true"], .avatar:hover { background: var(--ink); color: var(--paper); }
+/* Event menu (moves with the trip page) */
 .menu { position: absolute; right: 0; top: 46px; min-width: 240px; z-index: 50; background: var(--card); border: 1px solid var(--ink); border-radius: 16px; box-shadow: var(--shadow); padding: 6px; display: grid; gap: 2px; animation: pop-in 0.16s both; }
 .menu[hidden] { display: none; }
-.menu-head { display: grid; gap: 2px; padding: 8px 10px 10px; border-bottom: 1px dashed var(--line); margin-bottom: 4px; }
-.menu-head b { font: 700 17px var(--serif); }
-.menu-head span { color: var(--ink-2); font-size: 13px; word-break: break-all; }
 .menu button, .menu a { display: flex; align-items: center; gap: 10px; text-align: left; width: 100%; background: none; border: 0; padding: 9px 10px; border-radius: 9px; font-size: 14px; font-weight: 500; text-decoration: none; }
 .menu button svg { width: 15px; height: 15px; flex: none; }
 .menu button:hover, .menu button:focus-visible, .menu a:hover { background: var(--paper); }
@@ -339,34 +320,17 @@
   .trip-meta { padding-right: 72px; }
 }
 
-/* ---------- Dialogs and toasts ---------- */
-.modal { position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; padding: 16px; background: rgba(58, 48, 38, 0.38); animation: fade-in 0.2s; overflow: auto; }
-.sheet { width: min(580px, 100%); max-height: calc(100vh - 32px); overflow: auto; background: var(--card); border: 1px solid var(--ink); border-radius: 24px; box-shadow: var(--shadow); padding: 22px; display: grid; gap: 14px; animation: pop-in 0.28s both; }
-.sheet h2 { font-size: 28px; }
-.sheet .sub { margin: -6px 0 0; color: var(--ink-2); font-size: 14px; }
-.sheet .pills { justify-content: flex-end; }
+/* Dialog content still styled globally (moves with the forms) */
+[data-modal] .pills { justify-content: flex-end; }
 .danger-zone { display: grid; gap: 8px; border-top: 1px dashed var(--line); padding-top: 14px; }
 .danger-zone b { color: var(--vermilion-ink); }
 .warnings { margin: 0; padding-left: 18px; color: var(--ink-2); font-size: 13.5px; }
-.toast { position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%); z-index: 70; max-width: calc(100vw - 32px); background: var(--ink); color: var(--paper); padding: 10px 18px; border-radius: 999px; font-size: 14px; box-shadow: var(--shadow); animation: rise 0.3s both; display: flex; align-items: center; gap: 10px; }
-.toast button { background: none; border: 0; border-radius: 8px; text-decoration: underline; color: var(--vermilion-soft); font-weight: 600; padding: 6px 8px; min-height: 32px; }
-.toast button:focus-visible { outline-color: var(--paper); }
-
-/* ---------- Sign-in ---------- */
-.signin { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; }
-.signin-card { width: min(440px, 100%); display: grid; gap: 16px; background: var(--card); border: 1px solid var(--line); border-radius: 28px; padding: 32px 28px; box-shadow: var(--shadow); animation: rise 0.6s both; }
-.signin-card h1 { font-size: clamp(30px, 6vw, 40px); }
-.signin-card p { margin: 0; color: var(--ink-2); }
-.signin-card .pill { padding: 12px 18px; font-size: 15px; width: 100%; }
-.banner { border-radius: 14px; padding: 10px 14px; font-size: 14px; background: var(--vermilion-soft); color: var(--vermilion-ink); }
-.banner.info { background: var(--pass); color: var(--pass-ink); }
 
 @media (pointer: coarse) {
   .filters button, .pill-quiet, .link, .map-reset { min-height: 44px; }
   .kebab, .map-zoom button { width: 44px; height: 44px; }
   .event.owned > .event-time, .event.owned > .event-title, .event.owned > .pass { margin-right: 52px; }
 }
-@media (max-width: 560px) { .toast { bottom: 92px; } }
 
 /* Unscheduled sub-heading inside a day, and the recently deleted list (TRIP-2, TRIP-8). */
 .sub-head { margin: 14px 0 6px; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); font-weight: 500; }

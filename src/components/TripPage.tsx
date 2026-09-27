@@ -7,14 +7,14 @@ import type { PlanItemDTO, PlaceDTO, TripDetailDTO } from "@/shared/dto";
 import { formatMoney } from "@/shared/money";
 import { googleDayUrl, haversineKm } from "@/shared/map-links";
 import { dateRange } from "@/shared/time";
-import { api } from "./api";
+import { api } from "@/lib/api";
 import { DayMap, type Stop } from "./DayMap";
 import { EventRow } from "./EventRow";
-import { dateRangeLabel, fmtDay, fmtMonth, plural, relativeLabel, STATUS_LABEL, TYPE_LABEL } from "./format";
-import { ClockIcon, EditIcon, PlusIcon, StatusIcon, WarnIcon } from "./icons";
+import { dateRangeLabel, fmtDay, fmtMonth, plural, relativeLabel, STATUS_LABEL, TYPE_LABEL } from "@/lib/format";
+import { ClockIcon, EditIcon, PlusIcon, StatusIcon, WarnIcon } from "@/components/ui/Icon/icons";
 import { ItemForm } from "./ItemForm";
 import { DASH_RETURN_KEY, dueText } from "./Dashboard";
-import { useToast } from "./Toast";
+import { useToast } from "@/components/ui/Toast/Toast";
 import { TripForm } from "./TripForm";
 
 const TYPE_COLOR: Record<string, string> = { flight: "#3a3026", lodging: "#5e8fa0", activity: "#9a8c70", meal: "#c9b48a", transport: "#23414b", other: "#b8ab8c" };
@@ -124,7 +124,7 @@ export function TripPage({ data, initialDay }: { data: TripDetailDTO; initialDay
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || e.defaultPrevented || isField(e.target)) return;
-      if (document.querySelector(".modal") || document.querySelector(".menu:not([hidden])") || document.querySelector(".toast")) return;
+      if (document.querySelector("[data-modal], [role=menu]:not([hidden]), [data-toast]")) return;
       router.push(dashboardUrl());
     };
     document.addEventListener("keydown", onKey);

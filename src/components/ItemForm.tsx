@@ -4,9 +4,9 @@ import { useMemo, useState } from "react";
 import type { FieldError, ItemType, PlanItemDTO } from "@/shared/dto";
 import { providerLabel } from "@/shared/map-links";
 import { CurrencyOptions } from "./CurrencyOptions";
-import { Modal } from "./Modal";
-import { api } from "./api";
-import { TYPE_LABEL } from "./format";
+import { Modal } from "@/components/ui/Modal/Modal";
+import { api } from "@/lib/api";
+import { TYPE_LABEL } from "@/lib/format";
 
 type Props = {
   tripId: string;

@@ -1,13 +1,10 @@
-import Link from "next/link";
+import { PageMessage } from "@/components/layout/PageMessage/PageMessage";
+import { ButtonLink } from "@/components/ui/Button/Button";
 
 export default function NotFound() {
   return (
-    <main className="trip-wrap">
-      <div className="trip">
-        <h1>Trip not found</h1>
-        <p className="note">It doesn&apos;t exist, or it isn&apos;t shared with you.</p>
-        <Link className="pill" href="/">Back to all trips</Link>
-      </div>
-    </main>
+    <PageMessage title="Trip not found" action={<ButtonLink href="/">Back to all trips</ButtonLink>}>
+      It doesn&apos;t exist, or it isn&apos;t shared with you.
+    </PageMessage>
   );
 }

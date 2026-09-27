@@ -4,8 +4,8 @@ import { useEffect, useRef } from "react";
 import type { PlanItemDTO } from "@/shared/dto";
 import { formatMoney } from "@/shared/money";
 import { googleDirectionsUrl, googleSearchUrl, providerLabel } from "@/shared/map-links";
-import { TYPE_LABEL } from "./format";
-import { CopyIcon, DotsIcon, EditIcon, PinIcon, PlaneIcon, TrashIcon } from "./icons";
+import { TYPE_LABEL } from "@/lib/format";
+import { CopyIcon, DotsIcon, EditIcon, PinIcon, PlaneIcon, TrashIcon } from "@/components/ui/Icon/icons";
 
 type Props = {
   item: PlanItemDTO;

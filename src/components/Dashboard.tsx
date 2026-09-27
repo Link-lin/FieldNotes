@@ -4,8 +4,8 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { DashboardDTO, TripSummaryDTO } from "@/shared/dto";
-import { dateRangeLabel, fmtShort, plural, relativeLabel, STATUS_LABEL } from "./format";
-import { ClockIcon, PlusIcon, StatusIcon, WarnIcon } from "./icons";
+import { dateRangeLabel, fmtShort, plural, relativeLabel, STATUS_LABEL } from "@/lib/format";
+import { ClockIcon, PlusIcon, StatusIcon, WarnIcon } from "@/components/ui/Icon/icons";
 import { TripForm } from "./TripForm";
 
 const Globe = dynamic(() => import("./Globe").then((m) => m.Globe), {
@@ -91,7 +91,7 @@ export function Dashboard({ data, today, focus, initialFilter }: { data: Dashboa
   }
 
   return (
-    <div className="dash">
+    <div className="dash" data-one-screen>
       <div className="split" onClickCapture={onOpen}>
         <div className="dash-left">
         <section className="hero">

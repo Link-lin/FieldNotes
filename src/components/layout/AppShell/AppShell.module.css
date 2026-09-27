@@ -1,0 +1,11 @@
+.shell {}
+.main {}
+.skipLink { position: absolute; left: 12px; top: -48px; background: var(--ink); color: var(--paper); padding: 8px 14px; border-radius: var(--radius-pill); z-index: var(--z-skip); }
+.skipLink:focus { top: 12px; }
+
+/* One-screen layout on desktop: the page never scrolls; the screen manages its own scrolling. */
+@media (min-width: 901px) and (min-height: 620px) {
+  :global(body:has([data-one-screen])) { overflow: hidden; }
+  .shell:has([data-one-screen]) { height: 100vh; height: 100dvh; display: flex; flex-direction: column; }
+  .main:has([data-one-screen]) { flex: 1; min-height: 0; }
+}

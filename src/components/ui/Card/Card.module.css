@@ -1,0 +1,1 @@
+.card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-xl); padding: 14px var(--space-4); }

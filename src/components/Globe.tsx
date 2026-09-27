@@ -6,8 +6,8 @@ import { feature } from "topojson-client";
 import type { Topology, GeometryCollection } from "topojson-specification";
 import land110 from "world-atlas/land-110m.json";
 import type { TripSummaryDTO } from "@/shared/dto";
-import { dateRangeLabel, STATUS_LABEL } from "./format";
-import { MinusIcon, PlusIcon, ResetIcon, StatusIcon } from "./icons";
+import { dateRangeLabel, STATUS_LABEL } from "@/lib/format";
+import { MinusIcon, PlusIcon, ResetIcon, StatusIcon } from "@/components/ui/Icon/icons";
 
 const topo = land110 as unknown as Topology;
 const LAND = feature(topo, topo.objects.land as GeometryCollection) as GeoPermissibleObjects;
