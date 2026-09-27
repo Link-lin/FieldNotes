@@ -23,8 +23,9 @@ export async function handle(fn: () => Promise<Response>): Promise<Response> {
   } catch (err) {
     if (err instanceof HttpError) return errorResponse(err);
     const requestId = randomUUID();
-    // Log only the error type and message, never request bodies or trip content.
-    console.error(`[${requestId}] ${err instanceof Error ? `${err.name}: ${err.message}` : "Unknown error"}`);
+    // Provider/database errors can include submitted values in their messages.
+    // Keep diagnostic context without logging trip content or a pasted AI response.
+    console.error(`[${requestId}] ${err instanceof Error ? err.name : "Unknown error"}`);
     return json({ error: { code: "server_error", message: `Something went wrong. Try again. (Reference ${requestId})` } }, 500);
   }
 }
