@@ -25,7 +25,7 @@ export function FlightFields({ side, label, value, onChange, zones, error, error
     <fieldset className={cx(fieldStyles.grid, fieldStyles.wide, styles.set)}>
       <legend className={cx("mono muted", styles.legend)}>{label}</legend>
       <Field label="Airport code" htmlFor={`item-${side}-code`} {...f(`${path}.airportCode`)}>
-        <input id={`item-${side}-code`} className={styles.code} value={value.code} maxLength={3} placeholder={side === "dep" ? "SFO" : "HND"} onChange={(x) => onChange({ code: x.target.value.toUpperCase() })} {...aria(`${path}.airportCode`)} />
+        <input id={`item-${side}-code`} className={styles.code} value={value.code} maxLength={4} placeholder={side === "dep" ? "SFO" : "HND"} onChange={(x) => onChange({ code: x.target.value.toUpperCase() })} {...aria(`${path}.airportCode`)} />
       </Field>
       <Field label={<>Local date and time <span className="muted">at that airport</span></>} htmlFor={`item-${side}-dt`} {...f(`${path}.localDateTime`)}>
         <input id={`item-${side}-dt`} type="datetime-local" value={value.dt} onChange={(x) => onChange({ dt: x.target.value })} {...aria(`${path}.localDateTime`)} />

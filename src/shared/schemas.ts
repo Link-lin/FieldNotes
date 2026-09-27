@@ -8,7 +8,7 @@ import type { FieldError } from "./dto";
 const dateStr = z.string().refine(isDate, { message: "Use a real date (YYYY-MM-DD)." });
 const timeStr = z.string().refine(isTime, { message: "Use a 24-hour time (HH:MM)." });
 const localDateTime = z.string().refine(isLocalDateTime, { message: "Use a local date and time (YYYY-MM-DDTHH:MM)." });
-const zone = z.string().refine(isTimeZone, { message: "Choose a valid time zone." }).transform(canonicalTimeZone);
+const zone = z.string().max(100).refine(isTimeZone, { message: "Choose a valid time zone." }).transform(canonicalTimeZone);
 const currency = z.string().refine(isCurrencyCode, { message: "Choose a real currency code, like USD." });
 const amount = z.string().regex(AMOUNT_PATTERN, { message: "Use zero or more, with up to 4 decimals." });
 const optionalText = (max: number) =>
@@ -80,7 +80,7 @@ const endpoint = z
     airportCode: z
       .string()
       .transform((v) => v.trim().toUpperCase())
-      .pipe(z.string().regex(/^[A-Z]{3}$/, { message: "Use a three-letter airport code." }))
+      .pipe(z.string().regex(/^[A-Z0-9]{3,4}$/, { message: "Use a three- or four-character airport code." }))
       .nullable(),
     localDateTime: localDateTime.nullable(),
     timeZone: zone.nullable(),
@@ -92,8 +92,8 @@ const flightItem = z
   .object({
     type: z.literal("flight"),
     plannedDepartureDate: dateStr.nullable(),
-    airline: optionalText(80),
-    flightNumber: optionalText(16),
+    airline: optionalText(120),
+    flightNumber: optionalText(24),
     departure: endpoint,
     arrival: endpoint,
     ...common,
@@ -143,7 +143,7 @@ export type TripInput = z.infer<typeof tripInputSchema>;
 export type TripPatch = z.infer<typeof tripPatchSchema>;
 
 export const itemPatchSchema = z
-  .object({ item: itemInputSchema, expectedVersion: z.number().int().min(1), confirmTypeChange: z.boolean().optional() })
+  .object({ item: itemInputSchema, expectedVersion: z.number().int().min(1), confirmTypeChange: z.boolean().optional(), confirmPrice: z.boolean().optional() })
   .strict();
 export const versionSchema = z.object({ expectedVersion: z.number().int().min(1) }).strict();
 

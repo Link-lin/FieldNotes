@@ -49,7 +49,7 @@ function mapFields(input: ItemInput, current: PlanItemRow | null): { map_url: st
   return { map_url: clean, latitude: c ? c[0].toFixed(5) : null, longitude: c ? c[1].toFixed(5) : null };
 }
 
-function priceFields(input: ItemInput, current: PlanItemRow | null) {
+function priceFields(input: ItemInput, current: PlanItemRow | null, confirmPrice: boolean) {
   const p = input.plannedPrice;
   if (!p) return { planned_amount: null, planned_currency: null, price_label: null, price_source: null };
   // BUDGET-4: an AI price stays "unverified" until the owner saves a different amount, currency or label.
@@ -59,10 +59,10 @@ function priceFields(input: ItemInput, current: PlanItemRow | null) {
     trimAmount(current.planned_amount) === trimAmount(p.amount) &&
     current.planned_currency === p.currency &&
     current.price_label === p.label;
-  return { planned_amount: p.amount, planned_currency: p.currency, price_label: p.label, price_source: unchangedAi ? ("ai" as const) : ("owner" as const) };
+  return { planned_amount: p.amount, planned_currency: p.currency, price_label: p.label, price_source: unchangedAi && !confirmPrice ? ("ai" as const) : ("owner" as const) };
 }
 
-export function toValues(input: ItemInput, current: PlanItemRow | null): Values | FieldError {
+export function toValues(input: ItemInput, current: PlanItemRow | null, confirmPrice = false): Values | FieldError {
   const map = mapFields(input, current);
   if ("path" in map) return map;
   const status = input.bookingStatus;
@@ -75,7 +75,7 @@ export function toValues(input: ItemInput, current: PlanItemRow | null): Values 
     ...map,
     booking_status: status,
     booking_due_date: status === "needs_booking" ? input.bookingDueDate : null,
-    ...priceFields(input, current),
+    ...priceFields(input, current, confirmPrice),
   };
   if (input.type === "flight") {
     return {

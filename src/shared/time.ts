@@ -27,7 +27,7 @@ export function isLocalDateTime(value: unknown): value is string {
 const zoneCache = new Map<string, boolean>();
 /** IANA zone name accepted by the runtime; offsets such as "+05:00" are rejected. */
 export function isTimeZone(value: unknown): value is string {
-  if (typeof value !== "string" || value.length > 64 || !ZONE_NAME.test(value)) return false;
+  if (typeof value !== "string" || value.length > 100 || !ZONE_NAME.test(value)) return false;
   const hit = zoneCache.get(value);
   if (hit !== undefined) return hit;
   let ok = false;

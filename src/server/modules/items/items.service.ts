@@ -43,7 +43,7 @@ export async function updateItem(
   actor: Actor,
   tripId: string,
   itemId: string,
-  body: { item: ItemInput; expectedVersion: number; confirmTypeChange?: boolean },
+  body: { item: ItemInput; expectedVersion: number; confirmTypeChange?: boolean; confirmPrice?: boolean },
   now = new Date(),
 ): Promise<PlanItemDTO> {
   return db.transaction().execute(async (tx) => {
@@ -58,7 +58,7 @@ export async function updateItem(
     }
     const errs = scheduleErrors(input, trip.time_zone);
     if (errs.length) throw invalid(errs);
-    const values = toValues(input, current);
+    const values = toValues(input, current, body.confirmPrice === true);
     if ("path" in values) throw invalid([values]);
     const row = await repo.updateItemRow(tx, current.id, body.expectedVersion, values);
     if (!row) throw conflict();

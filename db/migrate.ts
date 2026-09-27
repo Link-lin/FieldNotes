@@ -1,9 +1,11 @@
 import { Migrator, type Kysely, type Migration, type MigrationProvider } from "kysely";
 import * as m0001 from "./migrations/0001_initial";
+import * as m0002 from "./migrations/0002_import_v1_limits";
 
 /** Migrations are listed explicitly so every runtime (tsx, tests) sees the same set. */
 const migrations: Record<string, Migration> = {
   "0001_initial": m0001,
+  "0002_import_v1_limits": m0002,
 };
 
 const provider: MigrationProvider = { getMigrations: async () => migrations };

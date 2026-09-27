@@ -86,6 +86,22 @@ describe("trip status and summaries", () => {
 });
 
 describe("items, money and map links", () => {
+  it("stores the JSON v1 flight-field limits so imported flights remain editable", async () => {
+    const trip = await createTrip(db(), owner, tripInput, NOW);
+    const item = await createItem(db(), owner, trip.id, flight({
+      airline: "A".repeat(120),
+      flightNumber: "F".repeat(24),
+      departure: { airportCode: "KSFO", localDateTime: null, timeZone: null, timeDisambiguation: null },
+      arrival: { airportCode: "RJTT", localDateTime: null, timeZone: null, timeDisambiguation: null },
+    }));
+    expect(item.flightDetails).toMatchObject({
+      airline: "A".repeat(120),
+      flightNumber: "F".repeat(24),
+      departure: { airportCode: "KSFO" },
+      arrival: { airportCode: "RJTT" },
+    });
+  });
+
   it("keeps money exact and never combines currencies", async () => {
     const t = await createTrip(db(), owner, tripInput, NOW);
     await createItem(db(), owner, t.id, event({ plannedPrice: { amount: "0.1", currency: "USD", label: "estimate" } }));

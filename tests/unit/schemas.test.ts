@@ -27,6 +27,21 @@ describe("item validation", () => {
     expect(p).toEqual(expect.arrayContaining(["departure.airportCode", "arrival.localDateTime", "arrival.timeZone"]));
     expect(paths(itemInputSchema.safeParse({ ...flight, bookingStatus: "not_required" }))).toContain("bookingStatus");
   });
+  it("accepts JSON v1 flight-field limits in the manual editor", () => {
+    const input = {
+      ...flight,
+      airline: "A".repeat(120),
+      flightNumber: "F".repeat(24),
+      departure: { ...ep, airportCode: "ksfo" },
+      arrival: { ...ep, airportCode: "RJTT" },
+    };
+    const parsed = itemInputSchema.safeParse(input);
+    expect(parsed.success).toBe(true);
+    if (parsed.success && parsed.data.type === "flight") expect(parsed.data.departure.airportCode).toBe("KSFO");
+    expect(paths(itemInputSchema.safeParse({ ...input, airline: "A".repeat(121) }))).toContain("airline");
+    expect(paths(itemInputSchema.safeParse({ ...input, flightNumber: "F".repeat(25) }))).toContain("flightNumber");
+    expect(paths(itemInputSchema.safeParse({ ...input, departure: { ...ep, airportCode: "KSSFO" } }))).toContain("departure.airportCode");
+  });
   it("rejects float money, fake currencies and non-http links", () => {
     expect(itemInputSchema.safeParse({ ...other, plannedPrice: { amount: 12.5, currency: "USD", label: "estimate" } }).success).toBe(false);
     expect(itemInputSchema.safeParse({ ...other, plannedPrice: { amount: "12.50", currency: "ABC", label: "estimate" } }).success).toBe(false);

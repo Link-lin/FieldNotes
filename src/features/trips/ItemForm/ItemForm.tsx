@@ -64,6 +64,7 @@ export function ItemForm({ tripId, tripTitle, tripZone, defaultCurrency, recentC
   const [message, setMessage] = useState<string | null>(null);
   const [needTypeConfirm, setNeedTypeConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [confirmPrice, setConfirmPrice] = useState(false);
   const up = (patch: Partial<typeof v>) => setV((o) => ({ ...o, ...patch }));
   const err = (path: string) => errors.find((e) => e.path === path)?.message;
   const errId = (path: string) => `item-err-${path.replace(/[^a-zA-Z0-9]/g, "-")}`;
@@ -108,7 +109,7 @@ export function ItemForm({ tripId, tripTitle, tripZone, defaultCurrency, recentC
     setBusy(true);
     setMessage(null);
     const r = item
-      ? await api<PlanItemDTO>("PATCH", `/api/trips/${tripId}/items/${item.id}`, { item: payload(), expectedVersion: item.version, ...(confirmTypeChange ? { confirmTypeChange: true } : {}) })
+      ? await api<PlanItemDTO>("PATCH", `/api/trips/${tripId}/items/${item.id}`, { item: payload(), expectedVersion: item.version, ...(confirmTypeChange ? { confirmTypeChange: true } : {}), ...(confirmPrice ? { confirmPrice: true } : {}) })
       : await api<PlanItemDTO>("POST", `/api/trips/${tripId}/items`, payload());
     setBusy(false);
     if (r.ok) {
@@ -133,7 +134,7 @@ export function ItemForm({ tripId, tripTitle, tripZone, defaultCurrency, recentC
   }
 
   // FLIGHT-2: "Booked" needs both airport codes, local date-times and time zones.
-  const flightReady = [v.dep, v.arr].every((e) => /^[A-Z]{3}$/.test(e.code) && !!e.dt && !!e.zone);
+  const flightReady = [v.dep, v.arr].every((e) => /^[A-Z0-9]{3,4}$/.test(e.code) && !!e.dt && !!e.zone);
   const importedLinks = v.links.filter((l) => providerLabel(l.url) && l.url.startsWith("https://") && l.url !== v.mapUrl);
   const choiceField = (id: string, value: Choice, onChange: (c: Choice) => void, path: string) => (
     <Field label="This time happens twice that day (clocks go back). Which one?" htmlFor={id} wide {...fe(path)}>
@@ -189,10 +190,10 @@ export function ItemForm({ tripId, tripTitle, tripZone, defaultCurrency, recentC
           {isFlight ? (
             <>
               <Field label={<>Airline {optional()}</>} htmlFor="item-airline">
-                <input id="item-airline" value={v.airline} maxLength={80} onChange={(e) => up({ airline: e.target.value })} />
+                <input id="item-airline" value={v.airline} maxLength={120} onChange={(e) => up({ airline: e.target.value })} />
               </Field>
               <Field label={<>Flight number {optional()}</>} htmlFor="item-flightno">
-                <input id="item-flightno" value={v.flightNumber} maxLength={16} onChange={(e) => up({ flightNumber: e.target.value })} />
+                <input id="item-flightno" value={v.flightNumber} maxLength={24} onChange={(e) => up({ flightNumber: e.target.value })} />
               </Field>
               {!v.dep.dt ? (
                 <Field label={<>Planned departure date {optional("if you don't know the exact time yet")}</>} htmlFor="item-planned" wide {...fe("plannedDepartureDate")}>
@@ -261,6 +262,14 @@ export function ItemForm({ tripId, tripTitle, tripZone, defaultCurrency, recentC
               <option value="quote">Quote</option>
             </select>
           </Field>
+          {item?.plannedPrice?.source === "ai" && v.amount.trim() ? (
+            <CheckField
+              className={styles.wide}
+              label="I checked this price; mark it as my estimate or quote"
+              checked={confirmPrice}
+              onChange={(e) => setConfirmPrice(e.target.checked)}
+            />
+          ) : null}
           <Field label={<>Place {optional()}</>} htmlFor="item-location" wide>
             <input id="item-location" value={v.location} maxLength={500} placeholder="Fushimi Inari Taisha, Kyoto" onChange={(e) => up({ location: e.target.value })} />
           </Field>
