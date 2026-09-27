@@ -2,8 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { haversineKm } from "@/shared/map-links";
+import { cx as cn } from "@/lib/cx";
+import type { Stop } from "../../trip-days";
+import { km, StopList } from "./StopList/StopList";
+import styles from "./DayMap.module.css";
 
-export type Stop = { id: string; n: number; name: string; lat: number; lon: number; flight: boolean; need: boolean; day: string; dayLabel: string };
 
 const W0 = 400;
 const H0 = 340;
@@ -11,10 +14,6 @@ const PAD = 56;
 const NICE = [10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000, 1000000, 2000000, 5000000];
 const short = (s: string, n = 24) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 
-function km(v: number): string {
-  if (v < 1) return `${Math.round((v * 1000) / 10) * 10} m`;
-  return `${v < 10 ? v.toFixed(1) : Math.round(v)} km`;
-}
 
 /**
  * Schematic day map (MAP-3 to MAP-5): no basemap and no network requests. Pins use a
@@ -172,7 +171,7 @@ export function DayMap({ stops, showDays, onPin }: { stops: Stop[]; showDays: bo
 
   if (!stops.length) {
     return (
-      <div className="map-empty">
+      <div className={styles.empty}>
         <b>No places pinned yet</b>
         <span>Edit an event and add a Google Maps, Apple Maps or OpenStreetMap link with coordinates, and it will show up here.</span>
       </div>
@@ -206,10 +205,10 @@ export function DayMap({ stops, showDays, onPin }: { stops: Stop[]; showDays: bo
 
   return (
     <>
-      <div className="map-wrap">
+      <div className={styles.wrap}>
         <svg
           ref={svg}
-          className="day-map"
+          className={styles.map}
           viewBox={`${vb.x} ${vb.y} ${vb.w} ${vb.h}`}
           role="group"
           aria-label="Sketch map of the stops, in order. Use the plus and minus buttons, the mouse wheel or a pinch to zoom, and drag to move."
@@ -226,18 +225,18 @@ export function DayMap({ stops, showDays, onPin }: { stops: Stop[]; showDays: bo
           }}
         >
           <defs>
-            <pattern className="grid" id="map-grid" width="40" height="40" patternUnits="userSpaceOnUse">
+            <pattern className={styles.grid} id="map-grid" width="40" height="40" patternUnits="userSpaceOnUse">
               <path d="M40 0H0V40" />
             </pattern>
           </defs>
           <rect x={-2000} y={-2000} width={4400} height={4340} fill="url(#map-grid)" />
           {runs.map((r, i) => (
-            <polyline key={i} className="route" points={r.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ")} />
+            <polyline key={i} className={styles.route} points={r.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ")} />
           ))}
           {shown.map((d, ix) => (
             <g
               key={d.p.s.id}
-              className="pin"
+              className={styles.pin}
               data-hl={d.p.s.id}
               transform={`translate(${d.p.x.toFixed(1)} ${d.p.y.toFixed(1)}) scale(${1 / z})`}
               tabIndex={0}
@@ -251,53 +250,36 @@ export function DayMap({ stops, showDays, onPin }: { stops: Stop[]; showDays: bo
                 }
               }}
             >
-              <circle className={`pin-dot${d.p.s.need ? " need" : ""}`} r={d.r} />
-              <text className="pin-num" style={{ fontSize: d.text.length > 2 ? 10 : pr > 12 ? 13 : 11 }}>{d.text}</text>
+              <circle className={cn(styles.dot, d.p.s.need && styles.need)} r={d.r} />
+              <text className={styles.pinNum} style={{ fontSize: d.text.length > 2 ? 10 : pr > 12 ? 13 : 11 }}>{d.text}</text>
               {labelOn[ix] ? (
-                <text className="pin-label" x={d.right ? d.r + 6 : -(d.r + 6)} y={4} textAnchor={d.right ? "start" : "end"}>
+                <text className={styles.pinLabel} x={d.right ? d.r + 6 : -(d.r + 6)} y={4} textAnchor={d.right ? "start" : "end"}>
                   {d.label}
                 </text>
               ) : null}
             </g>
           ))}
         </svg>
-        <div className="map-controls">
-          <span className="map-zoom">
+        <div className={styles.controls}>
+          <span className={styles.zoom}>
             <button type="button" aria-label="Zoom in on the map" disabled={z > 11.9} onClick={() => zoomTo(vb.x + vb.w / 2, vb.y + vb.h / 2, vb.w / 1.5)}>+</button>
             <button type="button" aria-label="Zoom out on the map" disabled={z < 1.02} onClick={() => zoomTo(vb.x + vb.w / 2, vb.y + vb.h / 2, vb.w * 1.5)}>−</button>
           </span>
-          <span className="map-scale">
+          <span className={styles.scale}>
             <i style={{ width: Math.max(8, pick / mpx) }} />
             <span className="mono">{pick >= 1000 ? `${pick / 1000} km` : `${pick} m`}</span>
           </span>
-          <svg className="map-north" viewBox="0 0 22 40" aria-hidden="true">
+          <svg className={styles.north} viewBox="0 0 22 40" aria-hidden="true">
             <path d="M11 30V6M5 13l6-8 6 8" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             <text x="11" y="40" textAnchor="middle" fontFamily="var(--mono)" fontSize="10" fill="currentColor">N</text>
           </svg>
           {z > 1.02 ? (
-            <button className="map-reset mono" type="button" onClick={() => setVb({ x: 0, y: 0, w: W0, h: H0 })}>Reset view</button>
+            <button className={cn("mono", styles.reset)} type="button" onClick={() => setVb({ x: 0, y: 0, w: W0, h: H0 })}>Reset view</button>
           ) : null}
         </div>
       </div>
-      <ol className="stops">
-        {legs.map(({ s, same, d, chip }) => (
-          <StopRow key={s.id} s={s} same={same} d={d} chip={chip} />
-        ))}
-      </ol>
+      <StopList legs={legs} />
       {total > 0 ? <p className="note">About {km(total)} in straight lines between stops on the same day. Flights are not counted.</p> : null}
-    </>
-  );
-}
-
-function StopRow({ s, same, d, chip }: { s: Stop; same: boolean; d: number; chip: boolean }) {
-  return (
-    <>
-      {chip ? <li className="day-chip" aria-hidden="true">{s.dayLabel}</li> : null}
-      <li data-hl={s.id}>
-        <span className={`num${s.need ? " need" : ""}`}>{s.n}</span>
-        <span>{s.name}</span>
-        <small>{same ? `${km(d)} from ${s.n - 1}` : s.flight ? "Flight arrival" : "Start"}</small>
-      </li>
     </>
   );
 }

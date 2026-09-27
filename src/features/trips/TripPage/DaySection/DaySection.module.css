@@ -1,0 +1,11 @@
+.day { display: grid; gap: 14px; }
+.day + .day { padding-top: var(--space-5); border-top: 1px solid var(--line); }
+.head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-3); flex-wrap: wrap; }
+.meta { color: var(--ink-3); }
+.day[data-empty="true"] h2 { font-size: 20px; color: var(--ink-2); }
+.day[data-outside="true"] .meta { color: var(--vermilion-ink); }
+.today { color: var(--vermilion-ink); font-weight: 600; }
+.sub { margin: 14px 0 6px; font-size: 11px; letter-spacing: 0.12em; color: var(--ink-3); font-weight: 500; }
+.add { width: 100%; padding: 13px var(--space-4); border: 1.5px dashed var(--ctl); border-radius: var(--radius-lg); background: none; color: var(--ink-2); font-weight: 600; font-size: 14px; display: flex; align-items: center; justify-content: center; gap: var(--space-2); }
+.add:hover { border-color: var(--ink); background: var(--card); color: var(--ink); }
+.add svg { width: 15px; height: 15px; }

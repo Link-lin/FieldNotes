@@ -1,0 +1,14 @@
+.back { justify-self: start; text-decoration: none; color: var(--ink-2); border-bottom: 1px solid transparent; padding: 6px 0; }
+.back:hover { color: var(--ink); border-bottom-color: var(--ink); }
+.head { position: relative; display: grid; gap: 14px; padding-bottom: var(--space-6); border-bottom: 1px solid var(--line); }
+/* Room on the right for the stamp. */
+.meta { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding-right: 128px; }
+.meta :global(.mono) { color: var(--ink-3); }
+.title { font-size: clamp(38px, 6.4vw, 68px); padding-right: 128px; }
+.title:focus { outline: none; }
+.dest { color: var(--ink-2); font-size: var(--text-lg); padding-right: 128px; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; }
+@media (max-width: 560px) {
+  .title, .dest { padding-right: 76px; }
+  .meta { padding-right: 72px; }
+}

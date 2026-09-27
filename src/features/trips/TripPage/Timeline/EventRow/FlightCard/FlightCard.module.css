@@ -1,0 +1,5 @@
+.pass { background: var(--pass); color: var(--pass-ink); border-radius: var(--radius-lg); padding: 14px var(--space-4); display: grid; gap: 10px; }
+.row { color: var(--pass-muted); display: flex; justify-content: space-between; gap: var(--space-2); flex-wrap: wrap; }
+.route { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); font: 500 30px/1 var(--mono); letter-spacing: 0.04em; }
+.route svg { width: 34px; height: 14px; flex: none; opacity: 0.7; animation: var(--kf-fly) 2.6s ease-in-out 3; }
+.foot { border-top: 1px dashed rgba(35, 65, 75, 0.35); padding-top: var(--space-2); }

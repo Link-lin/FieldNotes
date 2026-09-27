@@ -1,0 +1,2 @@
+.num { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--ink); color: var(--paper); font: 700 var(--text-xs) var(--mono); flex: none; transition: box-shadow 0.2s; }
+.need { background: var(--vermilion-ink); color: #fff; }

@@ -3,7 +3,7 @@ import { getDb } from "@/server/db";
 import { HttpError } from "@/server/http";
 import { currentActor, pageActor } from "@/server/session";
 import { getTripDetail } from "@/server/trips";
-import { TripPage } from "@/components/TripPage";
+import { TripPage } from "@/features/trips/TripPage/TripPage";
 
 type Props = { params: Promise<{ tripId: string }>; searchParams: Promise<{ day?: string }> };
 

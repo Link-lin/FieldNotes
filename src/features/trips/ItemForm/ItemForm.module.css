@@ -1,0 +1,3 @@
+.form { display: grid; gap: 14px; }
+.wide { grid-column: 1 / -1; }
+.linkButtons { margin-top: 6px; }

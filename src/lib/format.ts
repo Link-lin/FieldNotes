@@ -1,4 +1,5 @@
 import type { TripSummaryDTO } from "@/shared/dto";
+import { formatMoney } from "@/shared/money";
 
 // Calendar strings are formatted by hand so server and browser render identical text
 // (ICU data differs between Node and browsers) and the viewer's own zone never shifts a date.
@@ -46,4 +47,9 @@ export function dueText(due: string | null, state: string): string {
   if (state === "overdue") return `Overdue since ${fmtShort(due)}`;
   if (state === "due_today") return "Due today";
   return `Book by ${fmtShort(due)}`;
+}
+
+/** "¥48,000 · unverified estimate", "$620 · quote". */
+export function priceText(p: { amount: string; currency: string; label: string; source: "ai" | "owner" }): string {
+  return `${formatMoney(p.amount, p.currency)} · ${p.source === "ai" ? "unverified estimate" : p.label}`;
 }

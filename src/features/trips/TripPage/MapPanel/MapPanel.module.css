@@ -1,0 +1,6 @@
+.aside { position: sticky; top: var(--space-4); display: grid; gap: var(--space-3); }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-2xl); padding: var(--space-3); display: grid; gap: var(--space-3); }
+.cap { display: flex; justify-content: space-between; gap: var(--space-2); align-items: baseline; padding: 2px 4px 0; color: var(--ink-3); }
+.cap b { font: 700 18px var(--serif); color: var(--ink); letter-spacing: 0; text-transform: none; }
+.help { margin: -4px 4px 0; font-size: var(--text-sm); color: var(--ink-3); }
+@media (max-width: 860px) { .aside { position: static; order: -1; } }

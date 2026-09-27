@@ -1,0 +1,23 @@
+.wrap { position: relative; }
+.map { width: 100%; height: auto; display: block; border-radius: var(--radius-md); background: var(--paper); cursor: grab; touch-action: pan-y; user-select: none; }
+.map:active { cursor: grabbing; }
+.grid path { fill: none; stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 5; }
+.route { fill: none; stroke: var(--ink); stroke-width: 2; vector-effect: non-scaling-stroke; stroke-dasharray: 7 6; stroke-linecap: round; opacity: 0.7; animation: var(--kf-march) 1.6s linear 6; }
+.pin { cursor: pointer; }
+.pin:focus-visible { outline: none; }
+.dot { fill: var(--ink); stroke: var(--card); stroke-width: 3; }
+.need { fill: var(--vermilion-ink); }
+.pin:focus-visible .dot, .pin[data-lit] .dot { stroke: var(--vermilion); stroke-width: 4; }
+.pinNum { fill: var(--paper); font: 700 12px var(--mono); text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+.pinLabel { font: 600 12px var(--sans); fill: var(--ink); paint-order: stroke; stroke: var(--paper); stroke-width: 5px; stroke-linejoin: round; pointer-events: none; }
+.controls { position: absolute; inset: 0; pointer-events: none; }
+.zoom { position: absolute; left: var(--space-3); top: var(--space-3); display: grid; gap: 6px; pointer-events: auto; }
+.zoom button { width: var(--tap); height: var(--tap); border-radius: 50%; border: 1px solid var(--ink); background: var(--card); font: 600 17px/1 var(--sans); display: grid; place-items: center; }
+.zoom button:disabled { opacity: 0.35; cursor: default; }
+.scale { position: absolute; left: 14px; bottom: var(--space-3); display: grid; gap: 3px; color: var(--ink-2); }
+.scale i { display: block; height: 6px; border: 2px solid var(--ink-2); border-top: 0; }
+.scale :global(.mono) { font-size: 10px; }
+.north { position: absolute; right: 14px; top: var(--space-3); width: 22px; height: 40px; color: var(--ink-2); }
+.reset { position: absolute; right: var(--space-3); bottom: var(--space-3); pointer-events: auto; border: 1px solid var(--ink); background: var(--card); border-radius: var(--radius-pill); padding: 4px var(--space-3); font-size: var(--text-2xs); }
+.empty { padding: var(--space-8) var(--space-4); text-align: center; color: var(--ink-2); display: grid; gap: 6px; }
+@media (pointer: coarse) { .reset { min-height: 44px; } }

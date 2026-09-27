@@ -1,0 +1,4 @@
+.stamp { position: absolute; right: 0; top: 0; width: 112px; height: 112px; transform: rotate(-10deg); color: var(--vermilion); opacity: 0.85; pointer-events: none; animation: var(--kf-stamp-in) 0.7s 0.25s cubic-bezier(0.2, 0.8, 0.3, 1.1) both; }
+.stamp[data-status="ongoing"] { color: var(--ink); }
+.stamp[data-status="past"] { color: var(--ink-3); }
+@media (max-width: 560px) { .stamp { width: 64px; height: 64px; top: -6px; } }

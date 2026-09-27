@@ -1,0 +1,11 @@
+.tabs { display: flex; gap: var(--space-2); overflow-x: auto; padding: 2px 2px 8px; margin: 0 -2px; }
+.tab { flex: none; text-align: left; display: grid; gap: 1px; padding: 8px var(--space-4) 9px; border: 1px solid var(--line); background: var(--card); border-radius: var(--radius-lg); min-width: 120px; }
+.tab:hover { border-color: var(--ink); }
+.tab[aria-selected="true"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.top { font-size: var(--text-2xs); }
+.tab b { font: 700 16px/1.2 var(--serif); }
+.tab small { font-size: var(--text-xs); }
+.tab[data-outside="true"] .top { color: var(--vermilion-ink); }
+.tab[aria-selected="true"] .top { color: inherit; }
+.today { color: var(--vermilion-ink); font-weight: 600; }
+.tab[aria-selected="true"] .today { color: var(--vermilion-soft); }

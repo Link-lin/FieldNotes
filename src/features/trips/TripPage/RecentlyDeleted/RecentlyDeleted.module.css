@@ -1,0 +1,3 @@
+.list { list-style: none; margin: var(--space-2) 0 0; padding: 0; display: grid; gap: 6px; }
+.list li { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); color: var(--ink-3); }
+.list li span { text-decoration: line-through; text-decoration-color: var(--ctl); }

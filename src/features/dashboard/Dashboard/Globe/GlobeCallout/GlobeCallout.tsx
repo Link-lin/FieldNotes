@@ -2,7 +2,6 @@ import type { TripSummaryDTO } from "@/shared/dto";
 import { ButtonLink } from "@/components/ui/Button/Button";
 import { StatusIcon } from "@/components/ui/Icon/icons";
 import { Tag } from "@/components/ui/Tag/Tag";
-import { cx } from "@/lib/cx";
 import { dateRangeLabel, STATUS_LABEL } from "@/lib/format";
 import styles from "./GlobeCallout.module.css";
 
@@ -37,7 +36,7 @@ export function GlobeCallout({ ref, selected, trips, onSelect }: { ref: React.Re
         <Tag tone={selected.status}><StatusIcon status={selected.status} />{STATUS_LABEL[selected.status]}</Tag>
         <ButtonLink variant="fill" href={`/trips/${selected.id}`} data-trip-link={selected.id}>Open trip</ButtonLink>
       </div>
-      <div className={cx("muted")}>{setBy}</div>
+      <div className="muted">{setBy}</div>
     </div>
   );
 }

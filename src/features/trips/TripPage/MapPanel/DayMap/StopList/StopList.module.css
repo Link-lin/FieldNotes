@@ -1,0 +1,5 @@
+.stops { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-1); }
+.stop { display: flex; gap: 10px; align-items: baseline; padding: 6px var(--space-2); border-radius: var(--radius-sm); font-size: var(--text-md); transition: background 0.2s, box-shadow 0.2s; }
+.stop[data-lit] { background: var(--vermilion-wash); box-shadow: inset 3px 0 0 var(--vermilion); }
+.stop small { color: var(--ink-3); margin-left: auto; white-space: nowrap; }
+.dayChip { font: 500 10px var(--mono); letter-spacing: 0.1em; color: var(--ink-3); text-transform: uppercase; padding: var(--space-2) var(--space-2) 0; }
