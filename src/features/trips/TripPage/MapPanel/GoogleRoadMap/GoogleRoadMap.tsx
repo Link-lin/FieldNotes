@@ -13,7 +13,7 @@ export function GoogleRoadMap({ stops, apiKey }: { stops: Stop[]; apiKey: string
   const [loadedUrl, setLoadedUrl] = useState<string | null>(null);
   const chunks = routeChunks(stops);
   const segment = chunks[Math.min(segmentIndex, chunks.length - 1)] ?? [stops[0]!];
-  const url = googleDayEmbedUrl(apiKey, segment.map((s) => [s.lat, s.lon] as const), mode)!;
+  const url = googleDayEmbedUrl(apiKey, segment.map((s) => (s.airport ? { airport: s.airport } : ([s.lat, s.lon] as const))), mode)!;
   const route = segment.length > 1;
 
   return (

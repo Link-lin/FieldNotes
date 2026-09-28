@@ -103,6 +103,14 @@ describe("embedded day road map (MAP-9)", () => {
     expect(url.searchParams.get("mode")).toBe("driving");
   });
 
+  it("names an airport arrival by its code instead of its coordinates", () => {
+    const url = new URL(googleDayEmbedUrl("k", [{ airport: "HNL" }, [21.2793, -157.833], [21.2767, -157.8278]], "driving")!);
+    expect(url.searchParams.get("origin")).toBe("HNL airport");
+    expect(url.searchParams.get("waypoints")).toBe("21.27930,-157.83300");
+    expect(url.searchParams.get("destination")).toBe("21.27670,-157.82780");
+    expect(new URL(googleDayEmbedUrl("k", [{ airport: "OGG" }], "driving")!).searchParams.get("q")).toBe("OGG airport");
+  });
+
   it("uses a place map for one pin and never includes more than 20 intermediate pins", () => {
     expect(new URL(googleDayEmbedUrl("k", [[21, -157]], "walking")!).pathname).toBe("/maps/embed/v1/place");
     const stops = Array.from({ length: 24 }, (_, i) => [21, -157 + i / 100] as const);

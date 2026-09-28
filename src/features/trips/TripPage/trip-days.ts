@@ -6,7 +6,8 @@ import { fmtDay } from "@/lib/format";
 type Trip = TripDetailDTO["trip"];
 
 /** A numbered map stop. Numbers run across the whole trip, so a day tab shows the same ones. */
-export type Stop = { id: string; n: number; name: string; lat: number; lon: number; flight: boolean; need: boolean; day: string; dayLabel: string };
+/** `airport` is set when a flight's pin comes from the bundled airport list; the road map names it. */
+export type Stop = { id: string; n: number; name: string; lat: number; lon: number; flight: boolean; airport: string | null; need: boolean; day: string; dayLabel: string };
 
 export const pad2 = (n: number) => String(n).padStart(2, "0");
 export const isOutside = (trip: Trip, d: string) => d < trip.startDate || d > trip.endDate;
@@ -36,6 +37,7 @@ export function tripStops(trip: Trip, byDate: Map<string, PlanItemDTO[]>, days: 
           lat: i.coordinates.latitude,
           lon: i.coordinates.longitude,
           flight: !!i.flightDetails,
+          airport: i.coordinates.source === "airport" ? (i.flightDetails?.arrival.airportCode ?? null) : null,
           need: i.bookingStatus === "needs_booking",
           day: d,
           dayLabel: `${dayTag(trip, d)} · ${fmtDay(d)}`,

@@ -171,12 +171,19 @@ export function googleEmbedUrl(key: string, t: EmbedTarget): string {
   return `https://www.google.com/maps/embed/v1/place?${k}&q=${encodeURIComponent(t.q)}`;
 }
 
+/**
+ * A road-route stop: saved coordinates, or an airport code for a flight arrival pinned from the
+ * bundled airport list. Google names bare coordinates after whatever is nearest (a control tower,
+ * a rental listing), so an airport is sent as "HNL airport", as the flight embed already does.
+ */
+export type RoutePoint = readonly [number, number] | { airport: string };
+
 /** Google-hosted road map for one route segment (up to 20 intermediate stops). */
-export function googleDayEmbedUrl(key: string, stops: ReadonlyArray<readonly [number, number]>, mode: "driving" | "walking"): string | null {
+export function googleDayEmbedUrl(key: string, stops: ReadonlyArray<RoutePoint>, mode: "driving" | "walking"): string | null {
   const points = stops.slice(0, 22);
   const first = points[0];
   if (!first) return null;
-  const point = (c: readonly [number, number]) => `${c[0].toFixed(5)},${c[1].toFixed(5)}`;
+  const point = (c: RoutePoint) => ("airport" in c ? `${c.airport} airport` : `${c[0].toFixed(5)},${c[1].toFixed(5)}`);
   const base = `https://www.google.com/maps/embed/v1/`;
   const token = `key=${encodeURIComponent(key)}`;
   if (points.length === 1) return `${base}place?${token}&q=${encodeURIComponent(point(first))}`;

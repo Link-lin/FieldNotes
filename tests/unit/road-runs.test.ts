@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { roadRuns, routeChunks } from "@/features/trips/TripPage/MapPanel/GoogleRoadMap/road-runs";
 import type { Stop } from "@/features/trips/TripPage/trip-days";
 
-const stop = (n: number, day = "2026-10-18", flight = false): Stop => ({ id: String(n), n, name: String(n), lat: 21, lon: -157 + n / 100, flight, need: false, day, dayLabel: day });
+const stop = (n: number, day = "2026-10-18", flight = false): Stop => ({ id: String(n), n, name: String(n), lat: 21, lon: -157 + n / 100, flight, airport: flight ? "HNL" : null, need: false, day, dayLabel: day });
 
 describe("road-route groups", () => {
   it("breaks at flights and day boundaries", () => {
