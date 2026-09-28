@@ -75,12 +75,17 @@ describe("external AI import preview", () => {
     const omitted = preview(source(), budget);
     expect(omitted.trip.values.budget).toEqual(budget);
     expect(omitted.trip.warnings[0]?.code).toBe("missing_ai_budget");
+    expect(omitted.trip.aiBudget).toBeNull();
     const changed = preview(JSON.stringify({ formatVersion: 1, trip: { ...trip, budget: { amount: "900", currency: "USD" } }, items: [] }), budget);
     expect(changed.trip.values.budget).toEqual(budget);
     expect(changed.trip.warnings[0]?.code).toBe("changed_ai_budget");
+    expect(changed.trip.aiBudget).toEqual({ amount: "900", currency: "USD" });
     const invented = preview(JSON.stringify({ formatVersion: 1, trip: { ...trip, budget }, items: [] }));
     expect(invented.trip.values.budget).toBeNull();
     expect(invented.trip.warnings[0]?.code).toBe("ignored_ai_budget");
+    expect(invented.trip.aiBudget).toEqual({ amount: "1200", currency: "USD" });
+    const unreadable = preview(JSON.stringify({ formatVersion: 1, trip: { ...trip, budget: { amount: 900, currency: "USD" } }, items: [] }), budget);
+    expect(unreadable.trip.aiBudget).toBeNull();
   });
 
   it("rejects Booked, extra schedule fields on a flight, and invalid endpoint pairing", () => {

@@ -203,12 +203,12 @@ function parsedResponse(responseText: string): { value: unknown; errors: FieldEr
 
 function budgetWarning(aiBudget: unknown, ownerBudget: MoneyDTO | null): FieldError | null {
   if (ownerBudget === null) {
-    return aiBudget === undefined ? null : field("trip.budget", "ignored_ai_budget", "The AI supplied a budget you did not enter. It was ignored; you can set a budget yourself.");
+    return aiBudget === undefined ? null : field("trip.budget", "ignored_ai_budget", "The AI supplied a budget you did not enter. It isn't used unless you choose it; you can also set one yourself.");
   }
   if (aiBudget === undefined) return field("trip.budget", "missing_ai_budget", "The AI omitted your budget. Your original budget was kept.");
   const parsed = importMoneySchema.safeParse(aiBudget);
   if (!parsed.success || parsed.data.currency !== ownerBudget.currency || trimAmount(parsed.data.amount) !== trimAmount(ownerBudget.amount)) {
-    return field("trip.budget", "changed_ai_budget", "The AI changed your budget. Your original budget was kept.");
+    return field("trip.budget", "changed_ai_budget", "The AI changed your budget. Your original budget is kept unless you choose the AI's.");
   }
   return null;
 }
@@ -251,6 +251,8 @@ export function previewImport(responseText: string, ownerProvidedBudget: MoneyDT
   if (tripUnknown.length) return { ok: false, code: "unknown_field", errors: tripUnknown };
 
   const warning = budgetWarning(value.trip.budget, ownerProvidedBudget);
+  const offered = warning && value.trip.budget !== undefined ? importMoneySchema.safeParse(value.trip.budget) : null;
+  const aiBudget = offered?.success ? { amount: trimAmount(offered.data.amount), currency: offered.data.currency } : null;
   const tripValues = { ...pick(value.trip, TRIP_KEYS), budget: ownerProvidedBudget };
   const tripParsed = tripDraftSchema.safeParse(tripValues);
   const tripErrors = tripParsed.success ? [] : zodErrors(tripParsed.error, "trip");
@@ -271,7 +273,7 @@ export function previewImport(responseText: string, ownerProvidedBudget: MoneyDT
     else if (tripZone) errors.push(...itemSemanticErrors(checked.data, tripZone, prefix));
     return { index, values, sourceErrors: uniqueErrors(sourceErrors), errors: uniqueErrors(errors), included: true };
   });
-  return { ok: true, preview: { trip: { values: tripValues, errors: tripErrors, warnings: warning ? [warning] : [] }, items } };
+  return { ok: true, preview: { trip: { values: tripValues, errors: tripErrors, warnings: warning ? [warning] : [], aiBudget }, items } };
 }
 
 /** Repeat strict normalized validation on the server before an atomic commit. */

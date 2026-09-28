@@ -134,6 +134,11 @@ export type ImportPreviewDTO = {
     values: Partial<Record<keyof TripDraftDTO, unknown>>;
     errors: FieldError[];
     warnings: FieldError[];
+    /**
+     * I2: a valid budget the AI supplied that differs from the owner's. It is only offered
+     * ("Use this budget"); the preview keeps the owner's value until the owner picks it.
+     */
+    aiBudget: { amount: string; currency: string } | null;
   };
   items: Array<{
     index: number;

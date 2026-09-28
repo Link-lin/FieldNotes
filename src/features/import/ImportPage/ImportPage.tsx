@@ -296,7 +296,7 @@ export function ImportPage() {
             <Button variant="quiet" onClick={() => { setPreview(null); setLocalErrors([]); setMessage(null); }} disabled={locked}>← Back to paste</Button>
             <span className="mono muted">{included.length} included · {preview.items.length - included.length} skipped</span>
           </div>
-          <TripPreview values={preview.trip.values} errors={[...preview.trip.errors, ...localErrors.filter((e) => e.path.startsWith("trip."))]} warnings={preview.trip.warnings} busy={locked} onChange={editTrip} />
+          <TripPreview values={preview.trip.values} errors={[...preview.trip.errors, ...localErrors.filter((e) => e.path.startsWith("trip."))]} warnings={preview.trip.warnings} aiBudget={preview.trip.aiBudget ?? null} busy={locked} onChange={editTrip} />
           <div className={styles.itemsHead}><h2>Itinerary items</h2><p className="note">Flights are separate segments. Imported map links do not pin stops; you can choose a map link after creation.</p></div>
           {preview.items.length ? (
             groupedItems.map((group) => (
