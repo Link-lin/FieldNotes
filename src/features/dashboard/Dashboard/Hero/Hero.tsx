@@ -1,19 +1,22 @@
 import type { DashboardDTO } from "@/shared/dto";
 import { Button, ButtonLink } from "@/components/ui/Button/Button";
 import { PlusIcon } from "@/components/ui/Icon/icons";
+import { localToday, useClientValue } from "@/lib/client-value";
 import { cx } from "@/lib/cx";
 import { fmtShort, plural } from "@/lib/format";
 import { Tickets } from "./Tickets/Tickets";
 import styles from "./Hero.module.css";
 
 /** Title, New trip (owners only), the current and next trip, and one line of counts. */
-export function Hero({ data, today, onCreate, className }: { data: DashboardDTO; today: string; onCreate: () => void; className?: string }) {
+export function Hero({ data, onCreate, className }: { data: DashboardDTO; onCreate: () => void; className?: string }) {
+  // The viewer's own calendar date, read in the browser: the server's clock may be in another zone.
+  const today = useClientValue<string | null>(localToday, null);
   const count = (s: string) => data.trips.filter((t) => t.status === s).length;
   const tasks = data.ownerBookingTasks;
   const overdue = tasks.filter((t) => t.state === "overdue").length;
   return (
     <section className={cx(styles.hero, className)}>
-      <p className={cx("mono", styles.eyebrow)}>Your atlas · today is {fmtShort(today)}</p>
+      <p className={cx("mono", styles.eyebrow)}>Your atlas{today ? ` · today is ${fmtShort(today)}` : ""}</p>
       <h1 className={styles.title}>
         Every trip, on one <em>globe.</em>
       </h1>

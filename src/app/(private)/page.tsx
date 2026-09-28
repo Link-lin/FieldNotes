@@ -13,5 +13,5 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const { focus, filter } = await searchParams;
   const initialFilter: Filter = FILTERS.find((f) => f === filter) ?? "all";
   const focusId = focus && data.trips.some((t) => t.id === focus) ? focus : null;
-  return <Dashboard data={data} today={now.toISOString().slice(0, 10)} focus={focusId} initialFilter={initialFilter} />;
+  return <Dashboard data={data} focus={focusId} initialFilter={initialFilter} />;
 }

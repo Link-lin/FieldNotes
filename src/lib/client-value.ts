@@ -17,3 +17,9 @@ export function useClientValue<T>(read: () => T, fallback: T): T {
 export function browserZone(): string {
   return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 }
+
+/** Today's date on this device (YYYY-MM-DD, local time). Call it only in the browser. */
+export function localToday(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}

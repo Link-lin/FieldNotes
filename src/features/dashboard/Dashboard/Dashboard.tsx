@@ -20,7 +20,7 @@ const Globe = dynamic(() => import("./Globe/Globe").then((m) => m.Globe), {
  * The atlas (DASH-1, ATLAS-1): intro and trips on the left, the globe on the right. On desktop it
  * is one screen (data-one-screen); the left column scrolls and a zoomed globe fades under it.
  */
-export function Dashboard({ data, today, focus, initialFilter }: { data: DashboardDTO; today: string; focus: string | null; initialFilter: Filter }) {
+export function Dashboard({ data, focus, initialFilter }: { data: DashboardDTO; focus: string | null; initialFilter: Filter }) {
   const [filter, setFilter] = useState<Filter>(initialFilter);
   const [selected, setSelected] = useState<string | null>(focus);
   const [focusKey, setFocusKey] = useState(focus ? 1 : 0);
@@ -66,7 +66,7 @@ export function Dashboard({ data, today, focus, initialFilter }: { data: Dashboa
     <div className={styles.dash} data-one-screen>
       <div className={styles.split} onClickCapture={onOpen}>
         <div className={styles.left} data-dash-scroll>
-          <Hero className={styles.hero} data={data} today={today} onCreate={() => setCreating(true)} />
+          <Hero className={styles.hero} data={data} onCreate={() => setCreating(true)} />
           <TripList
             className={styles.trips}
             trips={data.trips}
