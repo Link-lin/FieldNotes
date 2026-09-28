@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { PlanItemDTO, TripDetailDTO } from "@/shared/dto";
 import { useToast } from "@/components/ui/Toast/Toast";
 import { dashboardUrl } from "@/features/dashboard/dashboard-return";
@@ -24,6 +24,7 @@ import { TripHeader } from "./TripHeader/TripHeader";
 import { TripTiles } from "./TripTiles/TripTiles";
 import { dayNumber, isOutside, pad2, straightLineKm, tripDays, tripStops } from "./trip-days";
 import styles from "./TripPage.module.css";
+import { animateDayEnter } from "./day-motion";
 
 const isField = (el: EventTarget | null) => el instanceof HTMLElement && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable);
 const LIT = "data-lit";
@@ -64,6 +65,17 @@ export function TripPage({ data, initialDay, mapsKey }: { data: TripDetailDTO; i
   const [panel, setPanel] = useState<{ id: string; open: boolean; snapshot: PlanItemDTO; initialEditing: boolean; trigger: string } | null>(null);
   // Deleted this visit and still restorable, so Undo stays reachable after the toast closes.
   const [recentlyDeleted, setRecentlyDeleted] = useState<PlanItemDTO[]>([]);
+
+  // Animate the timeline in from the side of the newly chosen tab (later days from the right).
+  const mainRef = useRef<HTMLDivElement>(null);
+  const shownDay = useRef(day);
+  useLayoutEffect(() => {
+    const from = shownDay.current;
+    shownDay.current = day;
+    if (from === day || !mainRef.current) return;
+    const order = ["all", ...days];
+    animateDayEnter(mainRef.current, Math.sign(order.indexOf(day) - order.indexOf(from)));
+  }, [day, days]);
 
   function selectDay(d: string, focus: boolean) {
     setDay(d);
@@ -209,7 +221,7 @@ export function TripPage({ data, initialDay, mapsKey }: { data: TripDetailDTO; i
         <DayTabs trip={trip} days={days} byDate={byDate} eventCount={items.length} pinCount={allStops.length} selected={day} onSelect={selectDay} />
 
         <div id="trip-panel" role="tabpanel" aria-labelledby={`tab-${day}`} className={styles.grid}>
-          <div className={styles.main}>
+          <div className={styles.main} ref={mainRef}>
             {(all ? days : [day]).map((d) => {
               const list = byDate.get(d) ?? [];
               const timed = list.filter((i) => i.sortInstant);

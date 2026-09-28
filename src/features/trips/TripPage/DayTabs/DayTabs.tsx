@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import type { PlanItemDTO, TripDetailDTO } from "@/shared/dto";
 import { cx } from "@/lib/cx";
 import { fmtDay, plural } from "@/lib/format";
@@ -16,6 +17,22 @@ type Props = {
 
 /** TRIP-2: Whole trip, then one tab per date. WAI-ARIA tabs: arrows, Home and End move between them. */
 export function DayTabs({ trip, days, byDate, eventCount, pinCount, selected, onSelect }: Props) {
+  // Keep the chosen tab in view in the scrolling strip, gliding there unless motion is reduced.
+  const strip = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const list = strip.current;
+    const tab = list?.querySelector<HTMLElement>(`[aria-selected="true"]`);
+    if (!list || !tab) return;
+    const left = tab.offsetLeft - list.offsetLeft;
+    const right = left + tab.offsetWidth;
+    const pad = 24;
+    let to: number | null = null;
+    if (left - pad < list.scrollLeft) to = Math.max(0, left - pad);
+    else if (right + pad > list.scrollLeft + list.clientWidth) to = right + pad - list.clientWidth;
+    if (to === null) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    list.scrollTo({ left: to, behavior: reduce ? "auto" : "smooth" });
+  }, [selected]);
   function onKeyDown(e: React.KeyboardEvent) {
     const keys = ["all", ...days];
     const i = keys.indexOf(selected);
@@ -30,7 +47,7 @@ export function DayTabs({ trip, days, byDate, eventCount, pinCount, selected, on
     }
   }
   return (
-    <div className={styles.tabs} role="tablist" aria-label="Whole trip or one day" onKeyDown={onKeyDown}>
+    <div className={styles.tabs} role="tablist" aria-label="Whole trip or one day" onKeyDown={onKeyDown} ref={strip}>
       <Tab id="all" selected={selected === "all"} onSelect={() => onSelect("all", false)} top="Whole trip" mid="All days" bottom={`${plural(eventCount, "event")}, ${plural(pinCount, "pin")}`} />
       {days.map((d) => {
         const list = byDate.get(d) ?? [];

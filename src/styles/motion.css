@@ -16,6 +16,7 @@
     --kf-fade-out: fade-out;
     --kf-panel-in: panel-in;
     --kf-panel-out: panel-out;
+    --kf-settle: settle;
   }
 
   @keyframes rise { from { opacity: 0; transform: translateY(16px); } }
@@ -29,6 +30,7 @@
   @keyframes fade-out { to { opacity: 0; } }
   @keyframes panel-in { from { transform: translateX(100%); } }
   @keyframes panel-out { to { transform: translateX(100%); } }
+  @keyframes settle { from { opacity: 0; transform: translateY(6px) scale(0.99); } }
 
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; transition: none !important; }

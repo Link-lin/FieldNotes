@@ -1,10 +1,14 @@
 .aside { position: sticky; top: var(--space-4); display: grid; gap: var(--space-3); }
 .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-2xl); padding: var(--space-3); display: grid; gap: var(--space-3); }
+/* The panel remounts per day (key); its contents settle in as the timeline slides. */
+.card > * { animation: var(--kf-settle) 0.34s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.card > :nth-child(2) { animation-delay: 40ms; }
+.card > :nth-child(n + 3) { animation-delay: 80ms; }
 .cap { display: flex; justify-content: space-between; gap: var(--space-2); align-items: baseline; padding: 2px 4px 0; color: var(--ink-3); }
 .cap b { font: 700 18px var(--serif); color: var(--ink); letter-spacing: 0; text-transform: none; }
 .help { margin: -4px 4px 0; font-size: var(--text-sm); color: var(--ink-3); }
 .views { display: flex; gap: 4px; padding: 4px; border: 1px solid var(--line); border-radius: var(--radius-pill); background: var(--paper); }
-.views button { flex: 1; min-height: 36px; border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--ink-2); font: 600 var(--text-sm) var(--sans); }
+.views button { flex: 1; min-height: 36px; border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--ink-2); font: 600 var(--text-sm) var(--sans); transition: background-color 0.25s, color 0.25s; }
 .views button[aria-pressed="true"] { background: var(--ink); color: var(--card); }
 .views button:focus-visible { outline: 2px solid var(--vermilion-ink); outline-offset: 2px; }
 @media (pointer: coarse) { .views button { min-height: 44px; } }
