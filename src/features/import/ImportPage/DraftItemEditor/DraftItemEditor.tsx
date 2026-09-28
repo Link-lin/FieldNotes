@@ -1,15 +1,21 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import type { FieldError } from "@/shared/dto";
 import type { ImportPreviewDTO } from "@/shared/import";
 import { Button } from "@/components/ui/Button/Button";
 import { Field, FieldGrid } from "@/components/ui/Field/Field";
 import { Tag } from "@/components/ui/Tag/Tag";
+import { previewGlance } from "../preview-summary";
 import styles from "./DraftItemEditor.module.css";
 
 type Row = ImportPreviewDTO["items"][number];
-type Props = { row: Row; errors: FieldError[]; busy: boolean; canRemoveEmptySourceValues: boolean; onChange: (path: string, value: unknown) => void; onIncluded: (included: boolean) => void; onRemoveUnsupported: () => void; onRemoveEmptySourceValues: () => void };
+type Props = {
+  row: Row; errors: FieldError[]; busy: boolean; canRemoveEmptySourceValues: boolean; tripZone: string | null;
+  /** Whether the edit form is showing; the page holds it so Expand all and Collapse all can set every card. */
+  open: boolean; onOpenChange: (open: boolean) => void;
+  onChange: (path: string, value: unknown) => void; onIncluded: (included: boolean) => void; onRemoveUnsupported: () => void; onRemoveEmptySourceValues: () => void;
+};
 const TYPES = ["flight", "lodging", "transport", "meal", "activity", "other"];
 
 function record(value: unknown): Record<string, unknown> { return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {}; }
@@ -22,8 +28,7 @@ function emptyFlightDetails() {
 }
 
 /** One unsaved AI item. Each field is corrected here or the whole item is explicitly skipped. */
-export function DraftItemEditor({ row, errors, busy, canRemoveEmptySourceValues, onChange, onIncluded, onRemoveUnsupported, onRemoveEmptySourceValues }: Props) {
-  const [expanded, setExpanded] = useState(errors.length > 0);
+export function DraftItemEditor({ row, errors, busy, canRemoveEmptySourceValues, tripZone, open, onOpenChange, onChange, onIncluded, onRemoveUnsupported, onRemoveEmptySourceValues }: Props) {
   const id = (path: string) => `import-item-${row.index}-${path.replace(/[^a-zA-Z0-9]/g, "-")}`;
   const err = (path: string) => errors.find((e) => normalizedPath(e.path) === path)?.message;
   const field = (path: string) => ({ error: err(path), errorId: `${id(path)}-err` });
@@ -38,6 +43,7 @@ export function DraftItemEditor({ row, errors, busy, canRemoveEmptySourceValues,
   const unsupportedBooking = booking && !["needs_booking", "not_required"].includes(booking);
   const unknownFields = errors.filter((error) => error.code === "unknown_field");
   const chosen = row.included ? "Skip item" : "Include item";
+  const glance = previewGlance(row.values, tripZone);
 
   function changeType(next: string) {
     set("type", next);
@@ -54,9 +60,16 @@ export function DraftItemEditor({ row, errors, busy, canRemoveEmptySourceValues,
   return (
     <li className={styles.item} data-excluded={!row.included}>
       <div className={styles.summary}>
-        <div>
+        <div className={styles.head}>
           <span className="mono">#{row.index + 1} · {type || "Type missing"}</span>
           <h3>{val("title") || "Untitled item"}</h3>
+          {glance.time || glance.place || glance.price ? (
+            <p className={styles.glance}>
+              {glance.time ? <span className={styles.time}>{glance.time}</span> : null}
+              {glance.place ? <span className={styles.place}>{glance.place}</span> : null}
+              {glance.price ? <span>{glance.price}</span> : null}
+            </p>
+          ) : null}
           <div className={styles.tags}>
             <Tag tone="soft">AI draft, unverified</Tag>
             {valueAt(row.values, "plannedPrice") ? <Tag tone="price">Price is an unverified estimate</Tag> : null}
@@ -67,7 +80,7 @@ export function DraftItemEditor({ row, errors, busy, canRemoveEmptySourceValues,
         <Button variant={row.included ? "quiet" : "outline"} onClick={() => onIncluded(!row.included)} disabled={busy} aria-label={`${chosen}: ${val("title") || `item ${row.index + 1}`}`}>{chosen}</Button>
       </div>
       {row.included ? (
-        <details className={styles.details} open={expanded || errors.length > 0} onToggle={(event) => setExpanded(event.currentTarget.open)}>
+        <details className={styles.details} open={open} onToggle={(event) => onOpenChange(event.currentTarget.open)}>
           <summary>Review and edit item</summary>
           {errors.length ? <ul className={styles.errors}>{errors.map((e, i) => <li key={`${e.path}-${i}`}>{e.message}</li>)}</ul> : null}
           {unknownFields.length ? (

@@ -37,6 +37,14 @@ function rowErrors(errors: FieldError[], index: number): FieldError[] {
   return errors.filter((error) => error.path.startsWith(`items[${index}]`) || error.path.startsWith(`items.${index}.`));
 }
 
+/** The items that errors point at (`items[3].title` is item 3), so their cards can be opened. */
+function errorRows(errors: FieldError[]): number[] {
+  return errors.flatMap((error) => {
+    const match = /^items(?:\[(\d+)\]|\.(\d+)\.)/.exec(error.path);
+    return match ? [Number(match[1] ?? match[2])] : [];
+  });
+}
+
 function initialBrief(): TripBrief {
   return { title: "", destination: "", startDate: "", endDate: "", timeZone: "UTC", interests: "", pace: "", constraints: "", budgetAmount: "", budgetCurrency: "USD" };
 }
@@ -59,6 +67,8 @@ export function ImportPage() {
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
   const [existingKey, setExistingKey] = useState(false);
   const [builderOpen, setBuilderOpen] = useState(false);
+  // Item cards showing their edit form. Cards with issues start open; Expand all and Collapse all set every card.
+  const [openRows, setOpenRows] = useState<ReadonlySet<number>>(() => new Set());
   const inputRevision = useRef(0);
   const prompt = useMemo(() => buildImportPrompt(brief), [brief]);
   const locked = busy === "commit" || pending !== null;
@@ -66,6 +76,12 @@ export function ImportPage() {
   const previewItems = preview?.items;
   const previewZone = typeof preview?.trip.values.timeZone === "string" ? preview.trip.values.timeZone : null;
   const groupedItems = useMemo(() => previewItems ? groupPreviewItems(previewItems, previewZone) : [], [previewItems, previewZone]);
+  const editor = (row: ImportPreviewDTO["items"][number]) => preview ? (
+    <DraftItemEditor key={row.index} row={row} errors={[...row.errors, ...rowErrors(localErrors, row.index)]} busy={locked} tripZone={previewZone}
+      open={openRows.has(row.index)} onOpenChange={(open) => setRowOpen(row.index, open)}
+      canRemoveEmptySourceValues={hasRemovableEmptySourceValues(row, preview.trip.values)} onChange={(path, value) => editItem(row.index, path, value)}
+      onIncluded={(value) => setIncluded(row.index, value)} onRemoveUnsupported={() => removeUnsupported(row.index)} onRemoveEmptySourceValues={() => removeEmptySourceValues(row.index)} />
+  ) : null;
   const remaining = included.reduce((sum, item) => sum + item.errors.length + rowErrors(localErrors, item.index).length, 0) + (preview?.trip.errors.length ?? 0) + localErrors.filter((e) => e.path.startsWith("trip.")).length;
 
   useEffect(() => {
@@ -142,6 +158,7 @@ export function ImportPage() {
     }
     setPreview(result.data);
     setLocalErrors([]);
+    setOpenRows(new Set(result.data.items.filter((row) => row.errors.length).map((row) => row.index)));
     requestAnimationFrame(() => document.getElementById("import-preview-title")?.focus());
   }
 
@@ -153,6 +170,20 @@ export function ImportPage() {
   function editItem(index: number, path: string, value: unknown) {
     setPreview((old) => old ? editPreviewItem(old, index, path, value) : old);
     setLocalErrors((old) => old.filter((e) => !rowErrors([e], index).length));
+  }
+
+  function setRowOpen(index: number, open: boolean) {
+    setOpenRows((old) => {
+      if (old.has(index) === open) return old;
+      const next = new Set(old);
+      if (open) next.add(index);
+      else next.delete(index);
+      return next;
+    });
+  }
+
+  function openRowsWithErrors(errors: FieldError[]) {
+    setOpenRows((old) => new Set([...old, ...errorRows(errors)]));
   }
 
   function setIncluded(index: number, value: boolean) {
@@ -170,6 +201,7 @@ export function ImportPage() {
   function reviewCommit() {
     if (!preview || locked) return;
     if (remaining) {
+      openRowsWithErrors([...included.flatMap((row) => row.errors), ...localErrors]);
       setMessage("Correct trip errors and every included item, or explicitly skip an item with errors.");
       requestAnimationFrame(() => document.getElementById("import-preview-error")?.focus());
       return;
@@ -180,6 +212,7 @@ export function ImportPage() {
     if (!parsed.success) {
       const errors = parsed.error.issues.map((issue) => ({ path: issuePath(issue.path, included), code: issue.code, message: issue.message }));
       setLocalErrors(errors);
+      openRowsWithErrors(errors);
       setMessage("Correct the highlighted fields or skip an invalid item before confirming.");
       requestAnimationFrame(() => document.getElementById("import-preview-error")?.focus());
       return;
@@ -218,6 +251,7 @@ export function ImportPage() {
     }
     setPending(null);
     setLocalErrors(result.fields);
+    openRowsWithErrors(result.fields);
     setMessage(result.message);
     requestAnimationFrame(() => document.getElementById("import-preview-error")?.focus());
   }
@@ -297,13 +331,22 @@ export function ImportPage() {
             <span className="mono muted">{included.length} included · {preview.items.length - included.length} skipped</span>
           </div>
           <TripPreview values={preview.trip.values} errors={[...preview.trip.errors, ...localErrors.filter((e) => e.path.startsWith("trip."))]} warnings={preview.trip.warnings} aiBudget={preview.trip.aiBudget ?? null} busy={locked} onChange={editTrip} />
-          <div className={styles.itemsHead}><h2>Itinerary items</h2><p className="note">Flights are separate segments. Imported map links do not pin stops; you can choose a map link after creation.</p></div>
+          <div className={styles.itemsHead}>
+            <h2>Itinerary items</h2>
+            <p className="note">Flights are separate segments. Imported map links do not pin stops; you can choose a map link after creation.</p>
+            {included.length ? (
+              <div className={styles.actions}>
+                <Button variant="quiet" onClick={() => setOpenRows(new Set(included.map((row) => row.index)))}>Expand all</Button>
+                <Button variant="quiet" onClick={() => setOpenRows(new Set())}>Collapse all</Button>
+              </div>
+            ) : null}
+          </div>
           {preview.items.length ? (
             groupedItems.map((group) => (
               <section key={group.key} className={styles.dayGroup} aria-label={group.label}>
                 <h3>{group.label}</h3>
-                {group.timed.length ? <ol className={styles.items}>{group.timed.map((row) => <DraftItemEditor key={row.index} row={row} errors={[...row.errors, ...rowErrors(localErrors, row.index)]} busy={locked} canRemoveEmptySourceValues={hasRemovableEmptySourceValues(row, preview.trip.values)} onChange={(path, value) => editItem(row.index, path, value)} onIncluded={(value) => setIncluded(row.index, value)} onRemoveUnsupported={() => removeUnsupported(row.index)} onRemoveEmptySourceValues={() => removeEmptySourceValues(row.index)} />)}</ol> : null}
-                {group.unscheduled.length ? <><h4>{group.key === "undated" || group.key === "undated-flights" || group.key === "needs-correction" ? "Items to review" : "Unscheduled"}</h4><ol className={styles.items}>{group.unscheduled.map((row) => <DraftItemEditor key={row.index} row={row} errors={[...row.errors, ...rowErrors(localErrors, row.index)]} busy={locked} canRemoveEmptySourceValues={hasRemovableEmptySourceValues(row, preview.trip.values)} onChange={(path, value) => editItem(row.index, path, value)} onIncluded={(value) => setIncluded(row.index, value)} onRemoveUnsupported={() => removeUnsupported(row.index)} onRemoveEmptySourceValues={() => removeEmptySourceValues(row.index)} />)}</ol></> : null}
+                {group.timed.length ? <ol className={styles.items}>{group.timed.map(editor)}</ol> : null}
+                {group.unscheduled.length ? <><h4>{group.key === "undated" || group.key === "undated-flights" || group.key === "needs-correction" ? "Items to review" : "Unscheduled"}</h4><ol className={styles.items}>{group.unscheduled.map(editor)}</ol></> : null}
               </section>
             ))
           ) : <Banner tone="info">This response has no items. You can still create an empty trip and add events later.</Banner>}
