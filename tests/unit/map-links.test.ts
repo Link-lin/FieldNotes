@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cleanMapUrl, coordinatesFromMapUrl, embedTarget, googleDayUrl, googleEmbedUrl, haversineKm, providerLabel } from "@/shared/map-links";
+import { cleanMapUrl, coordinatesFromMapUrl, embedTarget, googleDayUrl, googleEmbedUrl, haversineKm, mapLinkFromInput, parseCoordinateText, providerLabel } from "@/shared/map-links";
 
 describe("provider labels (MAP-1)", () => {
   it("names known providers by exact host", () => {
@@ -89,5 +89,27 @@ describe("embedded event map (MAP-8)", () => {
     expect(googleEmbedUrl("k", { mode: "directions", origin: "SFO airport", destination: "HND airport" })).toBe(
       "https://www.google.com/maps/embed/v1/directions?key=k&origin=SFO%20airport&destination=HND%20airport&mode=flying",
     );
+  });
+});
+
+describe("pasted coordinates (MAP-2)", () => {
+  it("reads decimal coordinates as Google Maps copies them, with a comma or a space", () => {
+    expect(parseCoordinateText("35.01160, 135.76810")).toEqual([35.0116, 135.7681]);
+    expect(parseCoordinateText(" -33.8568 151.2153 ")).toEqual([-33.8568, 151.2153]);
+    expect(parseCoordinateText("(40.7128,-74.006)")).toEqual([40.7128, -74.006]);
+  });
+
+  it("rejects anything that isn't a valid coordinate pair", () => {
+    for (const bad of ["95.1, 10", "35.0, 181", "35.0", "35.0, 135.7, 3", "Kyoto 35.0, 135.7", "35°00'41.8\"N 135°46'05.2\"E", ""]) {
+      expect(parseCoordinateText(bad)).toBeNull();
+    }
+  });
+
+  it("stores coordinates as a Google Maps search link that pins the same point", () => {
+    const url = mapLinkFromInput("35.01160, 135.76810");
+    expect(url).toBe("https://www.google.com/maps/search/?api=1&query=35.0116%2C135.7681");
+    expect(coordinatesFromMapUrl(url)).toEqual([35.0116, 135.7681]);
+    expect(providerLabel(url)).toBe("Google Maps");
+    expect(mapLinkFromInput("https://maps.app.goo.gl/abc")).toBe("https://maps.app.goo.gl/abc");
   });
 });

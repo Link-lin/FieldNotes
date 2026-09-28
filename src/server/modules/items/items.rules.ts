@@ -2,7 +2,7 @@ import "server-only";
 import type { Insertable } from "kysely";
 import type { PlanItemRow, PlanItemsTable } from "@/server/core/db/schema";
 import type { FieldError } from "@/shared/dto";
-import { cleanMapUrl, coordinatesFromMapUrl } from "@/shared/map-links";
+import { cleanMapUrl, coordinatesFromMapUrl, mapLinkFromInput } from "@/shared/map-links";
 import { trimAmount } from "@/shared/money";
 import type { ItemInput } from "@/shared/schemas";
 import { resolveLocal } from "@/shared/time";
@@ -42,8 +42,8 @@ function mapFields(input: ItemInput, current: PlanItemRow | null): { map_url: st
     return { map_url: current.map_url, latitude: current.latitude, longitude: current.longitude };
   }
   if (!raw) return { map_url: null, latitude: null, longitude: null };
-  const clean = cleanMapUrl(raw);
-  if (!clean) return { path: "mapUrl", code: "invalid_url", message: "Use a full https link (at most 2048 characters) without a user name, for example one copied from Google Maps." };
+  const clean = cleanMapUrl(mapLinkFromInput(raw));
+  if (!clean) return { path: "mapUrl", code: "invalid_url", message: "Use a full https link (at most 2048 characters) without a user name, or coordinates such as 35.0116, 135.7681." };
   if (current && clean === current.map_url) return { map_url: current.map_url, latitude: current.latitude, longitude: current.longitude };
   const c = coordinatesFromMapUrl(clean);
   return { map_url: clean, latitude: c ? c[0].toFixed(5) : null, longitude: c ? c[1].toFixed(5) : null };

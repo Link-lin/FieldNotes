@@ -173,7 +173,7 @@ export function DayMap({ stops, showDays, onPin }: { stops: Stop[]; showDays: bo
     return (
       <div className={styles.empty}>
         <b>No places pinned yet</b>
-        <span>Edit an event and add a Google Maps, Apple Maps or OpenStreetMap link with coordinates, and it will show up here.</span>
+        <span>Edit an event and add a Google Maps, Apple Maps or OpenStreetMap link with coordinates, or paste its coordinates, and it will show up here.</span>
       </div>
     );
   }

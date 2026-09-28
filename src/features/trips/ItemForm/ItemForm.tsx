@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { FieldError, ItemType, PlanItemDTO } from "@/shared/dto";
-import { providerLabel } from "@/shared/map-links";
+import { coordinatesFromMapUrl, parseCoordinateText, providerLabel } from "@/shared/map-links";
 import { Button } from "@/components/ui/Button/Button";
 import { CheckField, Field, FieldGrid, FormError } from "@/components/ui/Field/Field";
 import { Modal, ModalActions } from "@/components/ui/Modal/Modal";
@@ -135,6 +135,14 @@ export function ItemForm({ tripId, tripTitle, tripZone, defaultCurrency, recentC
 
   // FLIGHT-2: "Booked" needs both airport codes, local date-times and time zones.
   const flightReady = [v.dep, v.arr].every((e) => /^[A-Z0-9]{3,4}$/.test(e.code) && !!e.dt && !!e.zone);
+  // MAP-2: say before saving whether the map field will pin the stop (the server decides on save).
+  const mapText = v.mapUrl.trim();
+  const pin = mapText ? (parseCoordinateText(mapText) ?? coordinatesFromMapUrl(mapText)) : null;
+  const mapHint = !mapText
+    ? "Paste a Google Maps, Apple Maps or OpenStreetMap link, or coordinates like 35.0116, 135.7681. In Google Maps, right-click the place and click the numbers at the top of the menu to copy them."
+    : pin
+      ? `Pins the stop at ${pin[0].toFixed(5)}, ${pin[1].toFixed(5)}.`
+      : "This link has no coordinates the app can read, so the event won't be on the day map. Pasting coordinates works too.";
   const importedLinks = v.links.filter((l) => providerLabel(l.url) && l.url.startsWith("https://") && l.url !== v.mapUrl);
   const choiceField = (id: string, value: Choice, onChange: (c: Choice) => void, path: string) => (
     <Field label="This time happens twice that day (clocks go back). Which one?" htmlFor={id} wide {...fe(path)}>
@@ -152,7 +160,7 @@ export function ItemForm({ tripId, tripTitle, tripZone, defaultCurrency, recentC
       title={item ? "Edit event" : "Add to itinerary"}
       onClose={onClose}
       triggerSelector={triggerSelector}
-      subtitle={<>{tripTitle}. A Google Maps, Apple Maps or OpenStreetMap link with coordinates puts the event on the day map.</>}
+      subtitle={<>{tripTitle}. A map link with coordinates, or coordinates on their own, puts the event on the day map.</>}
     >
       <form className={styles.form} onSubmit={(e) => submit(e)} noValidate>
         <FieldGrid>
@@ -273,8 +281,18 @@ export function ItemForm({ tripId, tripTitle, tripZone, defaultCurrency, recentC
           <Field label={<>Place {optional()}</>} htmlFor="item-location" wide>
             <input id="item-location" value={v.location} maxLength={500} placeholder="Fushimi Inari Taisha, Kyoto" onChange={(e) => up({ location: e.target.value })} />
           </Field>
-          <Field label={<>Map link {optional("optional, any https link")}</>} htmlFor="item-map" wide {...fe("mapUrl")}>
-            <input id="item-map" type="url" inputMode="url" value={v.mapUrl} placeholder="https://www.google.com/maps/place/…/@35.0,135.7,17z" onChange={(e) => up({ mapUrl: e.target.value })} {...aria("mapUrl")} />
+          <Field label={<>Map link or coordinates {optional()}</>} htmlFor="item-map" wide hint={mapHint} hintId="item-map-hint" {...fe("mapUrl")}>
+            <input
+              id="item-map"
+              inputMode="url"
+              autoComplete="off"
+              spellCheck={false}
+              value={v.mapUrl}
+              placeholder="https://www.google.com/maps/… or 35.0116, 135.7681"
+              onChange={(e) => up({ mapUrl: e.target.value })}
+              aria-describedby="item-map-hint"
+              {...aria("mapUrl")}
+            />
           </Field>
           {importedLinks.length ? (
             <div className={styles.wide}>

@@ -137,6 +137,20 @@ describe("items, money and map links", () => {
     expect(edited.coordinates).toBeNull();
   });
 
+  it("pins a stop from pasted coordinates and stores them as a Google Maps link", async () => {
+    const t = await createTrip(db(), owner, tripInput, NOW);
+    const a = await createItem(db(), owner, t.id, event({ mapUrl: " 34.96714, 135.77267 " }));
+    expect(a.coordinates).toEqual({ latitude: 34.96714, longitude: 135.77267, source: "map_link" });
+    expect(a.mapUrl).toBe("https://www.google.com/maps/search/?api=1&query=34.96714%2C135.77267");
+    expect(a.mapProvider).toBe("Google Maps");
+    // The same coordinates pasted again are the same stored link, so nothing changes.
+    const again = await updateItem(db(), owner, t.id, a.id, { item: event({ mapUrl: "34.96714,135.77267" }), expectedVersion: a.version });
+    expect(again.mapUrl).toBe(a.mapUrl);
+    expect(again.coordinates).toEqual(a.coordinates);
+    const out = await expectHttp(createItem(db(), owner, t.id, event({ mapUrl: "95.1, 10.2" })), 422);
+    expect(out.fields?.[0]).toMatchObject({ path: "mapUrl", code: "invalid_url" });
+  });
+
   it("keeps an AI price unverified until the owner changes it", async () => {
     const t = await createTrip(db(), owner, tripInput, NOW);
     const [row] = await db()

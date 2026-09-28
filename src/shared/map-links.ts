@@ -109,6 +109,24 @@ export function coordinatesFromMapUrl(value: string): [number, number] | null {
   return null;
 }
 
+/**
+ * MAP-2: decimal coordinates typed or pasted on their own, as Google Maps copies them
+ * ("35.01160, 135.76810") or separated by a space. Returns null for anything else.
+ */
+export function parseCoordinateText(value: string): [number, number] | null {
+  const m = /^\s*\(?\s*(-?\d{1,2}(?:\.\d+)?)\s*(?:,\s*|\s+)(-?\d{1,3}(?:\.\d+)?)\s*\)?\s*$/.exec(value);
+  return m ? coordinate(m[1], m[2]) : null;
+}
+
+/**
+ * MAP-2: the map-link field also accepts coordinates. They are stored as a Google Maps search link
+ * for that point, which opens in Google Maps and pins the stop. Anything else is returned unchanged.
+ */
+export function mapLinkFromInput(value: string): string {
+  const c = parseCoordinateText(value);
+  return c ? googleSearchUrl(`${c[0]},${c[1]}`) : value;
+}
+
 export function googleSearchUrl(query: string): string {
   return "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(query);
 }
