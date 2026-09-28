@@ -2,7 +2,7 @@
 
 A private trip planner: a globe of every trip, and a page per trip with a day-by-day itinerary, a sketch map, booking tasks and planned costs. Product scope is in [PRD.md](PRD.md); architecture in [docs/design/technical-design.md](docs/design/technical-design.md).
 
-**Built so far:** Google sign-in with an owner allowlist, trips (create, edit, time-zone change, delete), dashboard globe and list, trip page with tabs, events (add, edit, duplicate, delete with undo), booking list, costs and budget, day map, account deletion, owner-only AI import, and read-only viewer invitations. The import page provides a conversion prompt for a plan already discussed in an external AI chat, an optional new-trip prompt, JSON v1 validation, a day-by-day editable preview, and confirmed atomic creation.
+**Built so far:** Google sign-in with an owner allowlist, trips (create, edit, time-zone change, delete), dashboard globe and list, trip page with tabs, events (add, edit, duplicate, delete with undo), booking list, costs and budget, day map, account deletion, owner-only AI import, read-only viewer invitations, and an event side panel (click an event) with an embedded Google map and notes. The import page provides a conversion prompt for a plan already discussed in an external AI chat, an optional new-trip prompt, JSON v1 validation, a day-by-day editable preview, and confirmed atomic creation.
 
 Owners share a trip from its **Share** dialog: invite one email, copy the one-time link (Field Notes sends no email), and revoke access or create a new link later. The invitee opens the link, signs in with the matching Google account and sees the trip read-only.
 
@@ -27,6 +27,7 @@ In `.env.local`:
 - `AUTH_SECRET`: run `npx auth secret` or `openssl rand -base64 33`.
 - `AUTH_GOOGLE_ID` and `AUTH_GOOGLE_SECRET`: create an OAuth client (type "Web application") in Google Cloud Console → APIs & Services → Credentials. Add `http://localhost:3000/api/auth/callback/google` as an authorized redirect URI.
 - `TRIP_OWNER_EMAILS`: your Google address (comma-separated for more than one). Only these accounts can create trips.
+- `GOOGLE_MAPS_EMBED_API_KEY` (optional): shows a Google map in each event's side panel. In Google Cloud Console, enable the **Maps Embed API**, create an API key, and restrict it to that API and to your site (for example `http://localhost:3000/*`). Without it the panel shows the event without a map.
 - `APP_ORIGIN`: `http://localhost:3000` locally; your https origin in production. Every write must come from this origin, and Auth.js uses it for callback URLs unless `AUTH_URL` is set.
 
 ## Checks
@@ -53,7 +54,7 @@ src/
   app/                  routes: pages and API route handlers (thin)
   features/             screens, one folder per component, children nested inside
     dashboard/Dashboard/        Hero, TripList, BookingTasks, Globe, ...
-    trips/TripPage/             TripHeader, DayTabs, Timeline, MapPanel, CostsSection, ShareDialog, ...
+    trips/TripPage/             TripHeader, DayTabs, Timeline, MapPanel, EventPanel, CostsSection, ShareDialog, ...
     trips/TripForm/, trips/ItemForm/, currency/, auth/SignInCard/
     import/ImportPage/          prompt copy, paste, preview and correction
     invitations/InvitePage/     invitation link landing: stage, sign in, accept

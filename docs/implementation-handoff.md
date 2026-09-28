@@ -1,6 +1,6 @@
 # Field Notes: implementation handoff
 
-Last updated 27 Sep 2026 (viewer invitations merged into `main`). Read this first when picking the project up in a new session.
+Last updated 27 Sep 2026 (event side panel on `feat/event-panel`). Read this first when picking the project up in a new session.
 
 ## Status
 
@@ -23,6 +23,12 @@ Last updated 27 Sep 2026 (viewer invitations merged into `main`). Read this firs
   - `/invite` removes the token from the address bar, stages it in a 15-minute HttpOnly cookie holding only the hash, then accepts for a signed-in visitor or offers Google sign-in that returns there. Wrong-account and invalid-link states reveal no trip, owner or invited email.
   - Acceptance compares the invitation email with the account's email as verified at account creation (Auth.js does not refresh it), binds the grant in one locked transaction, and is idempotent for the bound account. Revocation blocks the viewer's next request.
   - Server code is in `src/server/modules/invitations/`, routes under `src/app/api/trips/[tripId]/invitations` and `src/app/api/invitations/{stage,accept}`. Decisions are in technical design section 20.
+- **Event side panel (TRIP-10, MAP-8) is implemented on `feat/event-panel`** (not yet merged into `main`):
+  - Clicking an event row, or Enter on its details button, slides a panel in from the right while the trip page fades behind it. It shows the day and time, tags, a live Google map, the flight card, place and directions links, booking and price, links and notes, with **Previous**/**Next** through the current tab and **Edit event** for the owner.
+  - The owner's notes save as they type (`PATCH /api/trips/{tripId}/items/{itemId}/notes`); viewers read them.
+  - The map uses Google's Maps Embed API and needs `GOOGLE_MAPS_EMBED_API_KEY` (a browser key restricted to the Maps Embed API and the site). It shows a flight's route, the owner's pin, or the place name. It loads only when a panel opens; the CSP allows frames from `www.google.com` only and the frame sends only the site origin as referrer. Without a key the panel has no map.
+  - Modal and the panel share `src/lib/use-dialog.ts`.
+  - Checks: lint, typecheck, 145 tests and the build passed before each commit. A headless-browser run with seeded sessions covered opening by click and keyboard, the slide-in, focus, notes autosave, Previous/Next, Escape/close/faded-page close with focus back on the row, links and the menu not opening the panel, Edit event from the panel, the viewer's read-only panel, reduced motion, phone width and the embed addresses. The map itself could not load in that sandbox (Google was unreachable), so **check the map with a real key**.
 - **Added since the first build:**
   - New-trip form:
     - destination suggestions;
@@ -85,5 +91,6 @@ Last updated 27 Sep 2026 (viewer invitations merged into `main`). Read this firs
 
 ## Next milestone
 
-1. Check viewer invitations with two real Google accounts (see Status) and fix anything it finds.
-2. Pilot AI import with real plans and external AI tools. This has not been done yet. Track repair, edit and skip rates before adding in-page AI generation or free-form parsing. Confirm whether TRIP-7 should be built.
+1. Add a Maps Embed API key to `.env.local`, check the event panel's map, then merge `feat/event-panel`.
+2. Check viewer invitations with two real Google accounts (see Status) and fix anything it finds.
+3. Pilot AI import with real plans and external AI tools. This has not been done yet. Track repair, edit and skip rates before adding in-page AI generation or free-form parsing. Confirm whether TRIP-7 should be built.
