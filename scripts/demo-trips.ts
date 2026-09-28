@@ -146,7 +146,7 @@ export function demoTrips(today: string): TripSpec[] {
         title: "Check in: Outrigger Reef Waikiki (4 nights)",
         location: "2169 Kalia Rd, Honolulu, HI 96815",
         // Google place link with @lat,lon and tracking parameters that are stripped on save.
-        mapUrl: "https://www.google.com/maps/place/Outrigger+Reef+Waikiki+Beach+Resort/@21.27930,-157.83300,17z?entry=ttu&g_ep=EgoyMDI2",
+        mapUrl: "https://www.google.com/maps/place/Outrigger+Reef+Waikiki+Beach+Resort/@21.27825,-157.83295,17z?entry=ttu&g_ep=EgoyMDI2",
         date: d(0),
         time: "15:00",
         bookingStatus: "booked",
