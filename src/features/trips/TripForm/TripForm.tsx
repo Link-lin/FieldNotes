@@ -16,6 +16,7 @@ import { DestinationInput } from "./DestinationInput/DestinationInput";
 import { TimeZoneSelect } from "./TimeZoneSelect/TimeZoneSelect";
 import { impactBlocks, ZoneImpact, type Choice, type Impact } from "./ZoneImpact/ZoneImpact";
 import styles from "./TripForm.module.css";
+import { newlyOutside } from "./date-range";
 
 type Trip = TripDetailDTO["trip"];
 type Props = { trip: Trip | null; onClose: () => void; itemDates?: string[]; recentCurrencies?: string[] };
@@ -46,7 +47,7 @@ export function TripForm({ trip, onClose, itemDates = [], recentCurrencies = [] 
   const update = (patch: Partial<typeof v>) => setV((o) => ({ ...o, ...patch }));
   const err = (path: string) => errors.find((e) => e.path === path || e.path.startsWith(`${path}.`))?.message;
   const aria = (id: string) => (err(id) ? { "aria-invalid": true as const, "aria-describedby": `tf-${id}-err` } : {});
-  const outside = trip && v.startDate && v.endDate ? itemDates.filter((d) => d < v.startDate || d > v.endDate).length : 0;
+  const outside = trip ? newlyOutside(itemDates, trip, v) : 0;
 
   function body() {
     return {
