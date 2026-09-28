@@ -13,7 +13,8 @@ Last updated 28 Sep 2026 (review polish on `feat/review-polish`, branched from `
   - I2: the import budget warning offers **Use this budget ($1,200)** when the AI's budget is valid; nothing changes until the owner clicks. Checked end to end: import, use, create, trip shows the budget.
   - I5: the event form's zone and flight airport zones use the friendly zone picker (short list by offset, this device, the saved zone, show all).
   - I6: the event and flight forms note when a date is outside the trip; saving is still allowed.
-  - Checks passed before each commit: lint, typecheck, `npm test` (175 tests) and the production build.
+  - After the user's road-route check with the real key: Google drew the three-stop route correctly but labelled the stops after nearby places. Flight arrivals are now sent as `HNL airport`, and the test hotel pin was moved onto the Outrigger Reef. Event rows and the event view keep one **Open in Google Maps** link per place (Directions removed; Google Maps offers directions itself).
+  - Checks passed before each commit: lint, typecheck, `npm test` (176 tests) and the production build.
 - **Event view and editor changes are merged into local `main`** (not pushed):
   - On desktop the event panel is 820 px wide. **Edit event** uses the same panel, with a wrapping title, the saved-place map, and grouped time, booking, place and notes fields. The add form remains a dialog.
   - At phone widths (600 px and below), event rows and Edit actions navigate to an authorized event URL. The same details and editor render as a full page with a return to the trip. A viewer remains read-only.
@@ -156,7 +157,7 @@ A product-manager pass over the earlier `main` and `feat/event-panel` against th
 
 ## Next milestone
 
-1. Look over `feat/review-polish` and merge it into `main`. With the real Maps key, open the Hawaii test trip (re-run `npm run db:seed:hawaii` first), switch day 1 or day 4 to **Road route**, and check Google draws the three-stop route.
+1. Look over `feat/review-polish` and merge it into `main`. With the real Maps key, open the Hawaii test trip (re-run `npm run db:seed:hawaii` first), switch day 1 or day 4 to **Road route**, and check that the start is now labelled as the airport.
 2. Check viewer invitations with two real Google accounts (see Status) and fix anything it finds.
 3. Pilot AI import with real plans and external AI tools. This has not been done yet; the counts are ready for it. Read `npm run pilot:report` weekly (clean previews, skipped items, edits per imported item, due-date use) before adding in-page AI generation or free-form parsing. Confirm whether TRIP-7 should be built.
 4. Remaining review items: I3 (details on collapsed import cards, Expand all), I8 (compact phone tiles), I9 (actionable booking lists), the smaller I4, I7 and I10, and the owner decisions above.
