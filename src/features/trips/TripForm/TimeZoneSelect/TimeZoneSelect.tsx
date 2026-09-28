@@ -4,16 +4,24 @@ import { useMemo, useState } from "react";
 import type { PlaceDTO } from "@/shared/dto";
 import { Button } from "@/components/ui/Button/Button";
 import { Field } from "@/components/ui/Field/Field";
+import { browserZone, useClientValue } from "@/lib/client-value";
 import { commonZones, offsetMinutes, zoneLabel } from "./zones";
 import styles from "./TimeZoneSelect.module.css";
 
+// Every IANA zone the browser knows. Node and browsers ship different lists, so this is read only
+// on the client (useClientValue), and cached so each read returns the same array.
+let zoneIds: string[] | null = null;
 function allZoneIds(): string[] {
-  try {
-    return Intl.supportedValuesOf("timeZone");
-  } catch {
-    return ["UTC"];
+  if (!zoneIds) {
+    try {
+      zoneIds = Intl.supportedValuesOf("timeZone");
+    } catch {
+      zoneIds = ["UTC"];
+    }
   }
+  return zoneIds;
 }
+const NO_ZONES: string[] = [];
 
 const REGIONS: Array<[string, string]> = [
   ["Africa", "Africa"], ["America", "Americas"], ["Antarctica", "Antarctica"], ["Arctic", "Arctic"], ["Asia", "Asia"],
@@ -50,14 +58,15 @@ type Props = {
  * about 60 zones by offset ("GMT-7 · Los Angeles, Vancouver"), with every IANA zone one click away.
  */
 export function TimeZoneSelect({ id, value, onChange, place, currentZone, fromPlace, error }: Props) {
-  const browserZone = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC", []);
-  const allIds = useMemo(() => allZoneIds(), []);
+  // This device's zone and the full zone list come from the browser, after hydration (B1).
+  const deviceZone = useClientValue<string | null>(browserZone, null);
+  const allIds = useClientValue(allZoneIds, NO_ZONES);
   const regions = useMemo(() => groupedZones(allIds), [allIds]);
   const shortList = useMemo(() => commonZones(), []);
   const [showAll, setShowAll] = useState(false);
 
   const suggested = place?.timeZones ?? [];
-  const above = new Set([...suggested, browserZone, ...(currentZone ? [currentZone] : [])]);
+  const above = new Set([...suggested, ...(deviceZone ? [deviceZone] : []), ...(currentZone ? [currentZone] : [])]);
   const main = showAll ? regions : [{ label: "Time zones", zones: shortList }];
   const listed = new Set([...above, ...main.flatMap((g) => g.zones.map((z) => z.id))]);
   const errId = `${id}-err`;
@@ -71,7 +80,7 @@ export function TimeZoneSelect({ id, value, onChange, place, currentZone, fromPl
           : `Set from ${place.label}.`
         : "Book-by dates and times without their own zone use this zone."}{" "}
       <Button variant="link" className={styles.toggle} onClick={() => setShowAll((x) => !x)} aria-controls={id}>
-        {showAll ? "Show fewer" : `Not listed? Show all ${allIds.length}`}
+        {showAll ? "Show fewer" : allIds.length ? `Not listed? Show all ${allIds.length}` : "Not listed? Show all"}
       </Button>
     </>
   );
@@ -84,12 +93,12 @@ export function TimeZoneSelect({ id, value, onChange, place, currentZone, fromPl
             {suggested.map((z) => <option key={`s-${z}`} value={z}>{zoneLabel(z)}</option>)}
           </optgroup>
         ) : null}
-        {!suggested.includes(browserZone) ? (
+        {deviceZone && !suggested.includes(deviceZone) ? (
           <optgroup label="This device">
-            <option value={browserZone}>{zoneLabel(browserZone)}</option>
+            <option value={deviceZone}>{zoneLabel(deviceZone)}</option>
           </optgroup>
         ) : null}
-        {currentZone && currentZone !== browserZone && !suggested.includes(currentZone) ? (
+        {currentZone && currentZone !== deviceZone && !suggested.includes(currentZone) ? (
           <optgroup label="Current">
             <option value={currentZone}>{zoneLabel(currentZone)}</option>
           </optgroup>

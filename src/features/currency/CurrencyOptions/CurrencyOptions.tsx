@@ -1,18 +1,10 @@
 "use client";
 
 import { useMemo } from "react";
-import { CURRENCY_CODES } from "@/shared/currencies";
+import { CURRENCY_CODES, currencyName } from "@/shared/currencies";
 
 /** Widely used travel currencies, shown after the owner's own recent ones. */
 const POPULAR = ["USD", "EUR", "GBP", "JPY", "CNY", "AUD", "CAD", "CHF", "HKD", "SGD", "THB", "MXN"];
-
-function currencyName(code: string): string {
-  try {
-    return new Intl.DisplayNames(["en"], { type: "currency" }).of(code) ?? code;
-  } catch {
-    return code;
-  }
-}
 
 /**
  * Options for a currency <select>: the owner's recently used currencies first, then popular
