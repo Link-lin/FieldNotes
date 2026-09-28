@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { googleDayUrl, haversineKm } from "@/shared/map-links";
 import { ButtonLink } from "@/components/ui/Button/Button";
-import { cx } from "@/lib/cx";
 import { fmtDay } from "@/lib/format";
 import type { Stop } from "../trip-days";
 import { DayMap } from "./DayMap/DayMap";
@@ -26,27 +25,30 @@ export function MapPanel({ day, stops, onPin, mapsKey }: { day: string; stops: S
   return (
     <aside className={styles.aside} data-whole={all || undefined} aria-label="Map">
       <div className={styles.card}>
-        <div className={cx("mono", styles.cap)}>
-          <span>{road ? "Road map · Google" : "Outline map · no streets"}</span>
-          <b>{all ? "Whole trip" : fmtDay(day)}</b>
-        </div>
-        {!all && stops.length ? (
-          <>
-            <ButtonLink external href={googleDayUrl(stops.map((s) => [s.lat, s.lon] as const)) ?? "#"}>
-              {stops.length > 1 ? "Open this day in Google Maps" : "Open in Google Maps"} ↗
-            </ButtonLink>
-            <p className={styles.help}>Opens Google Maps with this day&apos;s pinned locations.{stops.length > 10 ? " Only the first 10 stops are included." : ""}</p>
-          </>
-        ) : null}
-        {!all && stops.length && mapsKey ? (
-          <div className={styles.views} aria-label="Map view">
-            <button type="button" aria-pressed={!road} onClick={() => setShowRoad(false)}>Outline</button>
-            <button type="button" aria-pressed={road} onClick={() => setShowRoad(true)}>Road route</button>
+        {/* Day, map kind and the day's controls in one row, so the map starts near the top. */}
+        <div className={styles.top}>
+          <div className={styles.cap}>
+            <b>{all ? "Whole trip" : fmtDay(day)}</b>
+            <span className="mono">{road ? "Road map · Google" : "Outline map · no streets"}</span>
           </div>
-        ) : null}
+          {!all && stops.length ? (
+            <div className={styles.controls}>
+              {mapsKey ? (
+                <div className={styles.views} role="group" aria-label="Map view">
+                  <button type="button" aria-pressed={!road} onClick={() => setShowRoad(false)}>Outline</button>
+                  <button type="button" aria-pressed={road} onClick={() => setShowRoad(true)}>Road route</button>
+                </div>
+              ) : null}
+              <ButtonLink variant="quiet" external href={googleDayUrl(stops.map((s) => [s.lat, s.lon] as const)) ?? "#"} aria-label={stops.length > 1 ? "Open this day in Google Maps" : "Open in Google Maps"}>
+                Google Maps ↗
+              </ButtonLink>
+            </div>
+          ) : null}
+        </div>
         {road && mapsKey ? <GoogleRoadMap key={day} stops={stops} apiKey={mapsKey} /> : <DayMap key={day} stops={stops} onPin={onPin} />}
         <StopList legs={legs} />
         {total > 0 ? <p className="note">About {km(total)} in straight lines between stops on the same day. Flights are not counted.</p> : null}
+        {!all && stops.length ? <p className="note">Google Maps opens with this day&apos;s pinned locations{stops.length > 10 ? ", the first 10 stops only" : ""}.</p> : null}
         {stops.length ? (
           <p className="note">{road
             ? "The road route is provided by Google. Stop-list distances remain straight-line estimates."
