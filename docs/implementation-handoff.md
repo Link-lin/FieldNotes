@@ -4,10 +4,11 @@ Last updated 28 Sep 2026. Read this first, then [AGENTS.md](../AGENTS.md). Keep 
 
 ## Where things stand
 
-- **Current branch:** `feat/trip-booking-overview`, based on `feat/dashboard-resizable-split`; local `main` has not received either branch. The owner pushes; this branch has not been pushed or merged. Lint, typecheck, all 184 tests and the production build pass.
+- **Current branch:** `feat/trip-wide-layout`, based on `feat/trip-booking-overview`; local `main` has not received this branch stack. The owner pushes; this branch has not been pushed or merged. Lint, typecheck, all 184 tests and the production build pass.
 - **Built:** everything listed under "Built so far" in the [README](../README.md): sign-in with an owner allowlist, trips and the globe dashboard, the trip page (itinerary, a dedicated Bookings view, day tabs, events, costs, outline day map with optional Google road route), the event view and editor with an embedded Google map, AI import from an external chat, read-only viewer invitations, account deletion, pilot counts, and test trips. Dashboard cards show a compact per-trip booking shortcut instead of a cross-trip task list.
 - **Not built:** TRIP-7 (import into an existing trip, proposed) and ATLAS-4's click-the-globe point picker (catalog search only).
 - **Dashboard layout:** the trip-list pane now starts wider on desktop and has a draggable, keyboard-operable divider. Its width is saved on this browser; Enter or double-click resets it. Phones keep the stacked layout. The globe redraws when the stage changes width. Browser-checked at 1800 px desktop, 1200 px short desktop and 390 px phone widths; drag, keyboard limits, reload persistence, reset and no horizontal overflow work.
+- **Trip layout:** the trip page now uses the full viewport width. At wide desktop sizes the header and summary share the first row, the itinerary and map use a 3:2 split, and Bookings uses a descriptive rail plus two-column task lists. Costs and globe location follow the timeline instead of waiting below the map. The map moves above the timeline at 1060 px and below. Browser-checked at 1800, 1400, 1200, 390 and 320 px with no horizontal page overflow.
 - **Not yet verified by hand:**
   - Viewer invitations with two real Google accounts: the sign-in round trip after opening a link, a brand-new invitee passing the sign-in gate, and **Switch Google account**.
   - After the last change, that the Road route on Hawaii day 1 starts at the airport by name. Re-run the seed first.

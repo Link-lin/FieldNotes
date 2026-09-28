@@ -16,7 +16,8 @@ const TYPE_COLOR: Record<string, string> = { flight: "#3a3026", lodging: "#5e8fa
 export function CostsSection({ data, owner }: { data: TripDetailDTO; owner: boolean }) {
   const { trip, plannedTotals: totals, budgetComparison: cmp } = data;
   const budgetOnly = trip.budget && !totals.some((t) => t.currency === trip.budget!.currency);
-  const cards: PlannedTotalDTO[] = [...(budgetOnly ? [{ currency: trip.budget!.currency, total: "0", priceCount: 0, unverifiedCount: 0, byType: [] }] : []), ...totals];
+  const cards: PlannedTotalDTO[] = [...(budgetOnly ? [{ currency: trip.budget!.currency, total: "0", priceCount: 0, unverifiedCount: 0, byType: [] }] : []), ...totals]
+    .sort((a, b) => Number(b.currency === trip.budget?.currency) - Number(a.currency === trip.budget?.currency));
   return (
     <Section title="Planned costs" titleId="costs-title">
       {!totals.length && !trip.budget ? (

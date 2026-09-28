@@ -24,7 +24,7 @@ export function MapPanel({ day, stops, onPin, mapsKey }: { day: string; stops: S
   });
   const total = legs.reduce((sum, leg) => sum + leg.d, 0);
   return (
-    <aside className={styles.aside} aria-label="Map">
+    <aside className={styles.aside} data-whole={all || undefined} aria-label="Map">
       <div className={styles.card}>
         <div className={cx("mono", styles.cap)}>
           <span>{road ? "Road map · Google" : "Outline map · no streets"}</span>

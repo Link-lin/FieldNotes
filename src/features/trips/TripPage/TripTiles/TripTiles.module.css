@@ -9,6 +9,10 @@
 .budget b { font-size: 22px; }
 .budget b small { display: block; margin: 2px 0 0; }
 
+@media (min-width: 1400px) {
+  .tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
 /* Phones: one compact strip that scrolls sideways and runs to the screen edges, so the day tabs come sooner. */
 @media (max-width: 600px) {
   .tiles {

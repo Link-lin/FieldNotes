@@ -1,4 +1,4 @@
-.costs { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+.costs { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: 14px; align-items: start; }
 .cost { display: grid; gap: 10px; align-content: start; }
 .head { display: flex; justify-content: space-between; color: var(--ink-3); }
 .total { font: 700 34px/1.1 var(--serif); font-variant-numeric: tabular-nums; }

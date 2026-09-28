@@ -46,22 +46,24 @@ export function BookingList({ trip, items, owner, onOpen }: Props) {
         <p>{toBook.length ? `${toBook.length} ${toBook.length === 1 ? "item needs" : "items need"} booking. Keep dates and booking status here; open an event for its details.` : items.length ? "No booking tasks right now." : "No events yet, so there is nothing to book."}</p>
         {!owner ? <p className="note">Read only. {trip.ownerName ?? "The owner"} manages the bookings.</p> : null}
       </div>
-      {groups.map((group) => (
-        <section key={group.key} className={styles.group} aria-labelledby={`booking-${group.key}`}>
-          <div className={styles.groupHead}>
-            <h3 id={`booking-${group.key}`}>{group.title}</h3>
-            <span className="mono">{group.items.length}</span>
-          </div>
-          <p className={styles.hint}>{group.description}</p>
-          <Card className={styles.card}>
-            <TaskList className={styles.tasks}>
-              {group.items.map((i) => (
-                <BookingTask key={i.id} task={task(i)} owner={owner} onOpen={() => onOpen(i)} onDateSaved={(itemId, version) => { pendingFocus.current = { itemId, version }; }} emptyFocus="#bookings-title" />
-              ))}
-            </TaskList>
-          </Card>
-        </section>
-      ))}
+      <div className={styles.groups}>
+        {groups.map((group) => (
+          <section key={group.key} className={styles.group} aria-labelledby={`booking-${group.key}`}>
+            <div className={styles.groupHead}>
+              <h3 id={`booking-${group.key}`}>{group.title}</h3>
+              <span className="mono">{group.items.length}</span>
+            </div>
+            <p className={styles.hint}>{group.description}</p>
+            <Card className={styles.card}>
+              <TaskList className={styles.tasks}>
+                {group.items.map((i) => (
+                  <BookingTask key={i.id} task={task(i)} owner={owner} onOpen={() => onOpen(i)} onDateSaved={(itemId, version) => { pendingFocus.current = { itemId, version }; }} emptyFocus="#bookings-title" />
+                ))}
+              </TaskList>
+            </Card>
+          </section>
+        ))}
+      </div>
     </section>
   );
 }

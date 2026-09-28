@@ -256,65 +256,72 @@ export function TripPage({ data, initialDay, initialEvent, initialView, mapsKey 
   return (
     <div className={styles.wrap} ref={root}>
       <article className={styles.trip}>
-        <TripHeader trip={trip} owner={owner} compact={view === "bookings"} onAdd={() => openAdd(all ? "" : day, "[data-add-top]")} onEdit={() => setEditingTrip(true)} onShare={() => setSharing(true)} />
-        <TripViewNav selected={view} toBook={toBook.length} overdue={overdueCount} onSelect={selectView} />
+        <div className={styles.hero} data-view={view}>
+          <div className={styles.heading}>
+            <TripHeader trip={trip} owner={owner} compact={view === "bookings"} onAdd={() => openAdd(all ? "" : day, "[data-add-top]")} onEdit={() => setEditingTrip(true)} onShare={() => setSharing(true)} />
+          </div>
+          <div className={styles.sectionNav}>
+            <TripViewNav selected={view} toBook={toBook.length} overdue={overdueCount} onSelect={selectView} />
+          </div>
+          {view === "itinerary" ? <div className={styles.facts}><TripTiles data={data} pinned={allStops.length} distanceKm={straightLineKm(allStops)} /></div> : null}
+        </div>
         {view === "bookings" ? (
           <BookingList trip={trip} items={items} owner={owner} onOpen={(i) => openPanel(i, { trigger: `[data-task-open="${i.id}"]` })} />
         ) : (
           <>
-            <TripTiles data={data} pinned={allStops.length} distanceKm={straightLineKm(allStops)} />
             <DayTabs trip={trip} days={days} byDate={byDate} eventCount={items.length} pinCount={allStops.length} selected={day} onSelect={selectDay} />
 
             <div id="trip-panel" role="tabpanel" aria-labelledby={`tab-${day}`} className={styles.grid}>
-              <div className={styles.main} ref={mainRef}>
-                {(all ? days : [day]).map((d) => {
-                  const list = byDate.get(d) ?? [];
-                  const timed = list.filter((i) => i.sortInstant);
-                  const unscheduled = list.filter((i) => !i.sortInstant);
-                  const outside = isOutside(trip, d);
-                  return (
-                    <DaySection
-                      key={d}
-                      title={fmtDay(d)}
-                      meta={<>{outside ? "Outside trip dates" : `Day ${pad2(dayNumber(trip, d))} of ${pad2(inRange.length)}`}{d === trip.today ? <TodayMark /> : null}</>}
-                      outside={outside}
-                      empty={!list.length}
-                      onAdd={owner ? () => openAdd(d, `[data-add-day="${d}"]`) : undefined}
-                      addKey={d}
-                    >
-                      {list.length ? (
-                        <>
-                          {timeline(timed, true)}
-                          {unscheduled.length ? (
-                            <>
-                              <SubHeading>Unscheduled</SubHeading>
-                              {timeline(unscheduled, true)}
-                            </>
-                          ) : null}
-                        </>
-                      ) : (
-                        <p className="note">Nothing planned.</p>
-                      )}
+              <div className={styles.mainColumn}>
+                <div className={styles.main} ref={mainRef}>
+                  {(all ? days : [day]).map((d) => {
+                    const list = byDate.get(d) ?? [];
+                    const timed = list.filter((i) => i.sortInstant);
+                    const unscheduled = list.filter((i) => !i.sortInstant);
+                    const outside = isOutside(trip, d);
+                    return (
+                      <DaySection
+                        key={d}
+                        title={fmtDay(d)}
+                        meta={<>{outside ? "Outside trip dates" : `Day ${pad2(dayNumber(trip, d))} of ${pad2(inRange.length)}`}{d === trip.today ? <TodayMark /> : null}</>}
+                        outside={outside}
+                        empty={!list.length}
+                        onAdd={owner ? () => openAdd(d, `[data-add-day="${d}"]`) : undefined}
+                        addKey={d}
+                      >
+                        {list.length ? (
+                          <>
+                            {timeline(timed, true)}
+                            {unscheduled.length ? (
+                              <>
+                                <SubHeading>Unscheduled</SubHeading>
+                                {timeline(unscheduled, true)}
+                              </>
+                            ) : null}
+                          </>
+                        ) : (
+                          <p className="note">Nothing planned.</p>
+                        )}
+                      </DaySection>
+                    );
+                  })}
+                  {all && undatedFlights.length ? (
+                    <DaySection title="Undated flights" meta="No departure date yet" note="Flights still to be scheduled. Edit one to add a planned date or its times.">
+                      {timeline(undatedFlights, false)}
                     </DaySection>
-                  );
-                })}
-                {all && undatedFlights.length ? (
-                  <DaySection title="Undated flights" meta="No departure date yet" note="Flights still to be scheduled. Edit one to add a planned date or its times.">
-                    {timeline(undatedFlights, false)}
-                  </DaySection>
-                ) : null}
-                {all && undated.length ? (
-                  <DaySection title="Undated" meta="No date yet" note="These events have no date. Edit one to place it on a day.">
-                    {timeline(undated, false)}
-                  </DaySection>
-                ) : null}
-                {owner && recentlyDeleted.length ? <RecentlyDeleted items={recentlyDeleted} onRestore={restoreEvent} /> : null}
+                  ) : null}
+                  {all && undated.length ? (
+                    <DaySection title="Undated" meta="No date yet" note="These events have no date. Edit one to place it on a day.">
+                      {timeline(undated, false)}
+                    </DaySection>
+                  ) : null}
+                  {owner && recentlyDeleted.length ? <RecentlyDeleted items={recentlyDeleted} onRestore={restoreEvent} /> : null}
+                </div>
+                <CostsSection data={data} owner={owner} />
+                <div className={styles.location}><GlobeLocation trip={trip} owner={owner} /></div>
               </div>
               <MapPanel key={day} day={day} stops={stops} onPin={goToEvent} mapsKey={mapsKey} />
             </div>
-
-            <CostsSection data={data} owner={owner} />
-            <div className={styles.location}><GlobeLocation trip={trip} owner={owner} /></div>
           </>
         )}
       </article>
