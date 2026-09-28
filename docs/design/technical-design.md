@@ -5,7 +5,7 @@
 **Product requirements:** [`PRD.md`](../../PRD.md), draft v1.1  
 **Revision:** 27 Sep 2026: core implementation decisions and AI import decisions recorded in section 20.
 
-**Repository state:** Core app implemented; AI import implemented on `feat/ai-import`. Viewer invitations remain. See section 20 and [`implementation-handoff.md`](../implementation-handoff.md) for current status. Earlier assessment sections describe the repository at design time.
+**Repository state:** Core app, owner-only AI import and viewer invitations are implemented; the proposed TRIP-7 append flow is not. See section 20 and [`implementation-handoff.md`](../implementation-handoff.md) for current status. Earlier assessment sections describe the repository at design time.
 
 ## 1. Executive summary
 
@@ -487,11 +487,11 @@ type ImportPreviewDTO = {
 type InvitationDTO = {
   id: string; email: string;
   status: "pending" | "accepted" | "expired" | "revoked";
-  expiresAt: string | null; acceptedAt: string | null;
+  expiresAt: string | null; acceptedAt: string | null; revokedAt: string | null;
 };
 ```
 
-`GET /api/trips` returns `DashboardDTO`; a trip detail response returns `TripDetailDTO`. Trip creation returns `TripSummaryDTO`; item create/update/duplicate returns `PlanItemDTO`. Import preview returns `ImportPreviewDTO`; malformed JSON, unsupported version, or an unparseable top-level structure returns the standard 422 error body. Correctable trip fields appear with path-addressed errors in the preview, as do item fields. Invalid parsed values remain in the current page state for form correction; unknown properties are rejected and are not returned. Every trip error must be resolved before commit, and each item must be fixed or excluded. Budget mismatch warnings explain that the owner-provided value was used and any unprovided model estimate was ignored; they do not block commit. Commit accepts only a complete trip and complete included rows and returns `{ tripId }`. Invitation creation returns `{ invitationId, invitationUrl, expiresAt }` once; the URL is never stored or returned by `GET invitations`. If the owner loses the URL before copying it, the owner must reissue the pending invitation, which rotates the token and invalidates the prior URL. Invitation acceptance returns `{ tripId }`. Delete/revoke endpoints return `204`.
+`GET /api/trips` returns `DashboardDTO`; a trip detail response returns `TripDetailDTO`. Trip creation returns `TripSummaryDTO`; item create/update/duplicate returns `PlanItemDTO`. Import preview returns `ImportPreviewDTO`; malformed JSON, unsupported version, or an unparseable top-level structure returns the standard 422 error body. Correctable trip fields appear with path-addressed errors in the preview, as do item fields. Invalid parsed values remain in the current page state for form correction; unknown properties are rejected and are not returned. Every trip error must be resolved before commit, and each item must be fixed or excluded. Budget mismatch warnings explain that the owner-provided value was used and any unprovided model estimate was ignored; they do not block commit. Commit accepts only a complete trip and complete included rows and returns `{ tripId }`. Invitation creation returns `{ invitationId, invitationUrl, expiresAt, invitation }` once (`invitation` is the entry's `InvitationDTO`); the URL is never stored or returned by `GET invitations`. If the owner loses the URL before copying it, the owner must reissue the pending invitation, which rotates the token and invalidates the prior URL. Invitation acceptance returns `{ tripId }`. Delete/revoke endpoints return `204`.
 
 Booking lists are filtered from `items` where `bookingStatus === "needs_booking"`; due state and planned totals are computed by the server so browser time zone or floating-point behavior cannot change the result. The API returns all trip items once; do not duplicate a second booking-item copy in the detail DTO.
 
@@ -844,18 +844,18 @@ Use a Node runtime and a small bounded Postgres pool. If using a serverless app 
 
 ## 12. Implementation mapping
 
-The core milestone is built; the table below names the actual files. Import and invitations are still to come, and their proposed homes follow the same layout.
+The core milestone, AI import and viewer invitations are built; the table below names the actual files.
 
 | Area | Files |
 |---|---|
-| Routes and pages | `src/app`: `sign-in/page.tsx`, `(private)/page.tsx` (dashboard), `(private)/trips/[tripId]/page.tsx`, `(private)/layout.tsx`. Pages fetch data and render one screen component. |
-| API | `src/app/api/**/route.ts`, each a few lines on `server/core/http/route.ts` (session, Origin check on every state-changing method, body validation, error mapping). Import and invitation routes will follow the same pattern. |
+| Routes and pages | `src/app`: `sign-in/page.tsx`, `invite/page.tsx` (public invitation landing), `(private)/page.tsx` (dashboard), `(private)/import/page.tsx`, `(private)/trips/[tripId]/page.tsx`, `(private)/layout.tsx`. Pages fetch data and render one screen component. |
+| API | `src/app/api/**/route.ts`, each a few lines on `server/core/http/route.ts` (session, Origin check on every state-changing method, body validation, error mapping). `POST /api/invitations/stage` is the one route without a session and uses `publicRoute()` from the same file, which keeps the Origin check, body limit, validation, error mapping and no-store. |
 | Auth | `src/server/auth/`: `auth.ts` (Auth.js with the Kysely adapter), `session.ts`, `actor.ts`, `sign-in-gate.ts`, and `access.ts`, the per-trip authorization boundary. |
-| Domain and data | `src/server/modules/<feature>/`: `*.service.ts` (rules and access checks), `*.repository.ts` (SQL only), `*.mapper.ts` (rows to DTOs). Features: `trips` (with `budget.repository.ts` and `time-zone.service.ts`), `items` (with `items.rules.ts`), `dashboard`, `account`, `places` (bundled catalog and airports). Import will be `modules/import`, invitations `modules/invitations`. |
+| Domain and data | `src/server/modules/<feature>/`: `*.service.ts` (rules and access checks), `*.repository.ts` (SQL only), `*.mapper.ts` (rows to DTOs). Features: `trips` (with `budget.repository.ts` and `time-zone.service.ts`), `items` (with `items.rules.ts`), `dashboard`, `account`, `places` (bundled catalog and airports), `import` (with `import.rules.ts`), and `invitations` (with `invitations.rules.ts` for token, status and staging-cookie helpers). |
 | Database | `src/server/core/db/client.ts` and `schema.ts`, `db/migrations/`, `db/migrate.ts`, `scripts/dev-db.ts`. |
 | Shared | `src/shared`: zod schemas, DTO types, time, money, map-link and redirect helpers used by browser and server. |
 | UI building blocks | `src/components/ui/<Name>/` (Button, Tag, Field, Card, Banner, Modal, Toast, Menu, Section, TaskList, ProgressBar, Logo, Icon) and `src/components/layout/` (AppShell, AppHeader with AccountMenu, PageMessage). |
-| Screens | `src/features/<feature>/<Screen>/`, children nested under the component that uses them: `dashboard/Dashboard` (Hero, TripList, BookingTasks, Globe), `trips/TripPage` (TripHeader, TripTiles, DayTabs, DaySection, Timeline, MapPanel with DayMap, CostsSection, BookingList, GlobeLocation), `trips/TripForm`, `trips/ItemForm`, `currency`, `auth/SignInCard`. |
+| Screens | `src/features/<feature>/<Screen>/`, children nested under the component that uses them: `dashboard/Dashboard` (Hero, TripList, BookingTasks, Globe), `trips/TripPage` (TripHeader, TripTiles, DayTabs, DaySection, Timeline, MapPanel with DayMap, CostsSection, BookingList, GlobeLocation), `trips/TripForm`, `trips/ItemForm`, `trips/TripPage/ShareDialog` (InviteLink, ViewerList), `import/ImportPage`, `invitations/InvitePage`, `currency`, `auth/SignInCard`. |
 | Styles | `src/styles` (tokens, base, utilities, motion, in cascade layers) plus one `.module.css` per component. |
 | Tests | `tests/unit` (pure logic), `tests/db` (DAL, route handlers, sign-in gate against embedded PostgreSQL). Browser checks are run against a standalone build. |
 | Configuration | `.env.example` with names only; README covers Google OAuth setup. |
@@ -1116,7 +1116,7 @@ These references support current framework integration choices; versions should 
 
 ## 20. Implementation notes
 
-The core milestone (sign-in, trips, dashboard, trip page, events, costs, day map, account deletion) is implemented. AI import is implemented on `feat/ai-import`; viewer invitations and the proposed TRIP-7 append flow are not. These choices were made during implementation and supersede earlier proposals where they differ.
+The core milestone (sign-in, trips, dashboard, trip page, events, costs, day map, account deletion), owner-only AI import and viewer invitations are implemented; the proposed TRIP-7 append flow is not. These choices were made during implementation and supersede earlier proposals where they differ.
 
 | Area | Decision |
 | --- | --- |
@@ -1145,3 +1145,7 @@ The core milestone (sign-in, trips, dashboard, trip page, events, costs, day map
 | JSON v1 storage compatibility | Migration `0002_import_v1_limits` widens trip/item IANA zone limits to 100 characters, airline to 120, flight number to 24, and airport codes to 3–4 uppercase alphanumeric characters. Manual validation and form lengths now match these limits. The existing manual duration maximum remains 20,160 minutes, while JSON v1 import is capped at 1,440. |
 | AI price confirmation | The item edit route accepts `confirmPrice: true`. If the owner checks the confirmation control, an unchanged AI estimate becomes owner-entered on save. Without confirmation, an unchanged AI amount, currency and label keep AI provenance; a changed price becomes owner-entered. This makes BUDGET-4 explicit rather than relying on a no-op save. |
 | Import error privacy | Unexpected route errors log only the error class and a generated request ID. Database/provider exception messages can contain submitted trip values, so response text, normalized drafts, links and free text are not logged. |
+| Invitation links and staging | `POST …/invitations` returns `/invite#<token>` once: 32 random bytes as base64url, stored only as a SHA-256 hash with a seven-day expiry. Giving an entry a new link rotates the hash and expiry in the same row. Inviting the owner's own email is a 422; an accepted viewer is a 409 until revoked. `POST /api/invitations/stage` needs no session and sets a 15-minute `HttpOnly`, `SameSite=Lax`, `Path=/` cookie holding the hash in hex: `__Host-fieldnotes-invite` (with `Secure`) on HTTPS, `fieldnotes-invite` on `http://localhost`. Handlers read and set it through the Cookie and Set-Cookie headers, so route tests exercise it directly. Every unusable link (unknown, malformed, expired, replaced, revoked, or accepted by another account) gets the same 404 `invitation_invalid` answer. |
+| Invitation acceptance | `POST /api/invitations/accept` locks the row by token hash. It compares the invitation's normalized email with the account's stored `User.email`, which the sign-in gate verified with Google when the account was created; Auth.js does not refresh that email on later sign-ins, so an existing account whose Google address changed must be invited at the address it signed up with. A mismatch is 403 `invitation_wrong_account` and leaves the invitation pending and the staging cookie in place for a switch of account. Success clears the cookie. An accepted link can still be staged, so the bound account can reopen it and land on the trip; any other account gets the generic answer. |
+| Invitation screens | `/invite` reads the token from the fragment, replaces the address with `/invite`, stages it, then accepts for a signed-in visitor (redirecting to the trip) or shows the invitation landing with **Continue with Google** returning to `/invite`. **Switch Google account** signs out and signs in again with the account chooser. When the sign-in gate refuses a new identity while an invitation is staged, the sign-in page checks only that the staging cookie is present and shows the invitation's wrong-account state; switching returns to `/invite`. No state shows the trip, owner or invited email. |
+| Share dialog | The owner's **Share** button opens a dialog with the ACCESS-8 notice, an email field, the copyable message shown once (it names the trip, the invited email, the link and its expiry; no email is sent), and a list of entries with status and expiry. **Revoke** is offered for pending and accepted entries and asks for confirmation for an accepted viewer; **Create new link** is offered for pending, expired and revoked entries. Instant dates in the dialog use the viewer's own zone ("4 Oct 2026"). |

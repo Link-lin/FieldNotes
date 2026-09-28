@@ -2,7 +2,7 @@
 
 ## Repository status
 
-The core app and owner-only AI import are implemented (see [README.md](README.md) for setup and what is built). Viewer invitations are not built yet.
+The core app, owner-only AI import and read-only viewer invitations are implemented (see [README.md](README.md) for setup and what is built). Importing into an existing trip (TRIP-7) is proposed, not built.
 
 - [`PRD.md`](PRD.md): product scope, flows, requirements, assumptions, and open decisions.
 - [`docs/design/technical-design.md`](docs/design/technical-design.md): architecture, data model, API contracts, security, test strategy; section 20 records implementation decisions.

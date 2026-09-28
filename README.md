@@ -2,9 +2,11 @@
 
 A private trip planner: a globe of every trip, and a page per trip with a day-by-day itinerary, a sketch map, booking tasks and planned costs. Product scope is in [PRD.md](PRD.md); architecture in [docs/design/technical-design.md](docs/design/technical-design.md).
 
-**Built so far:** Google sign-in with an owner allowlist, trips (create, edit, time-zone change, delete), dashboard globe and list, trip page with tabs, events (add, edit, duplicate, delete with undo), booking list, costs and budget, day map, account deletion, and owner-only AI import. The import page provides a conversion prompt for a plan already discussed in an external AI chat, an optional new-trip prompt, JSON v1 validation, a day-by-day editable preview, and confirmed atomic creation.
+**Built so far:** Google sign-in with an owner allowlist, trips (create, edit, time-zone change, delete), dashboard globe and list, trip page with tabs, events (add, edit, duplicate, delete with undo), booking list, costs and budget, day map, account deletion, owner-only AI import, and read-only viewer invitations. The import page provides a conversion prompt for a plan already discussed in an external AI chat, an optional new-trip prompt, JSON v1 validation, a day-by-day editable preview, and confirmed atomic creation.
 
-**Not built yet:** Importing into an existing trip (proposed TRIP-7) and viewer invitations (ACCESS-3 to ACCESS-7). Viewer access works if a grant row exists, but there is no screen to create one.
+Owners share a trip from its **Share** dialog: invite one email, copy the one-time link (Field Notes sends no email), and revoke access or create a new link later. The invitee opens the link, signs in with the matching Google account and sees the trip read-only.
+
+**Not built yet:** Importing into an existing trip (proposed TRIP-7).
 
 ## Requirements
 
@@ -51,9 +53,10 @@ src/
   app/                  routes: pages and API route handlers (thin)
   features/             screens, one folder per component, children nested inside
     dashboard/Dashboard/        Hero, TripList, BookingTasks, Globe, ...
-    trips/TripPage/             TripHeader, DayTabs, Timeline, MapPanel, CostsSection, ...
+    trips/TripPage/             TripHeader, DayTabs, Timeline, MapPanel, CostsSection, ShareDialog, ...
     trips/TripForm/, trips/ItemForm/, currency/, auth/SignInCard/
     import/ImportPage/          prompt copy, paste, preview and correction
+    invitations/InvitePage/     invitation link landing: stage, sign in, accept
   components/
     ui/                 shared building blocks: Button, Field, Modal, Menu, Tag, Card, ...
     layout/             AppShell, AppHeader (with AccountMenu), PageMessage
@@ -63,7 +66,7 @@ src/
   server/
     core/               db client and schema types, env, HTTP helpers and the route() wrapper
     auth/               Auth.js setup, session, actor, sign-in gate, per-trip access checks
-    modules/<feature>/  service (rules), repository (SQL), mapper (DTOs): trips, items, dashboard, account, places, import
+    modules/<feature>/  service (rules), repository (SQL), mapper (DTOs): trips, items, dashboard, account, places, import, invitations
   data/                 bundled place and airport lists
 db/migrations/          SQL migrations
 tests/unit, tests/db    Vitest projects
