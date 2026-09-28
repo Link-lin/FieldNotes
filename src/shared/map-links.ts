@@ -131,10 +131,6 @@ export function googleSearchUrl(query: string): string {
   return "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(query);
 }
 
-export function googleDirectionsUrl(destination: string): string {
-  return "https://www.google.com/maps/dir/?api=1&destination=" + encodeURIComponent(destination);
-}
-
 /** What the event side panel's embedded Google map shows (MAP-8). */
 export type EmbedTarget = { mode: "place"; q: string } | { mode: "directions"; origin: string; destination: string };
 

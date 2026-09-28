@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { PlanItemDTO, TripDetailDTO } from "@/shared/dto";
-import { googleDirectionsUrl, googleSearchUrl, providerLabel } from "@/shared/map-links";
+import { googleSearchUrl, providerLabel } from "@/shared/map-links";
 import { Button, ButtonLink } from "@/components/ui/Button/Button";
 import { EditIcon, PinIcon } from "@/components/ui/Icon/icons";
 import { Tag } from "@/components/ui/Tag/Tag";
@@ -239,7 +239,6 @@ export function EventPanel({ trip, item, open, owner, num, mapsKey, prev, next, 
                 ) : item.location ? (
                   <ButtonLink variant="quiet" external href={googleSearchUrl(item.location)}>Open in Google Maps ↗</ButtonLink>
                 ) : null}
-                {item.location ? <ButtonLink variant="quiet" external href={googleDirectionsUrl(item.location)}>Directions ↗</ButtonLink> : null}
               </div>
             </section>
           ) : null}

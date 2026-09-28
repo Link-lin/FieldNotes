@@ -1,7 +1,7 @@
 "use client";
 
 import type { PlanItemDTO } from "@/shared/dto";
-import { googleDirectionsUrl, googleSearchUrl, providerLabel } from "@/shared/map-links";
+import { googleSearchUrl, providerLabel } from "@/shared/map-links";
 import { ButtonLink } from "@/components/ui/Button/Button";
 import { CopyIcon, DotsIcon, EditIcon, PinIcon, TrashIcon } from "@/components/ui/Icon/icons";
 import { Menu, MenuItem } from "@/components/ui/Menu/Menu";
@@ -66,7 +66,6 @@ export function EventRow({ item, num, owner, tripZone, menuOpen, onMenu, onOpen,
           ) : item.location ? (
             <ButtonLink variant="quiet" external href={googleSearchUrl(item.location)}>Open in Google Maps ↗</ButtonLink>
           ) : null}
-          {item.location ? <ButtonLink variant="quiet" external href={googleDirectionsUrl(item.location)}>Directions ↗</ButtonLink> : null}
           {item.links.map((l, i) => (
             <ButtonLink key={i} variant="quiet" external href={l.url}>{l.label} · {providerLabel(l.url)} ↗</ButtonLink>
           ))}
