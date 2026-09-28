@@ -19,6 +19,11 @@ export const fmtShort = (d: string) => {
   return `${p.day} ${MONTHS[p.m - 1]}`;
 };
 export const fmtMonth = (d: string) => (MONTHS[parts(d).m - 1] ?? "").toUpperCase();
+/** An instant (ISO timestamp) as a date in the viewer's own zone, "4 Oct 2026". Browser-only data, so no server/browser mismatch. */
+export function instantDate(iso: string): string {
+  const d = new Date(iso);
+  return `${d.getDate()} ${MONTHS[d.getMonth()] ?? ""} ${d.getFullYear()}`;
+}
 export const dotted = (d: string) => d.replace(/-/g, ".");
 
 export function dateRangeLabel(t: { startDate: string; endDate: string }): string {

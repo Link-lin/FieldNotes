@@ -17,6 +17,7 @@ import { DayTabs } from "./DayTabs/DayTabs";
 import { GlobeLocation } from "./GlobeLocation/GlobeLocation";
 import { MapPanel } from "./MapPanel/MapPanel";
 import { RecentlyDeleted } from "./RecentlyDeleted/RecentlyDeleted";
+import { ShareDialog } from "./ShareDialog/ShareDialog";
 import { Timeline } from "./Timeline/Timeline";
 import { TripHeader } from "./TripHeader/TripHeader";
 import { TripTiles } from "./TripTiles/TripTiles";
@@ -54,6 +55,7 @@ export function TripPage({ data, initialDay }: { data: TripDetailDTO; initialDay
   const toBook = items.filter((i) => i.bookingStatus === "needs_booking");
 
   const [editingTrip, setEditingTrip] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const [itemForm, setItemForm] = useState<ItemFormState | null>(null);
   const [menuFor, setMenuFor] = useState<string | null>(null);
   // Deleted this visit and still restorable, so Undo stays reachable after the toast closes.
@@ -172,7 +174,7 @@ export function TripPage({ data, initialDay }: { data: TripDetailDTO; initialDay
   return (
     <div className={styles.wrap} ref={root}>
       <article className={styles.trip}>
-        <TripHeader trip={trip} owner={owner} onAdd={() => openAdd(all ? "" : day, "[data-add-top]")} onEdit={() => setEditingTrip(true)} />
+        <TripHeader trip={trip} owner={owner} onAdd={() => openAdd(all ? "" : day, "[data-add-top]")} onEdit={() => setEditingTrip(true)} onShare={() => setSharing(true)} />
         <TripTiles data={data} pinned={allStops.length} distanceKm={straightLineKm(allStops)} toBook={toBook.length} overdue={toBook.some((i) => i.bookingDueState === "overdue")} />
         <DayTabs trip={trip} days={days} byDate={byDate} eventCount={items.length} pinCount={allStops.length} selected={day} onSelect={selectDay} />
 
@@ -251,6 +253,7 @@ export function TripPage({ data, initialDay }: { data: TripDetailDTO; initialDay
           }}
         />
       ) : null}
+      {sharing && owner ? <ShareDialog trip={trip} onClose={() => setSharing(false)} /> : null}
       {editingTrip ? <TripForm trip={trip} recentCurrencies={data.recentCurrencies} onClose={() => setEditingTrip(false)} itemDates={items.map((i) => i.timelineDate).filter((d): d is string => !!d)} /> : null}
     </div>
   );

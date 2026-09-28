@@ -37,6 +37,12 @@ export const CopyIcon = () => (
     <path d="M10.5 5V3.5A1.5 1.5 0 0 0 9 2H3.5A1.5 1.5 0 0 0 2 3.5V9a1.5 1.5 0 0 0 1.5 1.5H5" />
   </svg>
 );
+export const ShareIcon = () => (
+  <svg viewBox="0 0 16 16" strokeWidth={1.5} {...s} aria-hidden="true">
+    <circle cx="6" cy="5.5" r="2.5" />
+    <path d="M1.5 13.5c.5-2.4 2.3-3.8 4.5-3.8s4 1.4 4.5 3.8M11.5 5v5M9 7.5h5" />
+  </svg>
+);
 export const DotsIcon = () => (
   <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
     <circle cx="3" cy="8" r="1.5" />

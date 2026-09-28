@@ -1,0 +1,5 @@
+.box { display: grid; gap: var(--space-3); padding: var(--space-4); border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--paper); }
+.title { font-weight: 600; }
+/* The message is a readonly control; the monospace face makes the link easy to check. */
+.message { font-family: var(--mono); font-size: var(--text-sm); }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
