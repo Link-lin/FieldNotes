@@ -4,7 +4,7 @@ Last updated 28 Sep 2026. Read this first, then [AGENTS.md](../AGENTS.md). Keep 
 
 ## Where things stand
 
-- **`main` matches `origin/main`.** Lint, typecheck, 176 tests and the production build pass.
+- **`main` is the working branch; the owner pushes it.** Lint, typecheck, 176 tests and the production build pass.
 - **Built:** everything listed under "Built so far" in the [README](../README.md): sign-in with an owner allowlist, trips and the globe dashboard, the trip page (day tabs, events, costs, booking list, outline day map with an optional Google road route), the event view and editor with an embedded Google map, AI import from an external chat, read-only viewer invitations, account deletion, pilot counts, and test trips.
 - **Not built:** TRIP-7 (import into an existing trip, proposed) and ATLAS-4's click-the-globe point picker (catalog search only).
 - **Not yet verified by hand:**
