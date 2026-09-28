@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { InvitationDTO, InvitationLinkDTO, TripDetailDTO } from "@/shared/dto";
 import { Banner } from "@/components/ui/Banner/Banner";
 import { Button } from "@/components/ui/Button/Button";
@@ -12,7 +12,14 @@ import { ViewerList, type IssueResult } from "./ViewerList/ViewerList";
 import styles from "./ShareDialog.module.css";
 
 type Props = { trip: TripDetailDTO["trip"]; onClose: () => void };
-type Shown = { email: string; url: string; expiresAt: string };
+type Shown = { email: string; url: string; expiresAt: string; copied: boolean };
+
+/** Insert or replace entries by ID, keeping list order. */
+function upsert(list: InvitationDTO[], add: InvitationDTO[]): InvitationDTO[] {
+  let out = list;
+  for (const entry of add) out = out.some((e) => e.id === entry.id) ? out.map((e) => (e.id === entry.id ? entry : e)) : [...out, entry];
+  return out;
+}
 
 /**
  * ACCESS-8/11: the owner's Share dialog. It states what viewers can see before anything is created,
@@ -26,7 +33,12 @@ export function ShareDialog({ trip, onClose }: Props) {
   const [emailError, setEmailError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
-  const [shown, setShown] = useState<Shown | null>(null);
+  // Every link created while the dialog is open, newest first. A newer link for the same email
+  // replaces the older one, which no longer works anyway.
+  const [links, setLinks] = useState<Shown[]>([]);
+  const [confirmClose, setConfirmClose] = useState(false);
+  // Entries created while a list load is in flight, so a slower, older list can't drop them.
+  const issuedDuringLoad = useRef(new Map<string, InvitationDTO>());
 
   // Bumped to load the list again (after a revoke, or Try again).
   const [loads, setLoads] = useState(0);
@@ -37,10 +49,13 @@ export function ShareDialog({ trip, onClose }: Props) {
 
   useEffect(() => {
     let live = true;
+    const issued = issuedDuringLoad.current;
+    issued.clear();
     void api<InvitationDTO[]>("GET", `/api/trips/${trip.id}/invitations`).then((r) => {
       if (!live) return;
-      if (r.ok) setEntries(r.data);
+      if (r.ok) setEntries(upsert(r.data, [...issued.values()]));
       else setLoadError(r.message);
+      issued.clear();
     });
     return () => {
       live = false;
@@ -55,11 +70,11 @@ export function ShareDialog({ trip, onClose }: Props) {
       return { ok: false, message: field?.message ?? r.message, onEmail: Boolean(field) };
     }
     const entry = r.data.invitation;
-    setEntries((list) => {
-      const all = list ?? [];
-      return all.some((e) => e.id === entry.id) ? all.map((e) => (e.id === entry.id ? entry : e)) : [...all, entry];
-    });
-    setShown({ email: r.data.invitation.email, url: r.data.invitationUrl, expiresAt: r.data.expiresAt });
+    issuedDuringLoad.current.set(entry.id, entry);
+    setEntries((list) => upsert(list ?? [], [entry]));
+    const link = { email: entry.email, url: r.data.invitationUrl, expiresAt: r.data.expiresAt, copied: false };
+    setLinks((all) => [link, ...all.filter((l) => l.email !== entry.email)]);
+    setConfirmClose(false);
     return { ok: true };
   }
 
@@ -85,8 +100,20 @@ export function ShareDialog({ trip, onClose }: Props) {
     } else setFormError(r.message);
   }
 
+  const uncopied = links.filter((l) => !l.copied);
+
+  /** A link is shown only once, so closing with an uncopied link asks first; asking twice closes. */
+  function requestClose() {
+    if (uncopied.length && !confirmClose) setConfirmClose(true);
+    else onClose();
+  }
+
+  useEffect(() => {
+    if (confirmClose) document.querySelector<HTMLElement>("[data-close-anyway]")?.focus();
+  }, [confirmClose]);
+
   return (
-    <Modal title="Share this trip" onClose={onClose} subtitle="Invite people to view this trip. They sign in with Google and can't make changes." triggerSelector="[data-share-trip]">
+    <Modal title="Share this trip" onClose={requestClose} subtitle="Invite people to view this trip. They sign in with Google and can't make changes." triggerSelector="[data-share-trip]">
       <Banner tone="info">
         Viewers can see everything in this trip: all events, place names, map links and exact pinned positions, planned prices, booking status and
         links. You can&apos;t share only part of a trip.
@@ -110,7 +137,16 @@ export function ShareDialog({ trip, onClose }: Props) {
       </form>
       {formError ? <FormError>{formError}</FormError> : null}
 
-      {shown ? <InviteLink key={shown.url} tripTitle={trip.title} {...shown} /> : null}
+      {links.map((l) => (
+        <InviteLink
+          key={l.url}
+          tripTitle={trip.title}
+          email={l.email}
+          url={l.url}
+          expiresAt={l.expiresAt}
+          onCopied={() => setLinks((all) => all.map((x) => (x.url === l.url ? { ...x, copied: true } : x)))}
+        />
+      ))}
 
       <section className={styles.people} aria-labelledby="share-people">
         <h3 id="share-people" className={styles.heading}>Viewers and invitations</h3>
@@ -126,8 +162,9 @@ export function ShareDialog({ trip, onClose }: Props) {
             entries={entries}
             onNewLink={issue}
             onRevoked={(id) => {
+              // A revoked entry's link no longer works; stop showing it.
               const entry = entries.find((e) => e.id === id);
-              if (entry && shown?.email === entry.email) setShown(null);
+              if (entry) setLinks((all) => all.filter((l) => l.email !== entry.email));
               reload();
             }}
             tripId={trip.id}
@@ -135,8 +172,21 @@ export function ShareDialog({ trip, onClose }: Props) {
         )}
       </section>
 
+      {confirmClose && uncopied.length ? (
+        <Banner tone="warn" role="alert" className={styles.closeWarning}>
+          <span>
+            You haven&apos;t copied the link for {uncopied.map((l) => l.email).join(", ")}. It can&apos;t be shown again; you would need to create a new
+            link.
+          </span>
+          <span className={styles.closeActions}>
+            <Button variant="quiet" onClick={() => setConfirmClose(false)}>Keep open</Button>
+            <Button variant="danger" data-close-anyway onClick={onClose}>Close anyway</Button>
+          </span>
+        </Banner>
+      ) : null}
+
       <ModalActions>
-        <Button variant="quiet" onClick={onClose}>Done</Button>
+        <Button variant="quiet" onClick={requestClose}>Done</Button>
       </ModalActions>
     </Modal>
   );

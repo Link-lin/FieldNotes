@@ -134,6 +134,16 @@ describe("invitation service", () => {
     expect((await listInvitations(db(), owner, tripId, NOW))[0]).toMatchObject({ status: "accepted", acceptedAt: NOW.toISOString(), expiresAt: null });
   });
 
+  it("lets the bound account reopen an accepted link, and no one else", async () => {
+    const link = await createInvitation(db(), owner, tripId, "viewer@example.com", NOW);
+    const token = tokenOf(link.invitationUrl);
+    await acceptInvitation(db(), viewer, await stageInvitation(db(), token, NOW), NOW);
+    // Staging still works after acceptance, even past the original expiry.
+    const again = await stageInvitation(db(), token, later(30));
+    expect(await acceptInvitation(db(), viewer, again, later(30))).toEqual({ tripId });
+    await expectHttp(acceptInvitation(db(), stranger, again, later(30)), 404, "invitation_invalid");
+  });
+
   it("binds a link to one account when accepts race", async () => {
     const link = await createInvitation(db(), owner, tripId, "viewer@example.com", NOW);
     const hash = sha(tokenOf(link.invitationUrl));
@@ -231,6 +241,12 @@ describe("invitation routes", () => {
     expect(bad.status).toBe(404);
     expect(bad.headers.get("set-cookie")).toBeNull();
     expect(await bad.text()).not.toContain(tripInput.title);
+  });
+
+  it("limits the public staging body to 1 MiB", async () => {
+    const r = await stage.POST(req("POST", { token: "x".repeat(1_100_000) }));
+    expect(r.status).toBe(413);
+    expect(r.headers.get("set-cookie")).toBeNull();
   });
 
   it("accepts with the staged cookie, clears it, and leaves a wrong account's invitation pending", async () => {

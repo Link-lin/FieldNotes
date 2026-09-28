@@ -8,6 +8,8 @@
 .button:hover { background: var(--card); }
 .button:active { transform: scale(0.97); }
 .button:disabled { opacity: 0.45; cursor: not-allowed; }
+/* Beats a variant's hover (fill, dangerFill), so a disabled button never looks enabled. */
+.button:disabled:hover { opacity: 0.45; }
 .button svg { width: 15px; height: 15px; flex: none; }
 
 .outline {}
