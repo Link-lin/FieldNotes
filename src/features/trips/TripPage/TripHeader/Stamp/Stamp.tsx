@@ -1,10 +1,11 @@
+import { cx } from "@/lib/cx";
 import { fmtMonth } from "@/lib/format";
 import styles from "./Stamp.module.css";
 
 /** Decorative passport stamp: destination, month, year and length. Colour follows the trip status. */
-export function Stamp({ city, start, days, status }: { city: string; start: string; days: number; status: string }) {
+export function Stamp({ city, start, days, status, className }: { city: string; start: string; days: number; status: string; className?: string }) {
   return (
-    <svg className={styles.stamp} data-status={status} viewBox="0 0 120 120" aria-hidden="true">
+    <svg className={cx(styles.stamp, className)} data-status={status} viewBox="0 0 120 120" aria-hidden="true">
       <defs>
         <path id="stamp-arc" d="M60,60 m-45,0 a45,45 0 1,1 90,0 a45,45 0 1,1 -90,0" />
       </defs>

@@ -1,8 +1,8 @@
-/* Right-aligned lines of text, no box: day and time, the title on its own line, place and booking. */
-.next { display: grid; gap: var(--space-2); justify-items: end; text-align: right; }
-.event { display: grid; gap: 6px; justify-items: end; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: right; cursor: pointer; }
+/* Lines of text, no box: day and time, the title on its own line, place and booking, the route. */
+.next { display: grid; gap: var(--space-2); justify-items: start; }
+.event { display: grid; gap: 6px; justify-items: start; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .event:hover .title { text-decoration: underline; }
 .when { color: var(--ink-3); }
 .title { font: 700 22px/1.25 var(--serif); color: var(--ink); text-wrap: balance; }
-.meta { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: var(--space-2); font-size: var(--text-md); color: var(--ink-2); }
-.route { margin: 0; padding-top: var(--space-2); border-top: 1px solid var(--line); color: var(--ink-2); }
+.meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); font-size: var(--text-md); color: var(--ink-2); }
+.route { justify-self: stretch; margin: 0; padding-top: var(--space-2); border-top: 1px solid var(--line); color: var(--ink-2); }

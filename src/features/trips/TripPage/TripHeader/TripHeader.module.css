@@ -8,14 +8,15 @@
 .title:focus { outline: none; }
 .dest { color: var(--ink-2); font-size: var(--text-lg); padding-right: 128px; }
 .actions { display: flex; flex-wrap: wrap; gap: 10px; }
-/* On wide screens Up next sits under the stamp in the header's right column, right-aligned to the
-   page edge like the figures bar below; its top padding keeps it clear of the stamp. Narrower
-   layouts leave it out. */
+/* On wide screens Up next and the stamp sit side by side on the header's right, both centred on
+   the title block so they line up; the stamp ends at the page edge. Narrower layouts leave Up next
+   out and keep the stamp in the corner. */
 .head > .upNext { display: none; }
 @media (min-width: 1280px) {
-  .head:has(> .upNext) { grid-template-columns: minmax(0, 1fr) minmax(280px, 520px); column-gap: var(--space-10); }
+  .head:has(> .upNext) { grid-template-columns: minmax(0, 1fr) fit-content(460px) auto; column-gap: var(--space-10); }
   .head:has(> .upNext) > :is(.meta, .title, .dest, .actions) { grid-column: 1; padding-right: 0; }
-  .head > .upNext { display: grid; grid-column: 2; grid-row: 1 / span 4; align-self: end; padding-top: 124px; }
+  .head > .upNext { display: grid; grid-column: 2; grid-row: 1 / span 4; align-self: center; }
+  .head:has(> .upNext) > .stamp { position: static; grid-column: 3; grid-row: 1 / span 4; align-self: center; margin-left: var(--space-4); }
 }
 .head[data-compact] { gap: var(--space-2); }
 .head[data-compact] .meta, .head[data-compact] .title, .head[data-compact] .dest { padding-right: 0; }

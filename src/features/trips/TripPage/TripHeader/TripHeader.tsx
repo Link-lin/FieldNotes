@@ -50,7 +50,7 @@ export function TripHeader({ trip, owner, compact = false, items, onOpenEvent, o
           <Tag tone={trip.status}><StatusIcon status={trip.status} />{STATUS_LABEL[trip.status]}</Tag>
           <Tag tone="soft">{owner ? "Owner" : `Viewer${trip.ownerName ? `, shared by ${trip.ownerName}` : ""}`}</Tag>
         </div>
-        {!compact ? <Stamp city={trip.destination.split(",")[0] ?? trip.destination} start={trip.startDate} days={trip.dayCount} status={trip.status} /> : null}
+        {!compact ? <Stamp className={styles.stamp} city={trip.destination.split(",")[0] ?? trip.destination} start={trip.startDate} days={trip.dayCount} status={trip.status} /> : null}
         <h1 className={styles.title} id="trip-title" tabIndex={-1}>{trip.title}</h1>
         <p className={styles.dest}>{trip.destination}</p>
         <div className={styles.actions}>
