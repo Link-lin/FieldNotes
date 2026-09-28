@@ -2,7 +2,7 @@
  * `npm run dev`: one command for local development. Starts the embedded database when
  * DATABASE_URL points at it and nothing is listening yet, applies pending migrations, then runs
  * `next dev` (extra arguments are passed through). Stopping the app stops a database it started.
- * Production keeps the separate `npm run db:migrate` step (technical design section 12).
+ * Production keeps the separate `npm run db:migrate` step (technical design: Data model, Migrations).
  */
 import { spawn } from "node:child_process";
 import { createRequire } from "node:module";

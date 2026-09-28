@@ -10,7 +10,7 @@ type Conn = Kysely<DB> | Transaction<DB>;
 export type TripAccess = { trip: TripRow & { owner_name: string | null }; role: Role };
 
 /**
- * The per-trip authorization boundary (technical design section 9). An owner must
+ * The per-trip authorization boundary (technical design: Security and privacy). An owner must
  * still be on the allowlist; a viewer needs an accepted grant bound to this user.
  * Pass lock=true inside a transaction to lock the trip row.
  */

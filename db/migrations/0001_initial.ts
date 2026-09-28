@@ -1,7 +1,7 @@
 import { sql, type Kysely } from "kysely";
 
 /**
- * Initial schema (technical design section 4). Auth.js tables keep the adapter's
+ * Initial schema (technical design: Data model). Auth.js tables keep the adapter's
  * default names and camel-case columns; app tables use snake_case.
  */
 export async function up(db: Kysely<unknown>): Promise<void> {

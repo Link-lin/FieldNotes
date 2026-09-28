@@ -1,5 +1,5 @@
 /**
- * Calendar and time-zone rules (technical design section 6). Local wall-clock values
+ * Calendar and time-zone rules (technical design: Domain rules, Time zones). Local wall-clock values
  * are never parsed as UTC; conversion to an instant always uses an IANA zone.
  */
 export const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
