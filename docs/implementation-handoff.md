@@ -1,16 +1,16 @@
 # Field Notes: implementation handoff
 
-Last updated 28 Sep 2026 (`feat/event-panel-inline-edit`, based on `feat/day-map-geography`, which sits on `feat/review-fixes` and `feat/event-panel`). Read this first when picking the project up in a new session.
+Last updated 28 Sep 2026 (`main`, after fast-forwarding `feat/event-panel-inline-edit` and its parent branches). Read this first when picking the project up in a new session.
 
 ## Status
 
-- **Event view and editor changes are on `feat/event-panel-inline-edit`** (not merged or pushed):
+- **Event view and editor changes are merged into local `main`** (not pushed):
   - On desktop the event panel is 820 px wide. **Edit event** uses the same panel, with a wrapping title, the saved-place map, and grouped time, booking, place and notes fields. The add form remains a dialog.
   - At phone widths (600 px and below), event rows and Edit actions navigate to an authorized event URL. The same details and editor render as a full page with a return to the trip. A viewer remains read-only.
   - Leaving a detail view through its controls waits for notes to save; a failed save leaves the view open with typed notes intact. Leaving an editor through its controls asks before discarding unsaved changes. The save itself still uses the item version check.
   - Browser checked on the seeded Hawaii trip with a real Google map: wider desktop detail and editor, phone event URL and editor, long-title wrapping, and the unsaved-edit discard prompt. No trip data was changed during this check.
   - Checks passed before commit: lint, typecheck, 172 tests, and the production build. Tests needed an unsandboxed run because embedded PostgreSQL could not create shared memory inside the sandbox.
-- **Day-map geography and road routes are on `feat/day-map-geography`** (not merged or pushed):
+- **Day-map geography and road routes are merged into local `main`** (not pushed):
   - The default, provider-free outline now draws bundled Natural Earth 10m coastlines and country borders with city labels, aligned with the saved-coordinate pins. The map can zoom out to twice its initial width; Reset view appears after zooming either direction. The empty state is neutral for viewers.
   - A day with pins offers an optional **Road route** view using the existing `GOOGLE_MAPS_EMBED_API_KEY` and Maps Embed API. Google draws the road map, route and its markers; the Field Notes numbered stop list remains below. The owner or viewer can choose driving or walking and route segments. Flight arrivals can start a ground leg, but no road leg crosses a flight. The iframe mounts only after the user chooses Road route and unmounts on a day change or return to Outline.
   - Browser checked with the seeded Hawaii trip and the configured key: an Oʻahu driving route loaded in Chrome; the outline showed the coastline correctly at its initial and zoomed-out views. The key is a browser key. Restrict it in Google Cloud to the Maps Embed API and this site's HTTP referrers; Maps JavaScript, Routes and Directions APIs are not needed for this implementation. A route with three or more pinned stops has not yet been checked against Google in the browser.
@@ -34,13 +34,13 @@ Last updated 28 Sep 2026 (`feat/event-panel-inline-edit`, based on `feat/day-map
   - `/invite` removes the token from the address bar, stages it in a 15-minute HttpOnly cookie holding only the hash, then accepts for a signed-in visitor or offers Google sign-in that returns there. Wrong-account and invalid-link states reveal no trip, owner or invited email.
   - Acceptance compares the invitation email with the account's email as verified at account creation (Auth.js does not refresh it), binds the grant in one locked transaction, and is idempotent for the bound account. Revocation blocks the viewer's next request.
   - Server code is in `src/server/modules/invitations/`, routes under `src/app/api/trips/[tripId]/invitations` and `src/app/api/invitations/{stage,accept}`. Decisions are in technical design section 20.
-- **Event side panel (TRIP-10, MAP-8) is implemented on `feat/event-panel`** (not yet merged into `main`):
+- **Event side panel (TRIP-10, MAP-8) is implemented on local `main`:**
   - Clicking an event row, or Enter on its details button, slides a panel in from the right while the trip page fades behind it. It shows the day and time, tags, a live Google map, the flight card, place and directions links, booking and price, links and notes, with **Previous**/**Next** through the current tab and **Edit event** for the owner.
   - The owner's notes save as they type (`PATCH /api/trips/{tripId}/items/{itemId}/notes`); viewers read them.
-  - The map uses Google's Maps Embed API and needs `GOOGLE_MAPS_EMBED_API_KEY` (a browser key restricted to the Maps Embed API and the site). It shows a flight's route, the owner's pin, or the place name. It loads only when a panel opens; the CSP allows frames from `www.google.com` only and the frame sends only the site origin as referrer. Without a key the panel has no map.
+  - The map uses Google's Maps Embed API and needs `GOOGLE_MAPS_EMBED_API_KEY` (a browser key restricted to the Maps Embed API and the site). It shows a flight's route, the owner's pin, or the place name. It loads only when the event panel or page opens; the CSP allows frames from `www.google.com` only and the frame sends only the site origin as referrer. Without a key the event view has no map.
   - Modal and the panel share `src/lib/use-dialog.ts`.
-  - Checks: lint, typecheck, 145 tests and the build passed before each commit. A headless-browser run with seeded sessions covered opening by click and keyboard, the slide-in, focus, notes autosave, Previous/Next, Escape/close/faded-page close with focus back on the row, links and the menu not opening the panel, Edit event from the panel, the viewer's read-only panel, reduced motion, phone width and the embed addresses. The map itself could not load in that sandbox (Google was unreachable), so **check the map with a real key**.
-- **Review fixes B1, B2, I1 and F1 are on `feat/review-fixes`** (branched from `feat/event-panel`; neither is merged into `main`). Four code commits and this docs commit:
+  - Initial checks: lint, typecheck, 145 tests and the build passed before each commit. A headless-browser run with seeded sessions covered opening by click and keyboard, the slide-in, focus, notes autosave, Previous/Next, Escape/close/faded-page close with focus back on the row, links and the menu not opening the panel, Edit event from the panel, the viewer's read-only panel, reduced motion, phone width and the embed addresses. The map could not load in that sandbox; a later Chrome check with the configured key loaded it (see the editor status above).
+- **Review fixes B1, B2, I1 and F1 are on local `main`** (merged with the event and day-map work):
   - B1: `/import` no longer logs hydration error #418. Currency names are bundled (`src/shared/currencies.ts`) instead of coming from `Intl.DisplayNames`, whose names differ between Node and browsers. The time-zone picker also read this device's zone and the full zone list on the server; both are now read after hydration through `useClientValue` (`src/lib/client-value.ts`).
   - B2: the dashboard shows the viewer's own date ("today is 27 Sep"), read in the browser, instead of the server's UTC date.
   - I1: the map-link field accepts pasted coordinates such as `35.0116, 135.7681`. They are saved as a Google Maps search link for that point and pin the event; the field's hint says as you type whether the value will pin. The PRD's MAP-2 now allows this.
@@ -71,11 +71,11 @@ Last updated 28 Sep 2026 (`feat/event-panel-inline-edit`, based on `feat/day-map
 
 ## Product review (27 Sep 2026)
 
-A product-manager pass over `main` and `feat/event-panel` against the PRD, with a production build, seeded data and a headless browser (owner, viewer, phone width). The full review, with evidence, is `claude/product-review-2026-09-27.md` in the Claude project "Travel Planner". B1, B2, I1 (pasted coordinates only) and F1 are fixed on `feat/review-fixes`; the rest is open.
+A product-manager pass over the earlier `main` and `feat/event-panel` against the PRD, with a production build, seeded data and a headless browser (owner, viewer, phone width). The full review, with evidence, is `claude/product-review-2026-09-27.md` in the Claude project "Travel Planner". B1, B2, I1 (pasted coordinates only) and F1 are now fixed on local `main`; the rest is open.
 
 - **PRD gaps:**
   - ATLAS-4's "click the globe to choose a point" is not built (catalog search only).
-  - The section 8 pilot has not run. The app now records its measures as daily counts (F1, on `feat/review-fixes`); time spent and response quality still have to be observed with the pilot owners.
+  - The section 8 pilot has not run. The app now records its measures as daily counts (F1); time spent and response quality still have to be observed with the pilot owners.
   - Hosting, backup retention, TRIP-7 and the currency-conversion option are undecided.
 - **Bugs:**
   - B1 (fixed): `/import` logged React hydration error #418 on every load (currency names and the time-zone picker).
@@ -139,15 +139,14 @@ A product-manager pass over `main` and `feat/event-panel` against the PRD, with 
   `.env.local` needs `AUTH_SECRET`, the Google client ID and secret, and `TRIP_OWNER_EMAILS` (see the README). Never commit it or overwrite it.
 - **Before every commit:** run `npm run lint`, `npm run typecheck`, `npm test` and `npm run build`.
 - **Pinned versions:** vitest 3.2.7 (4.x hit an npm install bug) and kysely 0.28.x.
-- **Git:** remote `origin` is https://github.com/Link-lin/FieldNotes.git. Work on a branch and merge into `main`. The owner pushes. Local `main` is ahead of `origin/main` by the AI import and viewer invitation commits (12 including this note); nothing has been pushed. The merged `feat/viewer-invitations` branch can be deleted.
+- **Git:** remote `origin` is https://github.com/Link-lin/FieldNotes.git. Work on a branch and merge into `main`. The owner pushes. On 28 Sep, local `main` fast-forwarded from `0893e57` to `3e52314`, adding 18 commits from `feat/event-panel`, `feat/review-fixes`, `feat/day-map-geography` and `feat/event-panel-inline-edit`. Post-merge lint, typecheck, 172 tests and the production build passed. Local `main` is ahead of `origin/main`; nothing from this merge has been pushed. The feature branch refs remain available for now.
 - **iCloud:** the project folder is under `~/Documents`, which iCloud Drive syncs. iCloud sometimes leaves conflict copies named `name 2.ts` or `folder 2` (and `.git/index 2`) after git rewrites many files. They are untracked duplicates. Don't commit them. Moving the repo out of iCloud-synced folders avoids this.
 - **Scratch:** `.e2e/` holds build bundles for browser checks. It is gitignored and safe to delete.
 - **Agent sessions on this folder:** a Cowork session reaches the folder from a Linux VM, so it can't use the macOS `node_modules`; it runs checks in a separate Linux clone. Git there needs file-deletion permission for the folder, or it leaves `.git/*.lock` files that block the next git command.
 
 ## Next milestone
 
-1. Review `feat/event-panel-inline-edit` and its parent branches in order: `feat/event-panel`, `feat/review-fixes`, `feat/day-map-geography`, then this branch. Check road routing on a day with three or more pins. The notes save failure path is implemented but has not been exercised against a forced server failure in a browser.
-2. Review the other `feat/review-fixes` changes (B1, B2, I1, F1, the one-command start and the test trips) in the browser before merging them.
-3. Check viewer invitations with two real Google accounts (see Status) and fix anything it finds.
-4. Pilot AI import with real plans and external AI tools. This has not been done yet; the counts are ready for it. Read `npm run pilot:report` weekly (clean previews, skipped items, edits per imported item, due-date use) before adding in-page AI generation or free-form parsing. Confirm whether TRIP-7 should be built.
-5. Remaining review items: B3–B5, I2–I10 and the owner decisions above.
+1. Check road routing on a day with three or more pins. Exercise the notes-save failure path in a browser with a forced server error; the code preserves the text and blocks leaving through the view controls, but that failure case has not been browser-verified.
+2. Check viewer invitations with two real Google accounts (see Status) and fix anything it finds.
+3. Pilot AI import with real plans and external AI tools. This has not been done yet; the counts are ready for it. Read `npm run pilot:report` weekly (clean previews, skipped items, edits per imported item, due-date use) before adding in-page AI generation or free-form parsing. Confirm whether TRIP-7 should be built.
+4. Remaining review items: B3–B5, I2–I10 and the owner decisions above.
