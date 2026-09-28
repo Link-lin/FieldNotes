@@ -8,6 +8,10 @@
 .title:focus { outline: none; }
 .dest { color: var(--ink-2); font-size: var(--text-lg); padding-right: 128px; }
 .actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.head[data-compact] { gap: var(--space-2); padding-bottom: var(--space-3); }
+.head[data-compact] .meta, .head[data-compact] .title, .head[data-compact] .dest { padding-right: 0; }
+.head[data-compact] .title { font-size: clamp(30px, 3.5vw, 42px); }
+.head[data-compact] .dest { font-size: var(--text-md); }
 @media (max-width: 560px) {
   .title, .dest { padding-right: 76px; }
   .meta { padding-right: 72px; }

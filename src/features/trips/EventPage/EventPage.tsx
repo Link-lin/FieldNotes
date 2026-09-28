@@ -3,14 +3,15 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/Toast/Toast";
+import { replaceEventReturn, takeEventReturn } from "@/lib/event-return";
 import type { PlanItemDTO, TripDetailDTO } from "@/shared/dto";
 import { EventPanel } from "../TripPage/EventPanel/EventPanel";
 import { tripDays, tripStops } from "../TripPage/trip-days";
 
-type Props = { data: TripDetailDTO; itemId: string; selectedDay: string | null; initialEditing: boolean; mapsKey: string | null };
+type Props = { data: TripDetailDTO; itemId: string; selectedDay: string | null; fromBookings: boolean; initialEditing: boolean; mapsKey: string | null };
 
 /** The same event details/editor used by the desktop panel, with a real URL and Back on phones. */
-export function EventPage({ data, itemId, selectedDay, initialEditing, mapsKey }: Props) {
+export function EventPage({ data, itemId, selectedDay, fromBookings, initialEditing, mapsKey }: Props) {
   const router = useRouter();
   const toast = useToast();
   const { trip, items } = data;
@@ -19,7 +20,7 @@ export function EventPage({ data, itemId, selectedDay, initialEditing, mapsKey }
   const item = saved && saved.version > original.version ? saved : original;
   const { byDate, days } = tripDays(trip, items);
   const day = selectedDay && days.includes(selectedDay) ? selectedDay : "all";
-  const shown = [
+  const shown = fromBookings ? items.filter((event) => event.bookingStatus === "needs_booking").sort((a, b) => (a.bookingDueDate ?? "9999").localeCompare(b.bookingDueDate ?? "9999")) : [
     ...(day === "all" ? days : [day]).flatMap((date) => {
       const list = byDate.get(date) ?? [];
       return [...list.filter((event) => event.sortInstant), ...list.filter((event) => !event.sortInstant)];
@@ -31,7 +32,7 @@ export function EventPage({ data, itemId, selectedDay, initialEditing, mapsKey }
   const numbers = new Map(tripStops(trip, byDate, days).map((stop) => [stop.id, { n: stop.n, need: stop.need }]));
   const lastPriced = [...items].filter((event) => event.plannedPrice).sort((a, b) => a.updatedAt < b.updatedAt ? 1 : -1)[0];
   const defaultCurrency = lastPriced?.plannedPrice?.currency ?? trip.budget?.currency ?? data.recentCurrencies[0] ?? "USD";
-  const query = day === "all" ? "" : `?day=${encodeURIComponent(day)}`;
+  const query = fromBookings ? "?view=bookings" : day === "all" ? "" : `?day=${encodeURIComponent(day)}`;
   const back = `/trips/${trip.id}${query}`;
   const eventUrl = (target: PlanItemDTO) => `/trips/${trip.id}/items/${target.id}${query}`;
 
@@ -49,8 +50,8 @@ export function EventPage({ data, itemId, selectedDay, initialEditing, mapsKey }
       initialEditing={initialEditing}
       prev={at > 0 ? shown[at - 1] ?? null : null}
       next={at >= 0 ? shown[at + 1] ?? null : null}
-      onGo={(target) => router.push(eventUrl(target))}
-      onClose={() => router.replace(back)}
+      onGo={(target) => { replaceEventReturn(trip.id, target.id); router.replace(eventUrl(target)); }}
+      onClose={() => { if (takeEventReturn(trip.id, item.id)) router.back(); else router.replace(back); }}
       onExited={() => {}}
       onSaved={(updated) => { setSaved(updated); router.refresh(); toast({ message: "Event updated." }); }}
       onNotesSaved={(updated) => { setSaved(updated); router.refresh(); }}

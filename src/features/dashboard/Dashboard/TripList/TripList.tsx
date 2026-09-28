@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import type { TripSummaryDTO } from "@/shared/dto";
+import type { BookingTaskDTO, TripSummaryDTO } from "@/shared/dto";
 import { Button, ButtonLink } from "@/components/ui/Button/Button";
 import { PlusIcon } from "@/components/ui/Icon/icons";
 import { cx } from "@/lib/cx";
@@ -12,6 +12,7 @@ const ORDER = { ongoing: 0, upcoming: 1, past: 2 } as const;
 
 type Props = {
   trips: TripSummaryDTO[];
+  bookingTasks: BookingTaskDTO[];
   filter: Filter;
   onFilter: (f: Filter) => void;
   selectedId: string | null;
@@ -19,12 +20,20 @@ type Props = {
   canCreate: boolean;
   onCreate: () => void;
   className?: string;
-  /** Shown under the list (the owner's booking tasks). */
-  children?: React.ReactNode;
 };
 
 /** ATLAS-2: every trip the viewer may see, filtered by status; ongoing first, then upcoming, then past. */
-export function TripList({ trips, filter, onFilter, selectedId, onShowOnGlobe, canCreate, onCreate, className, children }: Props) {
+export function TripList({ trips, bookingTasks, filter, onFilter, selectedId, onShowOnGlobe, canCreate, onCreate, className }: Props) {
+  const bookingByTrip = useMemo(() => {
+    const counts = new Map<string, { total: number; overdue: number }>();
+    for (const task of bookingTasks) {
+      const count = counts.get(task.tripId) ?? { total: 0, overdue: 0 };
+      count.total++;
+      if (task.state === "overdue") count.overdue++;
+      counts.set(task.tripId, count);
+    }
+    return counts;
+  }, [bookingTasks]);
   const sorted = useMemo(
     () =>
       trips
@@ -57,11 +66,10 @@ export function TripList({ trips, filter, onFilter, selectedId, onShowOnGlobe, c
         ) : (
           <ul className={styles.list}>
             {sorted.map((t, i) => (
-              <TripCard key={t.id} trip={t} index={i} selected={t.id === selectedId} onShowOnGlobe={() => onShowOnGlobe(t.id)} />
+              <TripCard key={t.id} trip={t} booking={bookingByTrip.get(t.id)} index={i} selected={t.id === selectedId} onShowOnGlobe={() => onShowOnGlobe(t.id)} />
             ))}
           </ul>
         )}
-        {children}
       </div>
     </section>
   );

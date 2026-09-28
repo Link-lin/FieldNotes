@@ -6,26 +6,19 @@ import styles from "./AppHeader.module.css";
 type Props = {
   name: string;
   email: string;
-  isOwner: boolean;
-  bookingCount: number;
   ownedTrips: string[];
   viewerCount: number;
   signOut: () => Promise<void>;
 };
 
-/** Top bar: logo, main navigation (Atlas, Bookings for owners) and the account menu. */
-export function AppHeader({ name, email, isOwner, bookingCount, ownedTrips, viewerCount, signOut }: Props) {
+/** Top bar: logo, atlas link and the account menu. Booking work lives inside each trip. */
+export function AppHeader({ name, email, ownedTrips, viewerCount, signOut }: Props) {
   return (
     <header className={styles.header}>
       <Logo href="/" />
       <div className={styles.right}>
         <nav className={`mono ${styles.nav}`} aria-label="Main">
           <Link href="/" className={styles.atlas}>Atlas</Link>
-          {isOwner ? (
-            <Link href="/#bookings">
-              Bookings <b>{bookingCount}</b>
-            </Link>
-          ) : null}
         </nav>
         <AccountMenu name={name} email={email} ownedTrips={ownedTrips} viewerCount={viewerCount} signOut={signOut} />
       </div>

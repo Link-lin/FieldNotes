@@ -5,7 +5,6 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import type { DashboardDTO } from "@/shared/dto";
 import { TripForm } from "@/features/trips/TripForm/TripForm";
 import { rememberReturn, innerScroller, takeReturn } from "../dashboard-return";
-import { BookingTasks } from "./BookingTasks/BookingTasks";
 import { GlobeLoading } from "./Globe/GlobeLoading/GlobeLoading";
 import { Hero } from "./Hero/Hero";
 import { TripList, type Filter } from "./TripList/TripList";
@@ -130,12 +129,12 @@ export function Dashboard({ data, focus, initialFilter }: { data: DashboardDTO; 
     if (fromGlobe && id) document.querySelector(`[data-trip="${id}"]`)?.scrollIntoView({ block: "nearest" });
   }
 
-  // Coming back from a trip: restore scroll and put focus on that trip's card, or the booking task opened.
+  // Coming back from a trip: restore scroll and focus the card's entry point.
   useEffect(() => {
     const saved = takeReturn();
     if (!saved?.trip || focus) return;
-    const task = saved.task ? document.querySelector<HTMLElement>(`[data-task-open="${CSS.escape(saved.task)}"]`) : null;
-    const link = task ?? document.querySelector<HTMLElement>(`[data-open="${CSS.escape(saved.trip)}"]`);
+    const booking = saved.booking ? document.querySelector<HTMLElement>(`[data-booking-link="${CSS.escape(saved.trip)}"]`) : null;
+    const link = booking ?? document.querySelector<HTMLElement>(`[data-open="${CSS.escape(saved.trip)}"]`);
     if (!link) return;
     const list = innerScroller();
     if (list && typeof saved.list === "number") list.scrollTop = saved.list;
@@ -147,7 +146,7 @@ export function Dashboard({ data, focus, initialFilter }: { data: DashboardDTO; 
   const onOpen = (e: React.MouseEvent) => {
     const link = (e.target as Element).closest?.("[data-trip-link]");
     const id = link?.getAttribute("data-trip-link");
-    if (id) rememberReturn(id, link?.getAttribute("data-task-open") ?? undefined);
+    if (id) rememberReturn(id, link?.hasAttribute("data-booking-link") ?? false);
   };
 
   function onFilter(f: Filter) {
@@ -169,15 +168,14 @@ export function Dashboard({ data, focus, initialFilter }: { data: DashboardDTO; 
           <TripList
             className={styles.trips}
             trips={data.trips}
+            bookingTasks={data.ownerBookingTasks}
             filter={filter}
             onFilter={onFilter}
             selectedId={selected}
             onShowOnGlobe={(id) => select(id, false)}
             canCreate={data.canCreateTrips}
             onCreate={() => setCreating(true)}
-          >
-            {data.canCreateTrips && data.ownerBookingTasks.length ? <BookingTasks tasks={data.ownerBookingTasks} /> : null}
-          </TripList>
+          />
           <p className={styles.foot}>Markers are approximate destinations, never live location. The globe uses bundled map data and sends nothing to a map service.</p>
         </div>
         <Globe className={styles.globe} trips={visible} selectedId={selected} focusKey={focusKey} onSelect={select} />

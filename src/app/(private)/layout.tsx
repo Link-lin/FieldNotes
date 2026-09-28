@@ -32,8 +32,6 @@ export default async function PrivateLayout({ children }: { children: React.Reac
           <AppHeader
             name={session.user.name ?? session.user.email ?? "You"}
             email={session.user.email ?? ""}
-            isOwner={actor.isOwner}
-            bookingCount={dash.ownerBookingTasks.length}
             ownedTrips={dash.trips.filter((t) => t.role === "owner").map((t) => t.title)}
             viewerCount={dash.trips.filter((t) => t.role === "viewer").length}
             signOut={doSignOut}

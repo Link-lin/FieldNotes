@@ -8,7 +8,7 @@ import { cx } from "@/lib/cx";
 import { relativeLabel } from "@/lib/format";
 import styles from "./TripTiles.module.css";
 
-type Props = { data: TripDetailDTO; pinned: number; distanceKm: number; toBook: number; overdue: boolean };
+type Props = { data: TripDetailDTO; pinned: number; distanceKm: number };
 
 function Tile({ label, warn, budget, children }: { label: string; warn?: boolean; budget?: boolean; children: React.ReactNode }) {
   return (
@@ -20,11 +20,11 @@ function Tile({ label, warn, budget, children }: { label: string; warn?: boolean
 }
 
 /**
- * At-a-glance numbers: status, length, events, pins, distance, money and what's left to book. On
+ * At-a-glance numbers for the itinerary: status, length, events, pins, distance and money. On
  * phones they form one strip that scrolls sideways (I8); only while it overflows can it take focus,
  * so a keyboard can scroll it too.
  */
-export function TripTiles({ data, pinned, distanceKm, toBook, overdue }: Props) {
+export function TripTiles({ data, pinned, distanceKm }: Props) {
   const { trip, items, budgetComparison: cmp, plannedTotals: totals } = data;
   const days = trip.dayCount;
   const strip = useRef<HTMLDivElement>(null);
@@ -63,7 +63,6 @@ export function TripTiles({ data, pinned, distanceKm, toBook, overdue }: Props) 
       ) : totals.length > 1 ? (
         <Tile label="Planned costs"><b className={styles.words}>{totals.length} currencies</b></Tile>
       ) : null}
-      <Tile label="To book" warn={overdue}><b>{toBook}</b></Tile>
     </div>
   );
 }

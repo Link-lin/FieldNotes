@@ -3,8 +3,7 @@
 /* Timeline on the left, the sticky map on the right. */
 .grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 430px); gap: var(--space-10); align-items: start; }
 .main { display: grid; gap: var(--space-7); align-content: start; }
-.details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-7); align-items: start; }
+.location { max-width: 520px; }
 @media (max-width: 860px) {
   .grid { grid-template-columns: minmax(0, 1fr); gap: var(--space-7); }
-  .details { grid-template-columns: minmax(0, 1fr); }
 }

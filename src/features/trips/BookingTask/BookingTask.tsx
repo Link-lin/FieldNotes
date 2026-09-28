@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useId, useRef, useState } from "react";
+import { useId, useState } from "react";
 import type { BookingTaskDTO, PlanItemDTO } from "@/shared/dto";
 import { Button } from "@/components/ui/Button/Button";
 import { Task } from "@/components/ui/TaskList/TaskList";
@@ -14,11 +13,8 @@ import styles from "./BookingTask.module.css";
 type Props = {
   task: BookingTaskDTO;
   owner: boolean;
-  /** The dashboard links to the trip page, which opens the event; the trip page opens it in place. */
-  href?: string;
-  onOpen: (event: React.MouseEvent) => void;
-  /** Adds the trip's name after the title (the dashboard lists every trip's tasks). */
-  showTrip?: boolean;
+  onOpen: () => void;
+  onDateSaved: (itemId: string, version: number) => void;
   /** Focused when the last task in the list has been marked booked. */
   emptyFocus: string;
 };
@@ -37,7 +33,7 @@ function focusSoon(selector: string, tries = 40) {
  * can mark it booked, with Undo (a flight only once it has its FLIGHT-2 fields), and set, change or
  * remove its book-by date in place. A viewer sees the task only.
  */
-export function BookingTask({ task, owner, href, onOpen, showTrip, emptyFocus }: Props) {
+export function BookingTask({ task, owner, onOpen, onDateSaved, emptyFocus }: Props) {
   const router = useRouter();
   const toast = useToast();
   const id = useId();
@@ -47,17 +43,9 @@ export function BookingTask({ task, owner, href, onOpen, showTrip, emptyFocus }:
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Re-sorting after a refresh can move this row, which drops focus; put it back once it has.
-  const refocus = useRef<string | null>(null);
   const current = saved && saved.version > task.itemVersion ? saved : { version: task.itemVersion, dueDate: task.dueDate, state: task.state, booked: false };
   const url = `/api/trips/${task.tripId}/items/${task.itemId}/booking`;
   const dateButton = `[data-due-edit="${task.itemId}"]`;
-
-  useEffect(() => {
-    const target = refocus.current;
-    refocus.current = null;
-    if (target) document.querySelector<HTMLElement>(target)?.focus();
-  }, [task.itemVersion]);
 
   async function send(bookingStatus: "needs_booking" | "booked", bookingDueDate: string | null): Promise<PlanItemDTO | null> {
     setBusy(true);
@@ -71,7 +59,6 @@ export function BookingTask({ task, owner, href, onOpen, showTrip, emptyFocus }:
       return null;
     }
     setSaved({ version: r.data.version, dueDate: r.data.bookingDueDate, state: r.data.bookingDueState ?? "no_due_date", booked: r.data.bookingStatus === "booked" });
-    router.refresh();
     return r.data;
   }
 
@@ -88,6 +75,7 @@ export function BookingTask({ task, owner, href, onOpen, showTrip, emptyFocus }:
     const dueBefore = current.dueDate;
     const booked = await send("booked", null);
     if (!booked) return;
+    router.refresh();
     toast({
       message: `Marked "${task.itemTitle}" booked.`,
       actionLabel: "Undo",
@@ -123,20 +111,15 @@ export function BookingTask({ task, owner, href, onOpen, showTrip, emptyFocus }:
     const done = await send("needs_booking", due);
     if (!done) return;
     setEditing(false);
-    refocus.current = dateButton;
-    requestAnimationFrame(() => document.querySelector<HTMLElement>(dateButton)?.focus());
+    onDateSaved(task.itemId, done.version);
+    router.refresh();
     toast({ message: due ? `"${task.itemTitle}": book by ${fmtShort(due)}.` : `Book-by date removed from "${task.itemTitle}".` });
   }
 
   if (current.booked) return null;
-  const opener = href ? (
-    <Link href={href} className={styles.title} data-trip-link={task.tripId} data-task-open={task.itemId} onClick={onOpen}>{task.itemTitle}</Link>
-  ) : (
-    <button type="button" className={styles.title} data-task-open={task.itemId} aria-haspopup="dialog" onClick={onOpen}>{task.itemTitle}</button>
-  );
   return (
     <Task overdue={current.state === "overdue"} data-task={task.itemId}>
-      <p className={styles.head}>{opener}{showTrip ? <> · {task.tripTitle}</> : null}</p>
+      <p className={styles.head}><button type="button" className={styles.title} data-task-open={task.itemId} onClick={onOpen}>{task.itemTitle}</button></p>
       {editing ? (
         <form
           className={styles.editor}

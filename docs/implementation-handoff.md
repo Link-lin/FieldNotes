@@ -4,16 +4,16 @@ Last updated 28 Sep 2026. Read this first, then [AGENTS.md](../AGENTS.md). Keep 
 
 ## Where things stand
 
-- **Current branch:** `feat/dashboard-resizable-split`, based on `product-review-i3-i9-i8`; that base is three commits ahead of local `main`. The owner pushes; this branch has not been pushed or merged. Lint, typecheck, all 184 tests and the production build pass.
-- **Built:** everything listed under "Built so far" in the [README](../README.md): sign-in with an owner allowlist, trips and the globe dashboard, the trip page (day tabs, events, costs, a booking list, shared with the dashboard, for marking tasks booked and setting book-by dates, outline day map with an optional Google road route), the event view and editor with an embedded Google map, AI import from an external chat, read-only viewer invitations, account deletion, pilot counts, and test trips.
+- **Current branch:** `feat/trip-booking-overview`, based on `feat/dashboard-resizable-split`; local `main` has not received either branch. The owner pushes; this branch has not been pushed or merged. Lint, typecheck, all 184 tests and the production build pass.
+- **Built:** everything listed under "Built so far" in the [README](../README.md): sign-in with an owner allowlist, trips and the globe dashboard, the trip page (itinerary, a dedicated Bookings view, day tabs, events, costs, outline day map with optional Google road route), the event view and editor with an embedded Google map, AI import from an external chat, read-only viewer invitations, account deletion, pilot counts, and test trips. Dashboard cards show a compact per-trip booking shortcut instead of a cross-trip task list.
 - **Not built:** TRIP-7 (import into an existing trip, proposed) and ATLAS-4's click-the-globe point picker (catalog search only).
 - **Dashboard layout:** the trip-list pane now starts wider on desktop and has a draggable, keyboard-operable divider. Its width is saved on this browser; Enter or double-click resets it. Phones keep the stacked layout. The globe redraws when the stage changes width. Browser-checked at 1800 px desktop, 1200 px short desktop and 390 px phone widths; drag, keyboard limits, reload persistence, reset and no horizontal overflow work.
 - **Not yet verified by hand:**
   - Viewer invitations with two real Google accounts: the sign-in round trip after opening a link, a brand-new invitee passing the sign-in gate, and **Switch Google account**.
   - After the last change, that the Road route on Hawaii day 1 starts at the airport by name. Re-run the seed first.
   - The import preview's one-line card summaries (time, place, price) and **Expand all** / **Collapse all**.
-  - The booking lists: opening a task's event from the dashboard (side panel on desktop, event page on phones), **Mark booked** with **Undo**, and the inline book-by date. Re-run the seed first.
-  - The phone tile strip (600 px and narrower), and whether **To book** should move to the front there; it starts off-screen now.
+  - The trip Bookings actions: **Mark booked** with **Undo**, and setting/removing a book-by date (including focus when a task moves between urgency groups). Re-run the seed first. Desktop and phone navigation from the dashboard shortcut into Bookings, phone event return, empty states and no phone overflow have been browser-checked.
+  - The phone itinerary tile strip (600 px and narrower).
 - **The AI import pilot has not run.** It needs real travel plans and external AI tools, so don't describe it as done.
 
 ## Run it
@@ -31,7 +31,7 @@ Last updated 28 Sep 2026. Read this first, then [AGENTS.md](../AGENTS.md). Keep 
 3. Remaining product-review items, highest value first:
    - **I4:** date pickers in the import preview once a value is valid.
    - **I7:** less repetition in the timeline ("Time not set", empty flight placeholders).
-   - **I10:** pins and stop-list entries open the event view, and an open desktop panel keeps its own address (the trip page already opens `?event=` links from the dashboard, and phones have one).
+   - **I10:** pins and stop-list entries open the event view, and an open desktop panel keeps its own address (the trip page still accepts legacy `?event=` links, and phones have an event page).
 4. Candidate features: calendar (.ics) export, printable day sheets, duplicating a trip as a template, and day notes.
 
 ## Open decisions for the owner

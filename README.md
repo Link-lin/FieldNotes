@@ -2,7 +2,7 @@
 
 A private trip planner: a globe of every trip, and a page per trip with a day-by-day itinerary, an outline map, booking tasks and planned costs. Product scope is in [PRD.md](PRD.md); architecture in [docs/design/technical-design.md](docs/design/technical-design.md).
 
-**Built so far:** Google sign-in with an owner allowlist, trips (create, edit, time-zone change, delete), dashboard globe and list, trip page with tabs, events (add, edit, duplicate, delete with undo), booking lists on the trip page and dashboard (open the event, mark it booked, set a book-by date), costs and budget, an outline day map with an optional Google road-route view, account deletion, owner-only AI import, read-only viewer invitations, an event side panel (click an event) with an embedded Google map and notes, pinning an event by pasting its coordinates, and privacy-safe daily pilot counts. The import page provides a conversion prompt for a plan already discussed in an external AI chat, an optional new-trip prompt, JSON v1 validation, a day-by-day editable preview, and confirmed atomic creation.
+**Built so far:** Google sign-in with an owner allowlist, trips (create, edit, time-zone change, delete), dashboard globe and list, trip page with an itinerary and a dedicated Bookings view (open an event, mark it booked, set a book-by date), events (add, edit, duplicate, delete with undo), costs and budget, an outline day map with an optional Google road-route view, account deletion, owner-only AI import, read-only viewer invitations, an event side panel (click an event) with an embedded Google map and notes, pinning an event by pasting its coordinates, and privacy-safe daily pilot counts. Dashboard cards link to each owned trip's bookings without repeating the task list. The import page provides a conversion prompt for a plan already discussed in an external AI chat, an optional new-trip prompt, JSON v1 validation, a day-by-day editable preview, and confirmed atomic creation.
 
 Owners share a trip from its **Share** dialog: invite one email, copy the one-time link (Field Notes sends no email), and revoke access or create a new link later. The invitee opens the link, signs in with the matching Google account and sees the trip read-only.
 
@@ -67,8 +67,8 @@ Book-by dates are relative to the day you run it, so re-run it to reset the over
 src/
   app/                  routes: pages and API route handlers (thin)
   features/             screens, one folder per component, children nested inside
-    dashboard/Dashboard/        Hero, TripList, BookingTasks, Globe, ...
-    trips/TripPage/             TripHeader, DayTabs, Timeline, MapPanel, EventPanel, CostsSection, ShareDialog, ...
+    dashboard/Dashboard/        Hero, TripList, Globe, ...
+    trips/TripPage/             TripHeader, TripViewNav, BookingList, DayTabs, Timeline, MapPanel, EventPanel, CostsSection, ShareDialog, ...
     trips/TripForm/, trips/ItemForm/, currency/, auth/SignInCard/
     import/ImportPage/          prompt copy, paste, preview and correction
     invitations/InvitePage/     invitation link landing: stage, sign in, accept

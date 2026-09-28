@@ -12,8 +12,6 @@ export function Hero({ data, onCreate, className }: { data: DashboardDTO; onCrea
   // The viewer's own calendar date, read in the browser: the server's clock may be in another zone.
   const today = useClientValue<string | null>(localToday, null);
   const count = (s: string) => data.trips.filter((t) => t.status === s).length;
-  const tasks = data.ownerBookingTasks;
-  const overdue = tasks.filter((t) => t.state === "overdue").length;
   return (
     <section className={cx(styles.hero, className)}>
       <p className={cx("mono", styles.eyebrow)}>Your atlas{today ? ` · today is ${fmtShort(today)}` : ""}</p>
@@ -32,7 +30,6 @@ export function Hero({ data, onCreate, className }: { data: DashboardDTO; onCrea
       <Tickets trips={data.trips} />
       <p className={cx("mono", styles.stats)}>
         {plural(data.trips.length, "trip")} · {count("ongoing")} now · {count("upcoming")} ahead
-        {data.canCreateTrips ? <> · {tasks.length} to book{overdue ? <b> ({overdue} overdue)</b> : null}</> : null}
       </p>
     </section>
   );
