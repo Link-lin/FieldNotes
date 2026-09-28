@@ -12,7 +12,7 @@ Last updated 28 Sep 2026. Read this first, then [AGENTS.md](../AGENTS.md). Keep 
 - **Not yet verified by hand:**
   - Viewer invitations with two real Google accounts: the sign-in round trip after opening a link, a brand-new invitee passing the sign-in gate, and **Switch Google account**.
   - After the last change, that the Road route on Hawaii day 1 starts at the airport by name. Re-run the seed first.
-  - The import preview's one-line card summaries (time, place, price) and **Expand all** / **Collapse all**.
+  - The import preview's one-line card summaries (time, place, price), **Expand all** / **Collapse all**, and its date and time pickers (paste a response with an invalid date to see the text field, then fix it).
   - The trip Bookings actions: **Mark booked** with **Undo**, and setting/removing a book-by date (including focus when a task moves between urgency groups). Re-run the seed first. Desktop and phone navigation from the dashboard shortcut into Bookings, phone event return, empty states and no phone overflow have been browser-checked.
   - The phone itinerary tile strip (600 px and narrower).
   - The timeline without "Time not set" and "No date" lines, and the slim cards for unscheduled flights (OGG → KOA, and the undated backup hop with no airports).
@@ -31,8 +31,7 @@ Last updated 28 Sep 2026. Read this first, then [AGENTS.md](../AGENTS.md). Keep 
 
 1. Do the hand checks above. For phone widths, use the browser's device mode (in Chrome, ⌥⌘I, then ⇧⌘M).
 2. Run the AI import pilot with real plans and read `npm run pilot:report` weekly: clean previews, skipped items, edits per imported item, and due-date use. Decide on TRIP-7 afterwards.
-3. Remaining product-review items, highest value first:
-   - **I4:** date pickers in the import preview once a value is valid.
+3. Remaining product-review item:
    - **I10:** pins and stop-list entries open the event view, and an open desktop panel keeps its own address (the trip page still accepts legacy `?event=` links, and phones have an event page).
 4. Candidate features: calendar (.ics) export, printable day sheets, duplicating a trip as a template, and day notes.
 

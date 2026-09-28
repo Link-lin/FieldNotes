@@ -10,6 +10,7 @@ import { MoneyInput } from "@/features/currency/MoneyInput/MoneyInput";
 import { DestinationInput } from "@/features/trips/TripForm/DestinationInput/DestinationInput";
 import { TimeZoneSelect } from "@/features/trips/TripForm/TimeZoneSelect/TimeZoneSelect";
 import { formatMoney, trimAmount } from "@/shared/money";
+import { PickerInput } from "../PickerInput/PickerInput";
 import styles from "./TripPreview.module.css";
 
 type TripValues = ImportPreviewDTO["trip"]["values"];
@@ -50,10 +51,10 @@ export function TripPreview({ values, errors, warnings, aiBudget, busy, onChange
             <DestinationInput id="preview-destination" value={text(values.destination)} onChange={(destination) => onChange("destination", destination)} onPick={setPlace} invalid={!!err("destination")} describedBy={err("destination") ? "preview-destination-err" : undefined} />
           </Field>
           <Field label="Start date" htmlFor="preview-startDate" error={err("startDate")} errorId="preview-startDate-err">
-            <input id="preview-startDate" value={text(values.startDate)} placeholder="YYYY-MM-DD" onChange={(e) => onChange("startDate", e.target.value)} {...aria("startDate")} />
+            <PickerInput kind="date" format="YYYY-MM-DD" id="preview-startDate" value={text(values.startDate)} onChange={(v) => onChange("startDate", v)} {...aria("startDate")} />
           </Field>
           <Field label="End date" htmlFor="preview-endDate" error={err("endDate")} errorId="preview-endDate-err">
-            <input id="preview-endDate" value={text(values.endDate)} placeholder="YYYY-MM-DD" onChange={(e) => onChange("endDate", e.target.value)} {...aria("endDate")} />
+            <PickerInput kind="date" format="YYYY-MM-DD" id="preview-endDate" value={text(values.endDate)} onChange={(v) => onChange("endDate", v)} {...aria("endDate")} />
           </Field>
           <TimeZoneSelect id="preview-timeZone" value={text(values.timeZone)} onChange={(zone) => onChange("timeZone", zone)} place={place} currentZone={null} fromPlace={false} error={err("timeZone")} />
           <Field label={<>Budget <span className="muted">optional; owner controlled</span></>} htmlFor="preview-budget" wide error={err("budget") || err("budget.amount") || err("budget.currency")} errorId="preview-budget-err">

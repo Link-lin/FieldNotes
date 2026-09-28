@@ -6,6 +6,7 @@ import type { ImportPreviewDTO } from "@/shared/import";
 import { Button } from "@/components/ui/Button/Button";
 import { Field, FieldGrid } from "@/components/ui/Field/Field";
 import { Tag } from "@/components/ui/Tag/Tag";
+import { PickerInput } from "../PickerInput/PickerInput";
 import { previewGlance } from "../preview-summary";
 import styles from "./DraftItemEditor.module.css";
 
@@ -131,7 +132,7 @@ export function DraftItemEditor({ row, errors, busy, canRemoveEmptySourceValues,
                     </div>
                   ) : null}
                   <Field label="Planned departure date, if exact departure is unknown" htmlFor={id("flightDetails.plannedDepartureDate")} wide {...field("flightDetails.plannedDepartureDate")}>
-                    <input id={id("flightDetails.plannedDepartureDate")} value={val("flightDetails.plannedDepartureDate")} placeholder="YYYY-MM-DD" onChange={(e) => set("flightDetails.plannedDepartureDate", e.target.value || null)} {...aria("flightDetails.plannedDepartureDate")} />
+                    <PickerInput kind="date" format="YYYY-MM-DD" id={id("flightDetails.plannedDepartureDate")} value={val("flightDetails.plannedDepartureDate")} onChange={(v) => set("flightDetails.plannedDepartureDate", v || null)} {...aria("flightDetails.plannedDepartureDate")} />
                   </Field>
                   <Field label="Airline" htmlFor={id("flightDetails.airline")} {...field("flightDetails.airline")}>
                     <input id={id("flightDetails.airline")} value={val("flightDetails.airline")} maxLength={120} onChange={(e) => set("flightDetails.airline", e.target.value || null)} {...aria("flightDetails.airline")} />
@@ -154,7 +155,7 @@ export function DraftItemEditor({ row, errors, busy, canRemoveEmptySourceValues,
                           <input id={id(`flightDetails.${side}.airportCode`)} value={val(`flightDetails.${side}.airportCode`)} maxLength={4} onChange={(e) => set(`flightDetails.${side}.airportCode`, e.target.value.toUpperCase() || null)} {...aria(`flightDetails.${side}.airportCode`)} />
                         </Field>
                         <Field label="Local date and time" htmlFor={id(`flightDetails.${side}.localDateTime`)} {...field(`flightDetails.${side}.localDateTime`)}>
-                          <input id={id(`flightDetails.${side}.localDateTime`)} value={val(`flightDetails.${side}.localDateTime`)} placeholder="YYYY-MM-DDTHH:mm" onChange={(e) => set(`flightDetails.${side}.localDateTime`, e.target.value || null)} {...aria(`flightDetails.${side}.localDateTime`)} />
+                          <PickerInput kind="datetime-local" format="YYYY-MM-DDTHH:mm" id={id(`flightDetails.${side}.localDateTime`)} value={val(`flightDetails.${side}.localDateTime`)} onChange={(v) => set(`flightDetails.${side}.localDateTime`, v || null)} {...aria(`flightDetails.${side}.localDateTime`)} />
                         </Field>
                         <Field label="Airport time zone" htmlFor={id(`flightDetails.${side}.timeZone`)} wide {...field(`flightDetails.${side}.timeZone`)}>
                           <input id={id(`flightDetails.${side}.timeZone`)} value={val(`flightDetails.${side}.timeZone`)} placeholder="Asia/Tokyo" onChange={(e) => set(`flightDetails.${side}.timeZone`, e.target.value || null)} {...aria(`flightDetails.${side}.timeZone`)} />
@@ -179,10 +180,10 @@ export function DraftItemEditor({ row, errors, busy, canRemoveEmptySourceValues,
                     </div>
                   ) : null}
                   <Field label="Date" htmlFor={id("localDate")} {...field("localDate")}>
-                    <input id={id("localDate")} value={val("localDate")} placeholder="YYYY-MM-DD or leave blank" onChange={(e) => set("localDate", e.target.value || null)} {...aria("localDate")} />
+                    <PickerInput kind="date" format="YYYY-MM-DD or leave blank" id={id("localDate")} value={val("localDate")} onChange={(v) => set("localDate", v || null)} {...aria("localDate")} />
                   </Field>
                   <Field label="Time" htmlFor={id("localTime")} {...field("localTime")}>
-                    <input id={id("localTime")} value={val("localTime")} placeholder="HH:mm or leave blank" onChange={(e) => set("localTime", e.target.value || null)} {...aria("localTime")} />
+                    <PickerInput kind="time" format="HH:mm or leave blank" id={id("localTime")} value={val("localTime")} onChange={(v) => set("localTime", v || null)} {...aria("localTime")} />
                   </Field>
                   <Field label="Time zone, if different from trip" htmlFor={id("timeZone")} wide {...field("timeZone")}>
                     <input id={id("timeZone")} value={val("timeZone")} placeholder="Inherit trip time zone" onChange={(e) => set("timeZone", e.target.value || null)} {...aria("timeZone")} />
