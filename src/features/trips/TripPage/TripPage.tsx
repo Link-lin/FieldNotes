@@ -262,8 +262,8 @@ export function TripPage({ data, initialDay, initialEvent, initialView, mapsKey 
           </div>
           <div className={styles.sectionNav}>
             <TripViewNav selected={view} toBook={toBook.length} overdue={overdueCount} onSelect={selectView} />
+            {view === "itinerary" ? <TripTiles data={data} pinned={allStops.length} distanceKm={straightLineKm(allStops)} /> : null}
           </div>
-          {view === "itinerary" ? <div className={styles.facts}><TripTiles data={data} pinned={allStops.length} distanceKm={straightLineKm(allStops)} /></div> : null}
         </div>
         {view === "bookings" ? (
           <BookingList trip={trip} items={items} owner={owner} onOpen={(i) => openPanel(i, { trigger: `[data-task-open="${i.id}"]` })} />

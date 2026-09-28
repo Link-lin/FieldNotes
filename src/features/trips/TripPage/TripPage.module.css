@@ -1,19 +1,18 @@
 .wrap { padding: var(--space-2) var(--gutter) 96px; }
 .trip { width: 100%; display: grid; gap: var(--space-7); animation: var(--kf-rise) 0.5s both; }
-.hero { display: grid; grid-template-areas: "heading" "nav" "facts"; gap: var(--space-5); min-width: 0; }
-.hero[data-view="bookings"] { grid-template-areas: "heading" "nav"; }
-.heading { grid-area: heading; display: grid; gap: var(--space-5); min-width: 0; }
-.sectionNav { grid-area: nav; min-width: 0; }
-.facts { grid-area: facts; min-width: 0; }
+.hero { display: grid; gap: var(--space-5); min-width: 0; }
+.heading { display: grid; gap: var(--space-5); min-width: 0; }
+/* The view switch, and in Itinerary the trip's figures, share one row above the day tabs; the
+   figures drop below the switch when the row is too narrow for both. */
+.sectionNav { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3) var(--space-6); padding-bottom: var(--space-3); border-bottom: 1px solid var(--line); min-width: 0; }
 /* Timeline on the left, the sticky map on the right. */
 .grid { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: var(--space-10); align-items: start; min-width: 0; }
 .mainColumn { display: grid; gap: var(--space-10); align-content: start; min-width: 0; }
 .main { display: grid; gap: var(--space-7); align-content: start; min-width: 0; }
 .location { max-width: 520px; }
-@media (min-width: 1400px) {
-  .hero[data-view="itinerary"] { grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr); grid-template-areas: "heading facts" "nav facts"; column-gap: var(--space-10); align-items: end; border-bottom: 1px solid var(--line); padding-bottom: var(--space-3); }
-  .hero[data-view="itinerary"] .facts { align-self: end; }
-}
 @media (max-width: 1060px) {
   .grid { grid-template-columns: minmax(0, 1fr); gap: var(--space-7); }
+}
+@media (max-width: 600px) {
+  .sectionNav { display: grid; justify-content: stretch; }
 }

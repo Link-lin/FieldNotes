@@ -10,9 +10,9 @@ import styles from "./TripTiles.module.css";
 
 type Props = { data: TripDetailDTO; pinned: number; distanceKm: number };
 
-function Tile({ label, warn, budget, children }: { label: string; warn?: boolean; budget?: boolean; children: React.ReactNode }) {
+function Tile({ label, warn, children }: { label: string; warn?: boolean; children: React.ReactNode }) {
   return (
-    <div className={cx(styles.tile, warn && styles.warn, budget && styles.budget)}>
+    <div className={cx(styles.tile, warn && styles.warn)}>
       {children}
       <span className="mono">{label}</span>
     </div>
@@ -20,9 +20,9 @@ function Tile({ label, warn, budget, children }: { label: string; warn?: boolean
 }
 
 /**
- * At-a-glance numbers for the itinerary: status, length, events, pins, distance and money. On
- * phones they form one strip that scrolls sideways (I8); only while it overflows can it take focus,
- * so a keyboard can scroll it too.
+ * At-a-glance figures for the itinerary: status, length, events, pins, distance and money, in one
+ * slim bar beside the view switch. On phones they form a strip that scrolls sideways; only while it
+ * overflows can it take focus, so a keyboard can scroll it too.
  */
 export function TripTiles({ data, pinned, distanceKm }: Props) {
   const { trip, items, budgetComparison: cmp, plannedTotals: totals } = data;
@@ -44,7 +44,7 @@ export function TripTiles({ data, pinned, distanceKm }: Props) {
       ) : trip.status === "ongoing" ? (
         <Tile label="Travelling now">
           <b>Day {trip.dayIndex}<small>of {days}</small></b>
-          <ProgressBar value={(trip.dayIndex ?? 1) / days} />
+          <ProgressBar className={styles.progress} value={(trip.dayIndex ?? 1) / days} />
         </Tile>
       ) : (
         <Tile label="Trip ended"><b className={styles.words}>{relativeLabel(trip)}</b></Tile>
@@ -54,9 +54,9 @@ export function TripTiles({ data, pinned, distanceKm }: Props) {
       <Tile label="Pinned"><b>{pinned}</b></Tile>
       {distanceKm > 0 ? <Tile label="Between stops"><b>{Math.round(distanceKm)}<small>km</small></b></Tile> : null}
       {cmp ? (
-        <Tile label="Planned vs budget" warn={cmp.over} budget>
+        <Tile label="Planned vs budget" warn={cmp.over}>
           <b>{formatMoney(cmp.planned, cmp.currency)}<small>of {formatMoney(cmp.budget, cmp.currency)}</small></b>
-          <ProgressBar value={Number(cmp.budget) > 0 ? Number(cmp.planned) / Number(cmp.budget) : 1} />
+          <ProgressBar className={styles.progress} value={Number(cmp.budget) > 0 ? Number(cmp.planned) / Number(cmp.budget) : 1} />
         </Tile>
       ) : totals.length === 1 ? (
         <Tile label="Planned"><b>{formatMoney(totals[0]!.total, totals[0]!.currency)}</b></Tile>
