@@ -11,6 +11,8 @@ import { dateInZone, resolveLocal } from "@/shared/time";
 import { itemDto } from "./items.mapper";
 import * as repo from "./items.repository";
 import { scheduleErrors, toValues } from "./items.rules";
+import { countUsage } from "@/server/modules/usage/usage.service";
+import type { UsageEvent } from "@/server/modules/usage/usage.rules";
 
 export const ITEM_CAP = 250;
 export const RESTORE_WINDOW_MS = 10 * 60 * 1000;
@@ -24,7 +26,7 @@ const dto = (row: PlanItemRow, zone: string, now: Date): PlanItemDTO => itemDto(
 const capError = () => new HttpError(409, "item_cap", `A trip can have at most ${ITEM_CAP} events.`);
 
 export async function createItem(db: Kysely<DB>, actor: Actor, tripId: string, input: ItemInput, now = new Date()): Promise<PlanItemDTO> {
-  return db.transaction().execute(async (tx) => {
+  const created = await db.transaction().execute(async (tx) => {
     const { trip } = await requireTripOwner(tx, actor, tripId, true);
     await repo.purgeExpired(tx, trip.id);
     if ((await repo.liveCount(tx, trip.id)) >= ITEM_CAP) throw capError();
@@ -36,6 +38,16 @@ export async function createItem(db: Kysely<DB>, actor: Actor, tripId: string, i
     await bumpTripVersion(tx, trip.id);
     return dto(row, trip.time_zone, now);
   });
+  await countUsage(db, [{ name: "manual_item_created" }, ...bookingUsage(null, created)]);
+  return created;
+}
+
+/** Pilot measures for a saved item: a new or changed book-by date, and a move to Booked. */
+function bookingUsage(before: { booking_due_date: string | null; booking_status: string } | null, after: PlanItemDTO): UsageEvent[] {
+  const events: UsageEvent[] = [];
+  if (after.bookingDueDate && after.bookingDueDate !== before?.booking_due_date) events.push({ name: "due_date_set" });
+  if (after.bookingStatus === "booked" && before?.booking_status !== "booked") events.push({ name: "item_booked" });
+  return events;
 }
 
 export async function updateItem(
@@ -46,11 +58,13 @@ export async function updateItem(
   body: { item: ItemInput; expectedVersion: number; confirmTypeChange?: boolean; confirmPrice?: boolean },
   now = new Date(),
 ): Promise<PlanItemDTO> {
-  return db.transaction().execute(async (tx) => {
+  let before: PlanItemRow | null = null;
+  const saved = await db.transaction().execute(async (tx) => {
     const { trip } = await requireTripOwner(tx, actor, tripId, true);
     await repo.purgeExpired(tx, trip.id);
     const current = await repo.loadItemForUpdate(tx, trip.id, itemId);
     if (current.version !== body.expectedVersion) throw conflict();
+    before = current;
     const input = body.item;
     const crossesFlight = (current.type === "flight") !== (input.type === "flight");
     if (crossesFlight && !body.confirmTypeChange) {
@@ -65,6 +79,9 @@ export async function updateItem(
     await bumpTripVersion(tx, trip.id);
     return dto(row, trip.time_zone, now);
   });
+  const prior = before as PlanItemRow | null;
+  await countUsage(db, [...(prior?.source === "ai" ? [{ name: "ai_item_edited" as const }] : []), ...bookingUsage(prior, saved)]);
+  return saved;
 }
 
 /** TRIP-10: save an event's notes from its side panel. Same owner, version and trip-version rules as a full edit. */
@@ -76,7 +93,8 @@ export async function updateItemNotes(
   body: { notes: string | null; expectedVersion: number },
   now = new Date(),
 ): Promise<PlanItemDTO> {
-  return db.transaction().execute(async (tx) => {
+  let wasAi = false;
+  const saved = await db.transaction().execute(async (tx) => {
     const { trip } = await requireTripOwner(tx, actor, tripId, true);
     await repo.purgeExpired(tx, trip.id);
     const current = await repo.loadItemForUpdate(tx, trip.id, itemId);
@@ -85,20 +103,25 @@ export async function updateItemNotes(
     const row = await repo.updateNotes(tx, current.id, body.expectedVersion, notes);
     if (!row) throw conflict();
     await bumpTripVersion(tx, trip.id);
+    wasAi = current.source === "ai";
     return dto(row, trip.time_zone, now);
   });
+  if (wasAi) await countUsage(db, [{ name: "ai_item_edited" }]);
+  return saved;
 }
 
 /** TRIP-8: immediate soft delete; restorable for 10 minutes. */
 export async function deleteItem(db: Kysely<DB>, actor: Actor, tripId: string, itemId: string, expectedVersion: number): Promise<void> {
-  await db.transaction().execute(async (tx) => {
+  const source = await db.transaction().execute(async (tx) => {
     const { trip } = await requireTripOwner(tx, actor, tripId, true);
     await repo.purgeExpired(tx, trip.id);
     const current = await repo.loadItemForUpdate(tx, trip.id, itemId);
     if (current.version !== expectedVersion) throw conflict();
     await repo.softDelete(tx, current.id);
     await bumpTripVersion(tx, trip.id);
+    return current.source;
   });
+  if (source === "ai") await countUsage(db, [{ name: "ai_item_deleted" }]);
 }
 
 /** Undo within 10 minutes: the same row comes back, if the cap allows and its time still exists. */

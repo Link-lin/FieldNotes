@@ -9,6 +9,7 @@ import { insertItem } from "@/server/modules/items/items.repository";
 import { scheduleErrors, toValues } from "@/server/modules/items/items.rules";
 import { matchDestination } from "@/server/modules/places/catalog";
 import { insertTrip } from "@/server/modules/trips/trips.repository";
+import { countUsage } from "@/server/modules/usage/usage.service";
 import type { PlanItemDraftDTO, ImportCommitInput } from "@/shared/import";
 import { importCommitSchema } from "@/shared/import";
 import { trimAmount } from "@/shared/money";
@@ -143,6 +144,11 @@ export async function commitImport(
         .execute();
       return trip.id;
     });
+    await countUsage(db, [
+      { name: "import_trip_created" },
+      { name: "import_items_created", count: items.length },
+      { name: "import_items_skipped", count: input.previewSkipped ?? 0 },
+    ]);
     return { tripId, reused: false };
   } catch (err) {
     if (!isReceiptKeyConflict(err)) throw err;

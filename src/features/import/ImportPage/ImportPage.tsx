@@ -175,7 +175,7 @@ export function ImportPage() {
       return;
     }
     const candidate = { expectedFormatVersion: 1, ownerProvidedBudget: preview.trip.values.budget ?? null,
-      trip: preview.trip.values, items: included.map((row) => row.values) };
+      trip: preview.trip.values, items: included.map((row) => row.values), previewSkipped: preview.items.length - included.length };
     const parsed = importCommitSchema.safeParse(candidate);
     if (!parsed.success) {
       const errors = parsed.error.issues.map((issue) => ({ path: issuePath(issue.path, included), code: issue.code, message: issue.message }));

@@ -94,6 +94,8 @@ export const importCommitSchema = z.object({
   ownerProvidedBudget: nullable(importMoneySchema),
   trip: tripDraftSchema,
   items: z.array(planItemDraftSchema).max(250),
+  /** How many previewed items the owner skipped; a pilot count only, not part of the import. */
+  previewSkipped: z.number().int().min(0).max(250).optional(),
 }).strict().superRefine((value, ctx) => {
   const budget = value.ownerProvidedBudget;
   const tripBudget = value.trip.budget;

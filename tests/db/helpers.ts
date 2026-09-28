@@ -11,7 +11,7 @@ export function testDb(): Kysely<DB> {
 }
 
 export async function reset(): Promise<void> {
-  await sql`truncate plan_items, import_receipts, trip_viewers, trips, "Session", "Account", "User" cascade`.execute(testDb());
+  await sql`truncate plan_items, import_receipts, trip_viewers, trips, usage_counts, "Session", "Account", "User" cascade`.execute(testDb());
 }
 
 export async function makeActor(email: string, name = email.split("@")[0]!): Promise<Actor> {

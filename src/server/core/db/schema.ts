@@ -83,6 +83,12 @@ export interface ImportReceiptsTable {
   created_at: Stamp;
 }
 
+export interface UsageCountsTable {
+  day: DateText;
+  name: string;
+  count: number; // bigint, parsed to a number by the client
+}
+
 export type ItemType = "flight" | "lodging" | "transport" | "meal" | "activity" | "other";
 export type BookingStatus = "not_required" | "needs_booking" | "booked";
 export type Choice = "earlier" | "later";
@@ -136,6 +142,7 @@ export interface DB {
   trip_viewers: TripViewersTable;
   import_receipts: ImportReceiptsTable;
   plan_items: PlanItemsTable;
+  usage_counts: UsageCountsTable;
 }
 
 export type TripRow = Selectable<TripsTable>;

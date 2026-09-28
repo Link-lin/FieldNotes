@@ -13,6 +13,7 @@ import type { TripInput, TripPatch } from "@/shared/schemas";
 import { dateInZone } from "@/shared/time";
 import { budgetComparison, plannedTotals, recentCurrencies } from "./budget.repository";
 import { applyTimeZoneChange } from "./time-zone.service";
+import { countUsage } from "@/server/modules/usage/usage.service";
 import { tripSummary } from "./trips.mapper";
 import { deleteTripRow, insertTrip, updateTripRow } from "./trips.repository";
 
@@ -51,6 +52,7 @@ export async function createTrip(db: Kysely<DB>, actor: Actor, input: TripInput,
     atlas_longitude: point ? String(point.longitude) : null,
     atlas_source: point ? "catalog" : null,
   });
+  await countUsage(db, [{ name: "manual_trip_created" }]);
   return tripSummary(row, "owner", now);
 }
 

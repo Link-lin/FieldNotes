@@ -17,7 +17,8 @@
     "test:db": "vitest run --project db",
     "db:start": "tsx scripts/dev-db.ts",
     "db:migrate": "tsx scripts/migrate.ts",
-    "data:build": "tsx scripts/build-geo-data.ts"
+    "data:build": "tsx scripts/build-geo-data.ts",
+    "pilot:report": "tsx scripts/pilot-report.ts"
   },
   "dependencies": {
     "@auth/kysely-adapter": "1.11.3",
