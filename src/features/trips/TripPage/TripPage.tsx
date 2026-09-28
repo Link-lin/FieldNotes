@@ -245,7 +245,7 @@ export function TripPage({ data, initialDay, mapsKey }: { data: TripDetailDTO; i
             ) : null}
             {owner && recentlyDeleted.length ? <RecentlyDeleted items={recentlyDeleted} onRestore={restoreEvent} /> : null}
           </div>
-          <MapPanel day={day} stops={stops} onPin={goToEvent} />
+          <MapPanel key={day} day={day} stops={stops} onPin={goToEvent} mapsKey={mapsKey} />
         </div>
 
         <CostsSection data={data} owner={owner} />

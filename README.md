@@ -1,8 +1,8 @@
 # Field Notes (Travel Planner)
 
-A private trip planner: a globe of every trip, and a page per trip with a day-by-day itinerary, a sketch map, booking tasks and planned costs. Product scope is in [PRD.md](PRD.md); architecture in [docs/design/technical-design.md](docs/design/technical-design.md).
+A private trip planner: a globe of every trip, and a page per trip with a day-by-day itinerary, an outline map, booking tasks and planned costs. Product scope is in [PRD.md](PRD.md); architecture in [docs/design/technical-design.md](docs/design/technical-design.md).
 
-**Built so far:** Google sign-in with an owner allowlist, trips (create, edit, time-zone change, delete), dashboard globe and list, trip page with tabs, events (add, edit, duplicate, delete with undo), booking list, costs and budget, day map, account deletion, owner-only AI import, read-only viewer invitations, an event side panel (click an event) with an embedded Google map and notes, pinning an event by pasting its coordinates, and privacy-safe daily pilot counts. The import page provides a conversion prompt for a plan already discussed in an external AI chat, an optional new-trip prompt, JSON v1 validation, a day-by-day editable preview, and confirmed atomic creation.
+**Built so far:** Google sign-in with an owner allowlist, trips (create, edit, time-zone change, delete), dashboard globe and list, trip page with tabs, events (add, edit, duplicate, delete with undo), booking list, costs and budget, an outline day map with an optional Google road-route view, account deletion, owner-only AI import, read-only viewer invitations, an event side panel (click an event) with an embedded Google map and notes, pinning an event by pasting its coordinates, and privacy-safe daily pilot counts. The import page provides a conversion prompt for a plan already discussed in an external AI chat, an optional new-trip prompt, JSON v1 validation, a day-by-day editable preview, and confirmed atomic creation.
 
 Owners share a trip from its **Share** dialog: invite one email, copy the one-time link (Field Notes sends no email), and revoke access or create a new link later. The invitee opens the link, signs in with the matching Google account and sees the trip read-only.
 
@@ -27,7 +27,7 @@ In `.env.local`:
 - `AUTH_SECRET`: run `npx auth secret` or `openssl rand -base64 33`.
 - `AUTH_GOOGLE_ID` and `AUTH_GOOGLE_SECRET`: create an OAuth client (type "Web application") in Google Cloud Console → APIs & Services → Credentials. Add `http://localhost:3000/api/auth/callback/google` as an authorized redirect URI.
 - `TRIP_OWNER_EMAILS`: your Google address (comma-separated for more than one). Only these accounts can create trips.
-- `GOOGLE_MAPS_EMBED_API_KEY` (optional): shows a Google map in each event's side panel. In Google Cloud Console, enable the **Maps Embed API**, create an API key, and restrict it to that API and to your site (for example `http://localhost:3000/*`). Without it the panel shows the event without a map.
+- `GOOGLE_MAPS_EMBED_API_KEY` (optional): shows a Google map in each event's side panel and enables **Road route** on a day tab. In Google Cloud Console, enable the **Maps Embed API**, create an API key, and restrict it to **Maps Embed API only** and to your site (for example `http://localhost:3000/*`). The road iframe loads only after a user selects it and sends that segment's pinned coordinates to Google. Without the key the local outline map and external Google Maps links still work. You do not need to enable Maps JavaScript or Routes API for this feature.
 - `APP_ORIGIN`: `http://localhost:3000` locally; your https origin in production. Every write must come from this origin, and Auth.js uses it for callback URLs unless `AUTH_URL` is set.
 
 ## Checks

@@ -1,7 +1,13 @@
 .wrap { position: relative; }
-.map { width: 100%; height: auto; display: block; border-radius: var(--radius-md); background: var(--paper); cursor: grab; touch-action: pan-y; user-select: none; }
+.map { width: 100%; height: auto; display: block; border-radius: var(--radius-md); background: var(--land); cursor: grab; touch-action: pan-y; user-select: none; }
 .map:active { cursor: grabbing; }
-.grid path { fill: none; stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 5; }
+.grid path { fill: none; stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 5; opacity: 0.5; }
+/* D3's clipped land path includes the exterior ring: paint that complement as water. */
+.land { fill: var(--ocean-a); fill-rule: evenodd; stroke: var(--land-line); stroke-width: 1.4; vector-effect: non-scaling-stroke; }
+.borders { fill: none; stroke: var(--land-line); stroke-width: 1; vector-effect: non-scaling-stroke; opacity: 0.7; }
+.city { color: var(--ink-3); pointer-events: none; }
+.city circle { fill: currentColor; }
+.city text { fill: currentColor; font: 500 10px var(--sans); paint-order: stroke; stroke: var(--land); stroke-width: 2px; stroke-linejoin: round; }
 .route { fill: none; stroke: var(--ink); stroke-width: 2; vector-effect: non-scaling-stroke; stroke-dasharray: 7 6; stroke-linecap: round; opacity: 0.7; animation: var(--kf-march) 1.6s linear 6; }
 .pin { cursor: pointer; }
 .pin:focus-visible { outline: none; }

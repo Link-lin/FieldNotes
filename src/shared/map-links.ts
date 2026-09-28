@@ -175,6 +175,21 @@ export function googleEmbedUrl(key: string, t: EmbedTarget): string {
   return `https://www.google.com/maps/embed/v1/place?${k}&q=${encodeURIComponent(t.q)}`;
 }
 
+/** Google-hosted road map for one route segment (up to 20 intermediate stops). */
+export function googleDayEmbedUrl(key: string, stops: ReadonlyArray<readonly [number, number]>, mode: "driving" | "walking"): string | null {
+  const points = stops.slice(0, 22);
+  const first = points[0];
+  if (!first) return null;
+  const point = (c: readonly [number, number]) => `${c[0].toFixed(5)},${c[1].toFixed(5)}`;
+  const base = `https://www.google.com/maps/embed/v1/`;
+  const token = `key=${encodeURIComponent(key)}`;
+  if (points.length === 1) return `${base}place?${token}&q=${encodeURIComponent(point(first))}`;
+  const last = points[points.length - 1]!;
+  const middle = points.slice(1, -1).map(point);
+  return `${base}directions?${token}&origin=${encodeURIComponent(point(first))}&destination=${encodeURIComponent(point(last))}` +
+    (middle.length ? `&waypoints=${encodeURIComponent(middle.join("|"))}` : "") + `&mode=${mode}`;
+}
+
 /** Hand-off for one day (MAP-6): at most the first 10 stops. */
 export function googleDayUrl(stops: ReadonlyArray<readonly [number, number]>): string | null {
   const s = stops.slice(0, 10);

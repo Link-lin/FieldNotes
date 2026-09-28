@@ -1,5 +1,5 @@
-import type { Stop } from "../../../trip-days";
-import { StopNumber } from "../../../StopNumber/StopNumber";
+import type { Stop } from "../../trip-days";
+import { StopNumber } from "../../StopNumber/StopNumber";
 import styles from "./StopList.module.css";
 
 export type Leg = { s: Stop; same: boolean; d: number; chip: boolean };

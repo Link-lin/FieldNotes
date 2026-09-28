@@ -1,12 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { haversineKm } from "@/shared/map-links";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { cx as cn } from "@/lib/cx";
 import type { Stop } from "../../trip-days";
-import { km, StopList } from "./StopList/StopList";
+import { MAP_CITIES, outlinePaths, outlineProjection } from "./geography";
 import styles from "./DayMap.module.css";
-
 
 const W0 = 400;
 const H0 = 340;
@@ -14,12 +12,11 @@ const PAD = 56;
 const NICE = [10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000, 1000000, 2000000, 5000000];
 const short = (s: string, n = 24) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 
-
 /**
- * Schematic day map (MAP-3 to MAP-5): no basemap and no network requests. Pins use a
- * local equirectangular fit; lines join consecutive non-flight stops of the same day.
+ * Outline day map (MAP-3 to MAP-5): bundled coastlines, country borders and city labels, with
+ * no network requests. Pins use a local equirectangular fit; lines join same-day stops.
  */
-export function DayMap({ stops, showDays, onPin }: { stops: Stop[]; showDays: boolean; onPin: (id: string) => void }) {
+export function DayMap({ stops, onPin }: { stops: Stop[]; onPin: (id: string) => void }) {
   const svg = useRef<SVGSVGElement>(null);
   const [vb, setVb] = useState({ x: 0, y: 0, w: W0, h: H0 });
   const [screenW, setScreenW] = useState(0);
@@ -43,13 +40,25 @@ export function DayMap({ stops, showDays, onPin }: { stops: Stop[]; showDays: bo
   const med = lons[Math.floor(lons.length / 2)] ?? 0;
   const xs = stops.map((s) => (s.lon - med > 180 ? s.lon - 360 : s.lon - med < -180 ? s.lon + 360 : s.lon) * kx);
   const ys = stops.map((s) => -s.lat);
-  const minx = Math.min(...xs), maxx = Math.max(...xs), miny = Math.min(...ys), maxy = Math.max(...ys);
+  const minx = xs.length ? Math.min(...xs) : 0;
+  const maxx = xs.length ? Math.max(...xs) : 0;
+  const miny = ys.length ? Math.min(...ys) : 0;
+  const maxy = ys.length ? Math.max(...ys) : 0;
   const spx = Math.max(maxx - minx, 0.02 * kx);
   const spy = Math.max(maxy - miny, 0.02);
   const sc = Math.min((W0 - 2 * PAD - 40) / spx, (H0 - 2 * PAD) / spy);
   const cx = (minx + maxx) / 2;
   const cy = (miny + maxy) / 2;
-  const pts = stops.map((s, i) => ({ s, x: W0 / 2 + (xs[i]! - cx) * sc, y: H0 / 2 + (ys[i]! - cy) * sc }));
+  const projection = useMemo(() => outlineProjection({ medianLon: med, horizontalScale: kx, fitScale: sc, centerX: cx, centerY: cy, width: W0, height: H0 }), [med, kx, sc, cx, cy]);
+  const outline = useMemo(() => stops.length ? outlinePaths(projection) : { land: "", borders: "" }, [projection, stops.length]);
+  const nearbyCities = useMemo(() => stops.length ? MAP_CITIES.flatMap(([name, lon, lat, rank]) => {
+    const at = projection([lon, lat]);
+    return at ? [{ name, rank, x: at[0], y: at[1] }] : [];
+  }) : [], [projection, stops.length]);
+  const pts = stops.map((s) => {
+    const at = projection([s.lon, s.lat]);
+    return { s, x: at?.[0] ?? W0 / 2, y: at?.[1] ?? H0 / 2 };
+  });
   const pr = stops.length > 5 ? 11 : 14;
   const z = W0 / vb.w;
   const k = screenW ? screenW / W0 : 1;
@@ -94,6 +103,23 @@ export function DayMap({ stops, showDays, onPin }: { stops: Stop[]; showDays: bo
     return ok;
   });
 
+  // City labels stay the same screen size while zooming. Prominent cities show first, smaller
+  // ones become eligible when zoomed in, and none cover a stop pin or a stop label.
+  const cityLabels: Array<{ name: string; x: number; y: number }> = [];
+  const labelBoxes = [...placed];
+  for (const city of nearbyCities) {
+    if (city.rank > (z < 2 ? 4 : 7)) continue;
+    const x = ((city.x - vb.x) / vb.w) * (screenW || W0);
+    const y = ((city.y - vb.y) / vb.h) * ((screenW || W0) * (H0 / W0));
+    if (x < 12 * k || x > (screenW || W0) - 12 * k || y < 12 * k || y > (screenW || W0) * (H0 / W0) - 12 * k) continue;
+    const box = { x: x + 5 * k, y: y - 11 * k, w: (city.name.length * 5.8 + 4) * k, h: 13 * k };
+    if (circles.some((c) => box.x < c.x + c.r + 5 * k && box.x + box.w > c.x - c.r - 5 * k && box.y < c.y + c.r + 5 * k && box.y + box.h > c.y - c.r - 5 * k)) continue;
+    if (labelBoxes.some((b) => box.x < b.x + b.w && box.x + box.w > b.x && box.y < b.y + b.h && box.y + box.h > b.y)) continue;
+    labelBoxes.push(box);
+    cityLabels.push({ name: city.name, x: city.x, y: city.y });
+    if (cityLabels.length >= 10) break;
+  }
+
   // Scale bar: largest round distance under ~90 px.
   const mpx = ((111320 / sc) * vb.w) / (screenW || W0);
   let pick = NICE[0]!;
@@ -104,7 +130,7 @@ export function DayMap({ stops, showDays, onPin }: { stops: Stop[]; showDays: bo
   }
   function zoomTo(ux: number, uy: number, nw: number): boolean {
     const cur = vb;
-    const w = Math.max(W0 / 12, Math.min(W0, nw));
+    const w = Math.max(W0 / 12, Math.min(W0 * 2, nw));
     if (Math.abs(w - cur.w) < 0.01) return false;
     const h = (w * H0) / W0;
     setVb(clampVb({ x: ux - ((ux - cur.x) * w) / cur.w, y: uy - ((uy - cur.y) * h) / cur.h, w, h }));
@@ -173,7 +199,7 @@ export function DayMap({ stops, showDays, onPin }: { stops: Stop[]; showDays: bo
     return (
       <div className={styles.empty}>
         <b>No places pinned yet</b>
-        <span>Edit an event and add a Google Maps, Apple Maps or OpenStreetMap link with coordinates, or paste its coordinates, and it will show up here.</span>
+        <span>A saved map link with coordinates, or pasted coordinates, will place an event here.</span>
       </div>
     );
   }
@@ -195,23 +221,14 @@ export function DayMap({ stops, showDays, onPin }: { stops: Stop[]; showDays: bo
   }
   if (run.length > 1) runs.push(run);
 
-  const legs = stops.map((s, i) => {
-    const prev = stops[i - 1];
-    const same = !!prev && prev.day === s.day && !prev.flight && !s.flight;
-    const d = same ? haversineKm([prev!.lat, prev!.lon], [s.lat, s.lon]) : 0;
-    return { s, same, d, chip: showDays && (!prev || prev.day !== s.day) };
-  });
-  const total = legs.reduce((a, l) => a + l.d, 0);
-
   return (
-    <>
       <div className={styles.wrap}>
         <svg
           ref={svg}
           className={styles.map}
           viewBox={`${vb.x} ${vb.y} ${vb.w} ${vb.h}`}
           role="group"
-          aria-label="Sketch map of the stops, in order. Use the plus and minus buttons, the mouse wheel or a pinch to zoom, and drag to move."
+          aria-label="Outline map with coastlines, country borders, cities and the stops in order. Use the plus and minus buttons, the mouse wheel or a pinch to zoom, and drag to move."
           onPointerDown={onDown}
           onPointerMove={onMove}
           onPointerUp={onUp}
@@ -230,8 +247,16 @@ export function DayMap({ stops, showDays, onPin }: { stops: Stop[]; showDays: bo
             </pattern>
           </defs>
           <rect x={-2000} y={-2000} width={4400} height={4340} fill="url(#map-grid)" />
+          <path className={styles.land} d={outline.land} />
+          <path className={styles.borders} d={outline.borders} />
           {runs.map((r, i) => (
             <polyline key={i} className={styles.route} points={r.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ")} />
+          ))}
+          {cityLabels.map((city) => (
+            <g key={`${city.name}-${city.x}-${city.y}`} className={styles.city} transform={`translate(${city.x.toFixed(1)} ${city.y.toFixed(1)}) scale(${1 / z})`} aria-hidden="true">
+              <circle r={2} />
+              <text x={5} y={-3}>{city.name}</text>
+            </g>
           ))}
           {shown.map((d, ix) => (
             <g
@@ -263,7 +288,7 @@ export function DayMap({ stops, showDays, onPin }: { stops: Stop[]; showDays: bo
         <div className={styles.controls}>
           <span className={styles.zoom}>
             <button type="button" aria-label="Zoom in on the map" disabled={z > 11.9} onClick={() => zoomTo(vb.x + vb.w / 2, vb.y + vb.h / 2, vb.w / 1.5)}>+</button>
-            <button type="button" aria-label="Zoom out on the map" disabled={z < 1.02} onClick={() => zoomTo(vb.x + vb.w / 2, vb.y + vb.h / 2, vb.w * 1.5)}>−</button>
+            <button type="button" aria-label="Zoom out on the map" disabled={z < 0.51} onClick={() => zoomTo(vb.x + vb.w / 2, vb.y + vb.h / 2, vb.w * 1.5)}>−</button>
           </span>
           <span className={styles.scale}>
             <i style={{ width: Math.max(8, pick / mpx) }} />
@@ -273,13 +298,10 @@ export function DayMap({ stops, showDays, onPin }: { stops: Stop[]; showDays: bo
             <path d="M11 30V6M5 13l6-8 6 8" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             <text x="11" y="40" textAnchor="middle" fontFamily="var(--mono)" fontSize="10" fill="currentColor">N</text>
           </svg>
-          {z > 1.02 ? (
+          {Math.abs(z - 1) > 0.02 ? (
             <button className={cn("mono", styles.reset)} type="button" onClick={() => setVb({ x: 0, y: 0, w: W0, h: H0 })}>Reset view</button>
           ) : null}
         </div>
       </div>
-      <StopList legs={legs} />
-      {total > 0 ? <p className="note">About {km(total)} in straight lines between stops on the same day. Flights are not counted.</p> : null}
-    </>
   );
 }

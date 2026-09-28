@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cleanMapUrl, coordinatesFromMapUrl, embedTarget, googleDayUrl, googleEmbedUrl, haversineKm, mapLinkFromInput, parseCoordinateText, providerLabel } from "@/shared/map-links";
+import { cleanMapUrl, coordinatesFromMapUrl, embedTarget, googleDayEmbedUrl, googleDayUrl, googleEmbedUrl, haversineKm, mapLinkFromInput, parseCoordinateText, providerLabel } from "@/shared/map-links";
 
 describe("provider labels (MAP-1)", () => {
   it("names known providers by exact host", () => {
@@ -89,6 +89,25 @@ describe("embedded event map (MAP-8)", () => {
     expect(googleEmbedUrl("k", { mode: "directions", origin: "SFO airport", destination: "HND airport" })).toBe(
       "https://www.google.com/maps/embed/v1/directions?key=k&origin=SFO%20airport&destination=HND%20airport&mode=flying",
     );
+  });
+});
+
+describe("embedded day road map (MAP-9)", () => {
+  it("uses precise coordinates in stop order and the chosen travel mode", () => {
+    const url = new URL(googleDayEmbedUrl("k&1", [[21.33, -157.92], [21.3, -157.86], [21.27, -157.82]], "driving")!);
+    expect(url.pathname).toBe("/maps/embed/v1/directions");
+    expect(url.searchParams.get("key")).toBe("k&1");
+    expect(url.searchParams.get("origin")).toBe("21.33000,-157.92000");
+    expect(url.searchParams.get("waypoints")).toBe("21.30000,-157.86000");
+    expect(url.searchParams.get("destination")).toBe("21.27000,-157.82000");
+    expect(url.searchParams.get("mode")).toBe("driving");
+  });
+
+  it("uses a place map for one pin and never includes more than 20 intermediate pins", () => {
+    expect(new URL(googleDayEmbedUrl("k", [[21, -157]], "walking")!).pathname).toBe("/maps/embed/v1/place");
+    const stops = Array.from({ length: 24 }, (_, i) => [21, -157 + i / 100] as const);
+    const url = new URL(googleDayEmbedUrl("k", stops, "walking")!);
+    expect(url.searchParams.get("waypoints")?.split("|")).toHaveLength(20);
   });
 });
 

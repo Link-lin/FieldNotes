@@ -3,4 +3,9 @@
 .cap { display: flex; justify-content: space-between; gap: var(--space-2); align-items: baseline; padding: 2px 4px 0; color: var(--ink-3); }
 .cap b { font: 700 18px var(--serif); color: var(--ink); letter-spacing: 0; text-transform: none; }
 .help { margin: -4px 4px 0; font-size: var(--text-sm); color: var(--ink-3); }
+.views { display: flex; gap: 4px; padding: 4px; border: 1px solid var(--line); border-radius: var(--radius-pill); background: var(--paper); }
+.views button { flex: 1; min-height: 36px; border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--ink-2); font: 600 var(--text-sm) var(--sans); }
+.views button[aria-pressed="true"] { background: var(--ink); color: var(--card); }
+.views button:focus-visible { outline: 2px solid var(--vermilion-ink); outline-offset: 2px; }
+@media (pointer: coarse) { .views button { min-height: 44px; } }
 @media (max-width: 860px) { .aside { position: static; order: -1; } }

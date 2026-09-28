@@ -1,0 +1,8 @@
+.roadMap { display: grid; gap: var(--space-2); margin: 0; }
+.options { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.options label { display: grid; gap: 3px; color: var(--ink-3); font-size: var(--text-xs); }
+.options select { min-height: 36px; max-width: 220px; padding: 5px 9px; border: 1px solid var(--ctl); border-radius: var(--radius-sm); background: var(--card); color: var(--ink); font: inherit; }
+.frame { position: relative; aspect-ratio: 400 / 340; overflow: hidden; border-radius: var(--radius-md); background: var(--ocean-a); }
+.frame iframe { display: block; width: 100%; height: 100%; border: 0; }
+.loading { position: absolute; inset: 0; display: grid; place-items: center; background: var(--ocean-a); color: var(--ink-2); pointer-events: none; }
+.frame[data-loaded] .loading { display: none; }

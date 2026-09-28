@@ -1,9 +1,14 @@
 # Field Notes: implementation handoff
 
-Last updated 28 Sep 2026 (review fixes B1, B2, I1 and F1 on `feat/review-fixes`, which sits on `feat/event-panel`). Read this first when picking the project up in a new session.
+Last updated 27 Sep 2026 (`feat/day-map-geography`, based on `feat/review-fixes`, which sits on `feat/event-panel`). Read this first when picking the project up in a new session.
 
 ## Status
 
+- **Day-map geography and road routes are on `feat/day-map-geography`** (not merged or pushed):
+  - The default, provider-free outline now draws bundled Natural Earth 10m coastlines and country borders with city labels, aligned with the saved-coordinate pins. The map can zoom out to twice its initial width; Reset view appears after zooming either direction. The empty state is neutral for viewers.
+  - A day with pins offers an optional **Road route** view using the existing `GOOGLE_MAPS_EMBED_API_KEY` and Maps Embed API. Google draws the road map, route and its markers; the Field Notes numbered stop list remains below. The owner or viewer can choose driving or walking and route segments. Flight arrivals can start a ground leg, but no road leg crosses a flight. The iframe mounts only after the user chooses Road route and unmounts on a day change or return to Outline.
+  - Browser checked with the seeded Hawaii trip and the configured key: an Oʻahu driving route loaded in Chrome; the outline showed the coastline correctly at its initial and zoomed-out views. The key is a browser key. Restrict it in Google Cloud to the Maps Embed API and this site's HTTP referrers; Maps JavaScript, Routes and Directions APIs are not needed for this implementation. A route with three or more pinned stops has not yet been checked against Google in the browser.
+  - Maps changes are in `src/features/trips/TripPage/MapPanel/`, `src/shared/map-links.ts` and `src/data/map-cities.json`; the geographic-data generator, PRD, trip-page design and technical design are updated. Checks passed: lint, typecheck, 172 tests, and the production build.
 - **The core app is built and verified.** It covers:
   - Google sign-in (Auth.js, owner allowlist in `TRIP_OWNER_EMAILS`).
   - Trips: create, edit, time-zone change with preview, delete.
@@ -135,8 +140,8 @@ A product-manager pass over `main` and `feat/event-panel` against the PRD, with 
 
 ## Next milestone
 
-1. Add a Maps Embed API key to `.env.local`, check the event panel's map, then merge `feat/event-panel`. The steps are in `claude/map-embed-setup.md` in the Claude project and in the README.
-2. Run `npm run db:seed:hawaii`, look over `feat/review-fixes` (B1, B2, I1, F1, the one-command start and the test trips) in the browser, then merge it after `feat/event-panel`.
+1. Review `feat/day-map-geography` and its browser behavior with a real trip, including a day with three or more pins. Review and merge its parent branches in order: `feat/event-panel`, `feat/review-fixes`, then this branch. The event panel's notes editor still needs a fix for preserving unsaved text when a save fails during close; do not describe that requirement as verified.
+2. Review the other `feat/review-fixes` changes (B1, B2, I1, F1, the one-command start and the test trips) in the browser before merging them.
 3. Check viewer invitations with two real Google accounts (see Status) and fix anything it finds.
 4. Pilot AI import with real plans and external AI tools. This has not been done yet; the counts are ready for it. Read `npm run pilot:report` weekly (clean previews, skipped items, edits per imported item, due-date use) before adding in-page AI generation or free-form parsing. Confirm whether TRIP-7 should be built.
 5. Remaining review items: B3–B5, I2–I10 and the owner decisions above.
