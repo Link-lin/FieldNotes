@@ -36,7 +36,7 @@ Type: Source Serif 4 for headings and figures, IBM Plex Mono for small uppercase
 
 1. Back to all trips, status and role tags, title, destination, a postmark stamp (city, start month and year, length), and owner actions: **Add to itinerary**, **Edit trip** (which also holds **Delete trip**), **Share**, **Import AI plan** (only if TRIP-7 is approved), and **Show on globe**. Viewers see only **Show on globe**.
 2. Summary tiles (TRIP-4): time to departure or day *N* of *M*, length, events, pinned, straight-line distance, planned versus budget, items to book.
-3. Tabs (ARIA tabs with arrow keys): **Whole trip** (default), then one per date in the trip range, plus **Outside trip dates** tabs when needed. Each shows the trip-day number, event and pin counts, and a **Today** marker. Empty days say "Nothing planned".
+3. Tabs (ARIA tabs with arrow keys): **Whole trip** (default), then one per date in the trip range, plus **Outside trip dates** tabs when needed. Each shows the trip-day number, event and pin counts, and a **Today** marker. Empty days say "Nothing planned". Switching tabs eases the tab colours (0.28 s) and glides the strip to keep the chosen tab in view; the new timeline slides in about 28 px from the side of the chosen tab and fades up (0.32 s), its first eight events settle in 35 ms apart, and the map card's contents settle as it changes. Reduced motion switches instantly.
 4. Two columns. Left: day sections with the timeline, then **Undated** in Whole trip; right (sticky on wide screens, first on phones): the day map and stop list.
 5. **Planned costs**, then **Still to book** (read-only for viewers) and **Globe location**.
 

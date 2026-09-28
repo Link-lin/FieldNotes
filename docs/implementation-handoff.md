@@ -14,6 +14,7 @@ Last updated 28 Sep 2026 (review polish on `feat/review-polish`, branched from `
   - I5: the event form's zone and flight airport zones use the friendly zone picker (short list by offset, this device, the saved zone, show all).
   - I6: the event and flight forms note when a date is outside the trip; saving is still allowed.
   - After the user's road-route check with the real key: Google drew the three-stop route correctly but labelled the stops after nearby places. Flight arrivals are now sent as `HNL airport`, and the test hotel pin was moved onto the Outrigger Reef. Event rows and the event view keep one **Open in Google Maps** link per place (Directions removed; Google Maps offers directions itself).
+  - Day tabs now animate: the new timeline slides in from the chosen tab's side with its events staggered, tab colours ease, the strip keeps the chosen tab in view, and the map card settles. Browser-sampled in both directions and with reduced motion (instant).
   - Checks passed before each commit: lint, typecheck, `npm test` (176 tests) and the production build.
 - **Event view and editor changes are merged into local `main`** (not pushed):
   - On desktop the event panel is 820 px wide. **Edit event** uses the same panel, with a wrapping title, the saved-place map, and grouped time, booking, place and notes fields. The add form remains a dialog.
