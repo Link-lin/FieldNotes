@@ -6,6 +6,7 @@ import { Kysely, PostgresDialect } from "kysely";
 import pg from "pg";
 import type { DB } from "../src/server/core/db/schema";
 import { summarizeUsage, type UsageRow } from "../src/server/modules/usage/usage.rules";
+import { describeDbError } from "./db-error";
 import { loadEnvFile } from "./env-file";
 
 loadEnvFile();
@@ -34,7 +35,7 @@ try {
     for (const w of s.weeks) console.log(`  ${w.week}  ${Object.entries(w.counts).map(([k, v]) => `${k}=${v}`).join("  ")}`);
   }
 } catch (err) {
-  console.error("Report failed:", err instanceof Error ? err.message : err);
+  console.error("Report failed:", describeDbError(err));
   process.exitCode = 1;
 } finally {
   await db.destroy();

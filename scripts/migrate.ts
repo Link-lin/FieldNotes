@@ -5,6 +5,7 @@
 import { Kysely, PostgresDialect } from "kysely";
 import pg from "pg";
 import { migrateToLatest } from "../db/migrate";
+import { describeDbError } from "./db-error";
 import { loadEnvFile } from "./env-file";
 
 loadEnvFile();
@@ -18,7 +19,7 @@ try {
   const applied = await migrateToLatest(db);
   console.log(applied.length ? `Applied: ${applied.join(", ")}` : "Database is up to date.");
 } catch (err) {
-  console.error("Migration failed:", err instanceof Error ? err.message : err);
+  console.error("Migration failed:", describeDbError(err));
   process.exitCode = 1;
 } finally {
   await db.destroy();
