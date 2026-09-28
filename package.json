@@ -18,6 +18,7 @@
     "test:db": "vitest run --project db",
     "db:start": "tsx scripts/dev-db.ts",
     "db:migrate": "tsx scripts/migrate.ts",
+    "db:seed:hawaii": "tsx --conditions=react-server scripts/seed-hawaii.ts",
     "data:build": "tsx scripts/build-geo-data.ts",
     "pilot:report": "tsx scripts/pilot-report.ts"
   },
