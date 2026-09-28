@@ -59,6 +59,8 @@ export function EventPanel({ trip, item, open, owner, num, mapsKey, prev, next, 
   const [busy, setBusy] = useState(false);
   const [waiting, setWaiting] = useState(false);
   const [discard, setDiscard] = useState<"close" | "details" | null>(null);
+  // A way out after the notes failed to save: the owner stays by default, or leaves without them.
+  const [unsavedExit, setUnsavedExit] = useState<(() => void) | null>(null);
   const titleId = useId();
   const { onKeyDown, close } = useDialog(ref, {
     active: presentation === "panel" && open,
@@ -67,8 +69,8 @@ export function EventPanel({ trip, item, open, owner, num, mapsKey, prev, next, 
     initialFocus: () => ref.current?.querySelector<HTMLElement>("[data-panel-close]") ?? null,
   });
   useEffect(() => {
-    if (discard) ref.current?.querySelector<HTMLElement>("[data-discard-keep]")?.focus();
-  }, [discard]);
+    if (discard || unsavedExit) ref.current?.querySelector<HTMLElement>("[data-discard-keep]")?.focus();
+  }, [discard, unsavedExit]);
   // Unmount once the exit animation ends, or after its length when animations are off.
   const exited = useRef(onExited);
   useEffect(() => {
@@ -87,12 +89,23 @@ export function EventPanel({ trip, item, open, owner, num, mapsKey, prev, next, 
     const result = await notesRef.current?.flush();
     leaving.current = false;
     setWaiting(false);
-    if (result?.ok === false) return;
+    // A failed save keeps the view and the typed text; the owner can retry or choose to leave.
+    if (result?.ok === false) {
+      setUnsavedExit(() => () => nextAction(item));
+      return;
+    }
     nextAction(result?.ok && result.item ? result.item : item);
+  }
+
+  function leaveWithoutNotes() {
+    const action = unsavedExit;
+    setUnsavedExit(null);
+    action?.();
   }
 
   function requestClose() {
     if (busy || waiting) return;
+    if (unsavedExit) { setUnsavedExit(null); return; }
     if (editing) {
       if (dirty) setDiscard("close");
       else onClose();
@@ -159,6 +172,12 @@ export function EventPanel({ trip, item, open, owner, num, mapsKey, prev, next, 
           <div className={styles.discard} role="alert">
             <p>You have unsaved changes. Discard them?</p>
             <div><Button data-discard-keep variant="quiet" onClick={() => setDiscard(null)}>Keep editing</Button><Button variant="danger" onClick={confirmDiscard}>Discard changes</Button></div>
+          </div>
+        ) : null}
+        {unsavedExit ? (
+          <div className={styles.discard} role="alert">
+            <p>Your notes haven&apos;t been saved. Stay to try again or copy them, or leave without them.</p>
+            <div><Button data-discard-keep variant="quiet" onClick={() => setUnsavedExit(null)}>Stay</Button><Button variant="danger" onClick={leaveWithoutNotes}>Leave without saving</Button></div>
           </div>
         ) : null}
         {waiting ? <p className={styles.waiting} role="status">Saving notes…</p> : null}
