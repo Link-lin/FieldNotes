@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import type { FieldError, ItemType, PlanItemDTO } from "@/shared/dto";
 import { coordinatesFromMapUrl, parseCoordinateText, providerLabel } from "@/shared/map-links";
 import { Button } from "@/components/ui/Button/Button";
@@ -9,8 +9,10 @@ import { Modal, ModalActions } from "@/components/ui/Modal/Modal";
 import { MoneyInput } from "@/features/currency/MoneyInput/MoneyInput";
 import { api } from "@/lib/api";
 import { TYPE_LABEL } from "@/lib/format";
+import { TimeZoneSelect } from "@/features/trips/TripForm/TimeZoneSelect/TimeZoneSelect";
+import { zoneLabel } from "@/features/trips/TripForm/TimeZoneSelect/zones";
 import { FlightFields } from "./FlightFields/FlightFields";
-import { allZoneIds, type Choice, type Endpoint } from "./item-form-types";
+import type { Choice, Endpoint } from "./item-form-types";
 import styles from "./ItemForm.module.css";
 
 type Props = {
@@ -33,7 +35,6 @@ type Props = {
 
 /** Add to itinerary / Edit event (TRIP-9). The server repeats every check. */
 export function ItemForm({ tripId, tripTitle, tripZone, defaultCurrency, recentCurrencies = [], defaultDate, item, triggerSelector, onClose, onSaved, surface = "modal", onDirtyChange, onBusyChange, panelHeading, mapPreview }: Props) {
-  const zoneList = useMemo(() => allZoneIds(), []);
   const f = item?.flightDetails;
   const ep = (e?: { airportCode: string | null; localDateTime: string | null; timeZone: string | null; timeDisambiguation: "earlier" | "later" | null }): Endpoint => ({
     code: e?.airportCode ?? "",
@@ -223,7 +224,6 @@ export function ItemForm({ tripId, tripTitle, tripZone, defaultCurrency, recentC
                   label={side === "dep" ? "Departure" : "Arrival"}
                   value={v[side]}
                   onChange={(patch) => up({ [side]: { ...v[side], ...patch } } as Partial<typeof v>)}
-                  zones={zoneList}
                   error={err}
                   errorId={errId}
                   showChoice={showChoice(`${side === "dep" ? "departure" : "arrival"}.timeDisambiguation`, v[side].choice)}
@@ -243,12 +243,19 @@ export function ItemForm({ tripId, tripTitle, tripZone, defaultCurrency, recentC
                     <input id="item-time" type="time" value={v.time} onChange={(e) => up({ time: e.target.value })} {...aria("localTime")} />
                   </Field>
                   {showChoice("timeDisambiguation", v.choice) ? choiceField("item-choice", v.choice, (c) => up({ choice: c }), "timeDisambiguation") : null}
-                  <Field label={<>Time zone {optional("if not the trip's")}</>} htmlFor="item-zone">
-                    <select id="item-zone" value={v.zone} onChange={(e) => up({ zone: e.target.value })} {...aria("timeZone")}>
-                      <option value="">Trip zone ({tripZone})</option>
-                      {zoneList.map((z) => <option key={z}>{z}</option>)}
-                    </select>
-                  </Field>
+                  <TimeZoneSelect
+                    id="item-zone"
+                    label={<>Time zone {optional("if not the trip's")}</>}
+                    hint="Only for an event that happens somewhere else, such as a call at home."
+                    empty={`Trip zone (${zoneLabel(tripZone)})`}
+                    value={v.zone}
+                    onChange={(zone) => up({ zone })}
+                    place={null}
+                    currentZone={item?.timeZone ?? null}
+                    fromPlace={false}
+                    error={err("timeZone")}
+                    errorId={errId("timeZone")}
+                  />
                   <Field label={<>Duration in minutes {optional()}</>} htmlFor="item-duration" {...fe("durationMinutes")}>
                     <input id="item-duration" type="number" min={1} max={20160} value={v.duration} onChange={(e) => up({ duration: e.target.value })} {...aria("durationMinutes")} />
                   </Field>

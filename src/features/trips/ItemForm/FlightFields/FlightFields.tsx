@@ -1,4 +1,5 @@
 import { Field, fieldStyles } from "@/components/ui/Field/Field";
+import { TimeZoneSelect } from "@/features/trips/TripForm/TimeZoneSelect/TimeZoneSelect";
 import { cx } from "@/lib/cx";
 import type { Choice, Endpoint } from "../item-form-types";
 import styles from "./FlightFields.module.css";
@@ -8,7 +9,6 @@ type Props = {
   label: string;
   value: Endpoint;
   onChange: (patch: Partial<Endpoint>) => void;
-  zones: string[];
   /** Server error for a field path such as "departure.airportCode". */
   error: (path: string) => string | undefined;
   errorId: (path: string) => string;
@@ -17,7 +17,7 @@ type Props = {
 };
 
 /** One end of a flight segment (FLIGHT-2): airport code, local date and time there, and its time zone. */
-export function FlightFields({ side, label, value, onChange, zones, error, errorId, showChoice }: Props) {
+export function FlightFields({ side, label, value, onChange, error, errorId, showChoice }: Props) {
   const path = side === "dep" ? "departure" : "arrival";
   const aria = (p: string) => (error(p) ? { "aria-invalid": true as const, "aria-describedby": errorId(p) } : {});
   const f = (p: string) => ({ error: error(p), errorId: errorId(p) });
@@ -30,12 +30,19 @@ export function FlightFields({ side, label, value, onChange, zones, error, error
       <Field label={<>Local date and time <span className="muted">at that airport</span></>} htmlFor={`item-${side}-dt`} {...f(`${path}.localDateTime`)}>
         <input id={`item-${side}-dt`} type="datetime-local" value={value.dt} onChange={(x) => onChange({ dt: x.target.value })} {...aria(`${path}.localDateTime`)} />
       </Field>
-      <Field label="Airport time zone" htmlFor={`item-${side}-zone`} wide {...f(`${path}.timeZone`)}>
-        <select id={`item-${side}-zone`} value={value.zone} onChange={(x) => onChange({ zone: x.target.value })} {...aria(`${path}.timeZone`)}>
-          <option value="">Choose the airport&apos;s zone</option>
-          {zones.map((z) => <option key={z}>{z}</option>)}
-        </select>
-      </Field>
+      <TimeZoneSelect
+        id={`item-${side}-zone`}
+        label="Airport time zone"
+        hint="The zone where this airport is."
+        empty="Choose the airport's zone"
+        value={value.zone}
+        onChange={(zone) => onChange({ zone })}
+        place={null}
+        currentZone={null}
+        fromPlace={false}
+        error={error(`${path}.timeZone`)}
+        errorId={errorId(`${path}.timeZone`)}
+      />
       {showChoice ? (
         <Field label="This time happens twice that day (clocks go back). Which one?" htmlFor={`item-${side}-choice`} wide {...f(`${path}.timeDisambiguation`)}>
           <select id={`item-${side}-choice`} value={value.choice} onChange={(x) => onChange({ choice: x.target.value as Choice })} {...aria(`${path}.timeDisambiguation`)}>
