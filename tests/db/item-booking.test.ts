@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { event, flight, grant, makeActor, NOW, reset, testDb, tripInput } from "./helpers";
-import { getDashboard } from "@/server/modules/dashboard/dashboard.service";
 import { createTrip, getTripDetail } from "@/server/modules/trips/trips.service";
 import { createItem, updateItemBooking } from "@/server/modules/items/items.service";
 import { HttpError } from "@/server/core/http/errors";
@@ -88,17 +87,6 @@ describe("booking-list actions (BOOK-3, BOOK-4)", () => {
     }));
     const booked = await updateItemBooking(testDb(), owner, t.id, complete.id, { bookingStatus: "booked", bookingDueDate: null, expectedVersion: complete.version }, NOW);
     expect([booked.bookingStatus, booked.bookingDueDate]).toEqual(["booked", null]);
-  });
-
-  it("gives the dashboard each task's version and whether Mark booked is allowed", async () => {
-    const t = await createTrip(testDb(), owner, tripInput, NOW);
-    const task = await createItem(testDb(), owner, t.id, event({ bookingStatus: "needs_booking" }));
-    const placeholder = await createItem(testDb(), owner, t.id, flight({ title: "Placeholder flight" }));
-    const scheduled = await createItem(testDb(), owner, t.id, flight({ title: "Scheduled flight", departure: endpoint("SFO", "2026-11-15T11:00", "America/Los_Angeles"), arrival: endpoint("HND", "2026-11-16T15:10", "Asia/Tokyo") }));
-    const tasks = new Map((await getDashboard(testDb(), owner, NOW)).ownerBookingTasks.map((x) => [x.itemId, x]));
-    expect(tasks.get(task.id)).toMatchObject({ itemVersion: task.version, canMarkBooked: true });
-    expect(tasks.get(placeholder.id)).toMatchObject({ itemVersion: placeholder.version, canMarkBooked: false });
-    expect(tasks.get(scheduled.id)?.canMarkBooked).toBe(true);
   });
 
   it("is owner-only over the route, with version, body and Origin checks", async () => {

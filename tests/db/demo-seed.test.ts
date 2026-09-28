@@ -81,7 +81,6 @@ describe("test trips seed", () => {
     expect(byTitle[KYOTO_TITLE]).toMatchObject({ role: "viewer", status: "past", ownerName: TEST_FRIEND.name, atlasLocation: { source: "catalog" } });
     expect(byTitle[LISBON_TITLE]).toMatchObject({ role: "owner", status: "upcoming", atlasLocation: null });
     expect(new Set(dash.ownerBookingTasks.map((t) => t.state))).toEqual(new Set(["overdue", "due_today", "upcoming", "no_due_date"]));
-    expect(new Set(dash.ownerBookingTasks.map((t) => t.canMarkBooked))).toEqual(new Set([true, false]));
 
     const kyoto = await getTripDetail(testDb(), owner, ids[KYOTO_TITLE]!, NOW);
     expect(kyoto.trip.role).toBe("viewer");

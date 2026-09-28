@@ -4,7 +4,7 @@ Last updated 28 Sep 2026. Read this first, then [AGENTS.md](../AGENTS.md). Keep 
 
 ## Where things stand
 
-- **Branches:** new work goes on a branch; the owner reviews it, merges it into `main` and pushes. Lint, typecheck, all 184 tests and the production build pass.
+- **Branches:** new work goes on a branch; the owner reviews it, merges it into `main` and pushes. Lint, typecheck, all 183 tests and the production build pass.
 - **Built:** everything listed under "Built so far" in the [README](../README.md): sign-in with an owner allowlist, trips and the globe dashboard, the trip page (itinerary, a dedicated Bookings view, day tabs, events, costs, outline day map with optional Google road route), the event view and editor with an embedded Google map, AI import from an external chat, read-only viewer invitations, account deletion, pilot counts, and test trips. Dashboard cards show a compact per-trip booking shortcut instead of a cross-trip task list.
 - **Not built:** TRIP-7 (import into an existing trip, proposed) and ATLAS-4's click-the-globe point picker (catalog search only).
 - **Dashboard layout:** the trip-list pane now starts wider on desktop and has a draggable, keyboard-operable divider. Its width is saved on this browser; Enter or double-click resets it. Phones keep the stacked layout. The globe redraws when the stage changes width. Browser-checked at 1800 px desktop, 1200 px short desktop and 390 px phone widths; drag, keyboard limits, reload persistence, reset and no horizontal overflow work.

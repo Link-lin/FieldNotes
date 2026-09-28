@@ -10,8 +10,11 @@ import { api } from "@/lib/api";
 import { dueText, fmtShort } from "@/lib/format";
 import styles from "./BookingTask.module.css";
 
+/** A booking task as the trip page shows it: its item's version for the actions, and whether FLIGHT-2 allows Booked. */
+export type BookingRow = BookingTaskDTO & { itemVersion: number; canMarkBooked: boolean };
+
 type Props = {
-  task: BookingTaskDTO;
+  task: BookingRow;
   owner: boolean;
   onOpen: () => void;
   onDateSaved: (itemId: string, version: number) => void;

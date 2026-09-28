@@ -1,0 +1,83 @@
+/* Design tokens (docs/design/trip-page-v1.md, Visual direction). Use these instead of raw values. */
+@layer tokens {
+  :root {
+    /* Color */
+    --paper: #faf5e8;
+    --card: #fffdf6;
+    --line: #e4d9bf;
+    --ctl: #8e8066; /* control borders, 3.5:1 on paper */
+    --ink: #3a3026;
+    --ink-2: #675c4c;
+    --ink-3: #766a55;
+    --vermilion: #de4f2a;
+    --vermilion-ink: #a63615;
+    --vermilion-soft: #f8dacd;
+    --vermilion-wash: rgba(222, 79, 42, 0.09);
+    --forest: #516b55;
+    --forest-soft: #dde6d6;
+    --pass: #dcebee;
+    --pass-ink: #23414b;
+    --pass-muted: #34525c;
+    --ocean-a: #eaf3f4;
+    --ocean-b: #cbe0e6;
+    --land: #f4ebd3;
+    --land-line: #cdbe96;
+    --scrim: rgba(58, 48, 38, 0.38);
+
+    /* Type */
+    --serif: "Source Serif 4", "Songti SC", "Noto Serif CJK SC", Georgia, serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    --text-2xs: 10.5px;
+    --text-xs: 11.5px;
+    --text-sm: 12.5px;
+    --text-md: 13.5px;
+    --text-base: 15px;
+    --text-lg: 17px;
+
+    /* Space (4 px steps) */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-7: 28px;
+    --space-8: 32px;
+    --space-10: 40px;
+    --gutter: clamp(16px, 4vw, 48px);
+
+    /* Radius */
+    --radius-xs: 8px;
+    --radius-sm: 12px;
+    --radius-md: 14px;
+    --radius-lg: 18px;
+    --radius-xl: 20px;
+    --radius-2xl: 24px;
+    --radius-pill: 999px;
+
+    /* Elevation */
+    --shadow: 0 14px 40px rgba(60, 44, 20, 0.1);
+    --shadow-sm: 0 2px 6px rgba(60, 44, 20, 0.06);
+    --shadow-float: 0 10px 28px rgba(58, 48, 38, 0.32);
+
+    /* Stacking */
+    --z-header: 5;
+    --z-fab: 25;
+    --z-modal: 40;
+    --z-menu: 50;
+    --z-toast: 70;
+    --z-skip: 100;
+
+    /* Motion */
+    --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+
+    /* Control sizes; coarse pointers get 44 px touch targets. */
+    --control-h: 42px;
+    --tap: 34px;
+    color-scheme: light;
+  }
+  @media (pointer: coarse) {
+    :root { --tap: 44px; }
+  }
+}

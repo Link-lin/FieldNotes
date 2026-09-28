@@ -332,9 +332,7 @@ type TripSummaryDTO = {
 
 type BookingTaskDTO = {
   tripId: string; tripTitle: string; itemId: string; itemTitle: string;
-  itemVersion: number; // expectedVersion for the booking actions
   dueDate: string | null; state: DueState | "no_due_date";
-  canMarkBooked: boolean; // false for a flight without its FLIGHT-2 fields
 };
 
 type DashboardDTO = {

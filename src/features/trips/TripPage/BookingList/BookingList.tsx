@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import type { BookingTaskDTO, PlanItemDTO, TripDetailDTO } from "@/shared/dto";
+import type { PlanItemDTO, TripDetailDTO } from "@/shared/dto";
 import { flightReadyToBook } from "@/shared/booking";
 import { Card } from "@/components/ui/Card/Card";
 import { TaskList } from "@/components/ui/TaskList/TaskList";
-import { BookingTask } from "@/features/trips/BookingTask/BookingTask";
+import { BookingTask, type BookingRow } from "@/features/trips/BookingTask/BookingTask";
 import styles from "./BookingList.module.css";
 
 type Props = { trip: TripDetailDTO["trip"]; items: PlanItemDTO[]; owner: boolean; onOpen: (item: PlanItemDTO) => void };
@@ -28,7 +28,7 @@ export function BookingList({ trip, items, owner, onOpen }: Props) {
     { key: "upcoming", title: "Coming up", description: "Tasks with a later book-by date.", items: toBook.filter((i) => i.bookingDueState === "upcoming") },
     { key: "undated", title: "No book-by date", description: "Set a date when you know when to book.", items: toBook.filter((i) => !i.bookingDueDate) },
   ].filter((group) => group.items.length);
-  const task = (i: PlanItemDTO): BookingTaskDTO => ({
+  const task = (i: PlanItemDTO): BookingRow => ({
     tripId: trip.id,
     tripTitle: trip.title,
     itemId: i.id,

@@ -110,15 +110,12 @@ export async function setTimeDisambiguation(tx: Tx, itemId: string, value: "earl
   await tx.updateTable("plan_items").set({ time_disambiguation: value, version: sql`version + 1`, updated_at: sql`now()` }).where("id", "=", itemId).execute();
 }
 
-/** Items still to book in the given trips: id, trip, title, due date, version, and what FLIGHT-2 needs to know. */
+/** Items still to book in the given trips (id, trip, title, due date). */
 export async function openBookingItems(db: Conn, tripIds: string[], withDueDateOnly = false) {
   if (!tripIds.length) return [];
   let q = db
     .selectFrom("plan_items")
-    .select([
-      "id", "trip_id", "title", "booking_due_date", "version", "type",
-      "departure_airport_code", "departure_local_datetime", "departure_time_zone", "arrival_airport_code", "arrival_local_datetime", "arrival_time_zone",
-    ])
+    .select(["id", "trip_id", "title", "booking_due_date"])
     .where("trip_id", "in", tripIds)
     .where("booking_status", "=", "needs_booking")
     .where("deleted_at", "is", null);
