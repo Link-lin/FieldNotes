@@ -1,9 +1,15 @@
 # Field Notes: implementation handoff
 
-Last updated 27 Sep 2026 (`feat/day-map-geography`, based on `feat/review-fixes`, which sits on `feat/event-panel`). Read this first when picking the project up in a new session.
+Last updated 28 Sep 2026 (`feat/event-panel-inline-edit`, based on `feat/day-map-geography`, which sits on `feat/review-fixes` and `feat/event-panel`). Read this first when picking the project up in a new session.
 
 ## Status
 
+- **Event view and editor changes are on `feat/event-panel-inline-edit`** (not merged or pushed):
+  - On desktop the event panel is 820 px wide. **Edit event** uses the same panel, with a wrapping title, the saved-place map, and grouped time, booking, place and notes fields. The add form remains a dialog.
+  - At phone widths (600 px and below), event rows and Edit actions navigate to an authorized event URL. The same details and editor render as a full page with a return to the trip. A viewer remains read-only.
+  - Leaving a detail view through its controls waits for notes to save; a failed save leaves the view open with typed notes intact. Leaving an editor through its controls asks before discarding unsaved changes. The save itself still uses the item version check.
+  - Browser checked on the seeded Hawaii trip with a real Google map: wider desktop detail and editor, phone event URL and editor, long-title wrapping, and the unsaved-edit discard prompt. No trip data was changed during this check.
+  - Checks passed before commit: lint, typecheck, 172 tests, and the production build. Tests needed an unsandboxed run because embedded PostgreSQL could not create shared memory inside the sandbox.
 - **Day-map geography and road routes are on `feat/day-map-geography`** (not merged or pushed):
   - The default, provider-free outline now draws bundled Natural Earth 10m coastlines and country borders with city labels, aligned with the saved-coordinate pins. The map can zoom out to twice its initial width; Reset view appears after zooming either direction. The empty state is neutral for viewers.
   - A day with pins offers an optional **Road route** view using the existing `GOOGLE_MAPS_EMBED_API_KEY` and Maps Embed API. Google draws the road map, route and its markers; the Field Notes numbered stop list remains below. The owner or viewer can choose driving or walking and route segments. Flight arrivals can start a ground leg, but no road leg crosses a flight. The iframe mounts only after the user chooses Road route and unmounts on a day change or return to Outline.
@@ -140,7 +146,7 @@ A product-manager pass over `main` and `feat/event-panel` against the PRD, with 
 
 ## Next milestone
 
-1. Review `feat/day-map-geography` and its browser behavior with a real trip, including a day with three or more pins. Review and merge its parent branches in order: `feat/event-panel`, `feat/review-fixes`, then this branch. The event panel's notes editor still needs a fix for preserving unsaved text when a save fails during close; do not describe that requirement as verified.
+1. Review `feat/event-panel-inline-edit` and its parent branches in order: `feat/event-panel`, `feat/review-fixes`, `feat/day-map-geography`, then this branch. Check road routing on a day with three or more pins. The notes save failure path is implemented but has not been exercised against a forced server failure in a browser.
 2. Review the other `feat/review-fixes` changes (B1, B2, I1, F1, the one-command start and the test trips) in the browser before merging them.
 3. Check viewer invitations with two real Google accounts (see Status) and fix anything it finds.
 4. Pilot AI import with real plans and external AI tools. This has not been done yet; the counts are ready for it. Read `npm run pilot:report` weekly (clean previews, skipped items, edits per imported item, due-date use) before adding in-page AI generation or free-form parsing. Confirm whether TRIP-7 should be built.
