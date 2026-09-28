@@ -1,9 +1,19 @@
 # Field Notes: implementation handoff
 
-Last updated 28 Sep 2026 (`main`, after fast-forwarding `feat/event-panel-inline-edit` and its parent branches). Read this first when picking the project up in a new session.
+Last updated 28 Sep 2026 (review polish on `feat/review-polish`, branched from `main` at `c35934b`; not merged). Read this first when picking the project up in a new session.
 
 ## Status
 
+- **Review polish is on `feat/review-polish`** (7 commits on `main`, not merged or pushed):
+  - Notes-save failure, browser-checked with forced server errors (500 and 409) on desktop and the phone event page: the typed text stays, and Close, Escape, the faded page, Previous/Next and Edit event no longer leave silently. Before this branch a 409 or a server that stayed down left no way out but reloading; now leaving asks **Stay** (focused) or **Leave without saving**. A successful retry closes normally and the notes persist.
+  - Road route with three or more pins: the test trips now have two three-stop days (day 1: HNL arrival, hotel, dinner; day 4: OGG arrival, rental car, hotel). The embed address was checked in a browser (origin, one waypoint, destination in page order, driving mode). Google's own drawing of that route still needs a look with the real key.
+  - B3: the edit-trip date warning counts only events the new range pushes outside.
+  - B4 was already fixed on `main` (the day map's empty state is neutral).
+  - B5: on phones the header hides the duplicate **Atlas** link and **Bookings** stays on one line.
+  - I2: the import budget warning offers **Use this budget ($1,200)** when the AI's budget is valid; nothing changes until the owner clicks. Checked end to end: import, use, create, trip shows the budget.
+  - I5: the event form's zone and flight airport zones use the friendly zone picker (short list by offset, this device, the saved zone, show all).
+  - I6: the event and flight forms note when a date is outside the trip; saving is still allowed.
+  - Checks passed before each commit: lint, typecheck, `npm test` (175 tests) and the production build.
 - **Event view and editor changes are merged into local `main`** (not pushed):
   - On desktop the event panel is 820 px wide. **Edit event** uses the same panel, with a wrapping title, the saved-place map, and grouped time, booking, place and notes fields. The add form remains a dialog.
   - At phone widths (600 px and below), event rows and Edit actions navigate to an authorized event URL. The same details and editor render as a full page with a return to the trip. A viewer remains read-only.
@@ -71,7 +81,7 @@ Last updated 28 Sep 2026 (`main`, after fast-forwarding `feat/event-panel-inline
 
 ## Product review (27 Sep 2026)
 
-A product-manager pass over the earlier `main` and `feat/event-panel` against the PRD, with a production build, seeded data and a headless browser (owner, viewer, phone width). The full review, with evidence, is `claude/product-review-2026-09-27.md` in the Claude project "Travel Planner". B1, B2, I1 (pasted coordinates only) and F1 are now fixed on local `main`; the rest is open.
+A product-manager pass over the earlier `main` and `feat/event-panel` against the PRD, with a production build, seeded data and a headless browser (owner, viewer, phone width). The full review, with evidence, is `claude/product-review-2026-09-27.md` in the Claude project "Travel Planner". B1, B2, I1 (pasted coordinates only) and F1 are fixed on local `main`; B3, B4, B5, I2, I5 and I6 are done on `feat/review-polish`; the rest is open.
 
 - **PRD gaps:**
   - ATLAS-4's "click the globe to choose a point" is not built (catalog search only).
@@ -80,15 +90,15 @@ A product-manager pass over the earlier `main` and `feat/event-panel` against th
 - **Bugs:**
   - B1 (fixed): `/import` logged React hydration error #418 on every load (currency names and the time-zone picker).
   - B2 (fixed): the dashboard's "Today is" used the server's UTC date.
-  - B3: the date-range warning counts events already outside the trip.
-  - B4: the day map's empty state tells viewers to edit.
-  - B5: on phones the header's Bookings count wraps, and Field Notes and Atlas both link to `/`.
+  - B3 (fixed on `feat/review-polish`): the date-range warning counted events already outside the trip.
+  - B4 (fixed on `main`): the day map's empty state told viewers to edit.
+  - B5 (fixed on `feat/review-polish`): on phones the header's Bookings count wrapped, and Field Notes and Atlas both linked to `/`.
 - **Improvements, highest first:**
   - I1: pinning is too hard. Pasted coordinates now pin (fixed); owner-confirmed geocoding is still a decision (a MAP-2 change).
-  - I2: add "Use this budget" to the import budget warning.
+  - I2 (done on `feat/review-polish`): add "Use this budget" to the import budget warning.
   - I3: show time, place and price on collapsed import cards, with Expand all.
-  - I5: use the friendly time-zone picker in the event form.
-  - I6: warn when an event is dated outside the trip.
+  - I5 (done on `feat/review-polish`): use the friendly time-zone picker in the event form.
+  - I6 (done on `feat/review-polish`): warn when an event is dated outside the trip.
   - I8: compact the summary tiles on phones.
   - I9: make the booking lists actionable (open the event, Mark booked, set a book-by date).
   - Smaller: I4, I7, I10.
@@ -146,7 +156,7 @@ A product-manager pass over the earlier `main` and `feat/event-panel` against th
 
 ## Next milestone
 
-1. Check road routing on a day with three or more pins. Exercise the notes-save failure path in a browser with a forced server error; the code preserves the text and blocks leaving through the view controls, but that failure case has not been browser-verified.
+1. Look over `feat/review-polish` and merge it into `main`. With the real Maps key, open the Hawaii test trip (re-run `npm run db:seed:hawaii` first), switch day 1 or day 4 to **Road route**, and check Google draws the three-stop route.
 2. Check viewer invitations with two real Google accounts (see Status) and fix anything it finds.
 3. Pilot AI import with real plans and external AI tools. This has not been done yet; the counts are ready for it. Read `npm run pilot:report` weekly (clean previews, skipped items, edits per imported item, due-date use) before adding in-page AI generation or free-form parsing. Confirm whether TRIP-7 should be built.
-4. Remaining review items: B3–B5, I2–I10 and the owner decisions above.
+4. Remaining review items: I3 (details on collapsed import cards, Expand all), I8 (compact phone tiles), I9 (actionable booking lists), the smaller I4, I7 and I10, and the owner decisions above.
