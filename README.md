@@ -55,7 +55,7 @@ Book-by dates are relative to the day you run it, so re-run it to reset the over
 
 ## Pilot report
 
-`npm run pilot:report` prints the daily usage counts recorded for the AI import pilot (PRD section 8): totals, weekly figures and rates such as clean previews and skipped items. It reads `DATABASE_URL` from `.env.local`, so the database must be running (`npm run dev` or `npm run db:start`). The counts hold no account, trip or content data.
+`npm run pilot:report` prints the daily usage counts recorded for the AI import pilot (PRD: Validation and MVP acceptance): totals, weekly figures and rates such as clean previews and skipped items. It reads `DATABASE_URL` from `.env.local`, so the database must be running (`npm run dev` or `npm run db:start`). The counts hold no account, trip or content data.
 
 ## Data
 

@@ -11,7 +11,7 @@ Use this skill when a requirement needs architectural, data, API, security, or c
 
 - Read the relevant sections of `PRD.md` and any existing design before proposing changes. Treat the PRD as the product-scope authority and the technical design as the architecture contract.
 - Inspect relevant source, manifests, migrations, routes, components, styles, and tests. Search for existing code and patterns before proposing new ones.
-- The core app is implemented as `docs/design/technical-design.md` describes (Next.js, Auth.js, server-only data layer, PostgreSQL, Kysely); section 20 records what changed during implementation. For new features, design against the code as it stands and record material changes there.
+- The core app is implemented as `docs/design/technical-design.md` describes (Next.js, Auth.js, server-only data layer, PostgreSQL, Kysely); it describes the system as built. For new features, design against the code as it stands and record material decisions by updating the relevant section in place (no appended change logs; see "Keeping the docs short" in AGENTS.md).
 - Separate confirmed requirements, assumptions, chosen decisions, and unresolved questions. Ask only for choices that materially change the design; make low-risk choices explicit.
 
 ## Design for this product

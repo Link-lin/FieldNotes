@@ -1,7 +1,7 @@
 import { sql, type Kysely } from "kysely";
 
 /**
- * Pilot measures (PRD section 8): daily totals per named action. No user, trip or content
+ * Pilot measures (PRD: Validation and MVP acceptance): daily totals per named action. No user, trip or content
  * column exists, so the table holds nothing personal and nothing to delete with an account.
  */
 export async function up(db: Kysely<unknown>): Promise<void> {

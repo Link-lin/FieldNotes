@@ -1,5 +1,5 @@
 /**
- * Pilot report (PRD section 8): prints the daily pilot counts as totals, rates and weekly
+ * Pilot report (PRD: Validation and MVP acceptance): prints the daily pilot counts as totals, rates and weekly
  * figures. The counts hold no user, trip or content data. Uses DATABASE_URL.
  */
 import { Kysely, PostgresDialect } from "kysely";

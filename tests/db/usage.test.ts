@@ -44,7 +44,7 @@ beforeEach(async () => {
   session.actor = owner;
 });
 
-describe("pilot counts (PRD section 8)", () => {
+describe("pilot counts (PRD: Validation and MVP acceptance)", () => {
   it("counts previews by outcome without storing the pasted response", async () => {
     await preview.POST(post({ responseText: JSON.stringify(example), ownerProvidedBudget: null }));
     await preview.POST(post({ responseText: JSON.stringify({ ...example, items: [{ ...example.items[0], title: "" }] }), ownerProvidedBudget: null }));

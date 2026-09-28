@@ -13,7 +13,7 @@ export const POST = route({ ownerAccount: true, body: previewRequestSchema }, as
   }
   const p = result.preview;
   const needsFixes = p.trip.errors.length > 0 || p.items.some((i) => i.errors.length > 0 || i.sourceErrors.length > 0);
-  // Only a daily count is written; the pasted response and preview are not stored (PRD section 8).
+  // Only a daily count is written; the pasted response and preview are not stored (PRD: Validation and MVP acceptance).
   await countUsage(db, [{ name: needsFixes ? "import_preview_needs_fixes" : "import_preview_ok" }]);
   return p;
 });

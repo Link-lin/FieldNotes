@@ -1,5 +1,5 @@
 /**
- * Pilot measures (PRD section 8). Each name is a daily total with no user, trip or content
+ * Pilot measures (PRD: Validation and MVP acceptance). Each name is a daily total with no user, trip or content
  * attached. Keep names short, lower_snake_case and stable: the report reads them by name.
  */
 export const USAGE_NAMES = [

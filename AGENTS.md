@@ -5,7 +5,8 @@
 The core app, owner-only AI import and read-only viewer invitations are implemented (see [README.md](README.md) for setup and what is built). Importing into an existing trip (TRIP-7) is proposed, not built.
 
 - [`PRD.md`](PRD.md): product scope, flows, requirements, assumptions, and open decisions.
-- [`docs/design/technical-design.md`](docs/design/technical-design.md): architecture, data model, API contracts, security, test strategy; section 20 records implementation decisions.
+- [`docs/design/technical-design.md`](docs/design/technical-design.md): the system as built: architecture, data model, API contracts, domain rules, security, testing. Design-phase history is in `docs/design/archive/`.
+- [`docs/implementation-handoff.md`](docs/implementation-handoff.md): one page on current state, how to run it, next steps and open decisions.
 - [`docs/design/atlas-v1.md`](docs/design/atlas-v1.md) and [`docs/design/trip-page-v1.md`](docs/design/trip-page-v1.md): dashboard globe, and the trip page, day map, costs, dialogs and visual direction.
 - [`docs/design/json-v1.schema.json`](docs/design/json-v1.schema.json), [`import-prompt-v1.md`](docs/design/import-prompt-v1.md), and [`import-example-v1.json`](docs/design/import-example-v1.json): external AI import contract.
 - `.codex/skills/`: focused workflows for design, feature development, UI, backend, testing, and review.
@@ -30,6 +31,12 @@ Stack: Next.js 16 (App Router, `src/proxy.ts`), React 19, TypeScript (strict), A
 - Keep product requirements, assumptions, and implementation choices distinct. Do not invent user needs or treat proposed architecture as already implemented.
 - Make consequential assumptions explicit and record material design changes in the technical design.
 - Preserve existing names, file organization, error handling, and data-access patterns once implementation establishes them.
+
+## Keeping the docs short
+
+- Each doc describes the current state. Change the relevant section in place and delete what it replaces; do not append dated notes, change logs or "implementation notes" tables. Git keeps the history.
+- The PRD says what the product must do and why, by requirement ID. UI mechanics (sizes, timings, layout, wording) belong in `atlas-v1.md` or `trip-page-v1.md`; architecture and contracts belong in the technical design. Say each thing once and link by requirement ID or section name, never by section number.
+- The handoff stays about one page: replace its status, next steps and open decisions rather than adding to them. Commit and branch history belongs in git, not the handoff.
 
 ## UI principles
 
