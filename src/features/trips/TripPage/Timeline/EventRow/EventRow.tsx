@@ -8,7 +8,7 @@ import { Menu, MenuItem } from "@/components/ui/Menu/Menu";
 import { Tag } from "@/components/ui/Tag/Tag";
 import { priceText, TYPE_LABEL } from "@/lib/format";
 import { StopNumber } from "../../StopNumber/StopNumber";
-import { eventTimeText } from "../../trip-days";
+import { eventTimeText, hasTime } from "../../trip-days";
 import { FlightCard } from "../../FlightCard/FlightCard";
 import styles from "./EventRow.module.css";
 
@@ -55,7 +55,8 @@ export function EventRow({ item, num, owner, tripZone, menuOpen, onMenu, onOpen,
           <MenuItem icon={<TrashIcon />} danger onClick={onDelete}>Delete event</MenuItem>
         </Menu>
       ) : null}
-      <span className={styles.time}>{eventTimeText(item, tripZone)}</span>
+      {/* Untimed rows sit under Unscheduled or Undated, which already say there is no time. */}
+      {hasTime(item) ? <span className={styles.time}>{eventTimeText(item, tripZone)}</span> : null}
       {f ? <FlightCard item={item} className={styles.flight} /> : <span className={styles.title}>{item.title}</span>}
       {item.notes ? <p className={styles.notes}>{item.notes}</p> : null}
       {item.location || item.mapUrl || item.links.length ? (

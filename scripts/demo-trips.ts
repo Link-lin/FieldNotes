@@ -441,10 +441,10 @@ export function demoTrips(today: string): TripSpec[] {
       // No date at all.
       {
         type: "flight",
-        title: "Backup hop KOA → HNL if plans change",
-        departure: flightEnd("KOA"),
-        arrival: flightEnd("HNL"),
-        bookingStatus: "needs_booking", // Undated flights; no book-by date
+        title: "Backup inter-island hop if plans change",
+        departure: flightEnd(null),
+        arrival: flightEnd(null),
+        bookingStatus: "needs_booking", // Undated flights, no airports yet ("Airports not set"); no book-by date
       },
       {
         type: "other",

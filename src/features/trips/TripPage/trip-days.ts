@@ -55,6 +55,15 @@ export function straightLineKm(stops: Stop[]): number {
   return km;
 }
 
+/** Whether an event has a clock time: a flight's departure time, or an event's local time. */
+export const hasTime = (item: PlanItemDTO) => !!(item.flightDetails ? item.flightDetails.departure.localDateTime : item.localTime);
+
+/** A flight title that only restates its airports ("SFO → HNL", "SFO to HNL") adds nothing beside the route. */
+export function titleRestatesRoute(title: string, departure: string | null, arrival: string | null): boolean {
+  if (!departure || !arrival) return false;
+  return title.toUpperCase().replace(/\bTO\b/g, "").replace(/[^A-Z0-9]/g, "") === `${departure}${arrival}`;
+}
+
 /** The time shown for an event: its local time (and zone when not the trip's), or why there is none. */
 export function eventTimeText(item: PlanItemDTO, tripZone: string): string {
   if (item.flightDetails) {

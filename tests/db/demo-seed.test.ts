@@ -35,6 +35,7 @@ describe("test trips seed", () => {
     expect(items.some((i) => i.type !== "flight" && i.localDate && !i.localTime)).toBe(true);
     expect(items.some((i) => i.type !== "flight" && !i.localDate)).toBe(true);
     expect(items.some((i) => i.type === "flight" && !i.timelineDate)).toBe(true);
+    expect(items.some((i) => i.flightDetails && !i.flightDetails.departure.airportCode && !i.flightDetails.arrival.airportCode)).toBe(true);
     expect(items.some((i) => i.flightDetails?.plannedDepartureDate)).toBe(true);
     expect(items.some((i) => i.timelineDate && i.timelineDate < detail.trip.startDate)).toBe(true);
     expect(items.some((i) => i.timeZone && i.timeZone !== detail.trip.timeZone)).toBe(true);
