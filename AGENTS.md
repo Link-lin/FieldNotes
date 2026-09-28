@@ -54,7 +54,7 @@ Skills add task-specific workflow; they do not override the PRD or this project 
 
 ## Validation
 
-Use the package scripts: `npm run lint`, `npm run typecheck`, `npm test` (unit and PostgreSQL integration; `npm run test:unit` / `npm run test:db` separately) and `npm run build`. Database tests start their own embedded PostgreSQL. Local development is `npm run dev`, which starts the embedded database when needed and applies migrations first (`scripts/dev.ts`); `npm run db:start`, `npm run db:migrate` and `npm run dev:app` run each part alone (see README).
+Use the package scripts: `npm run lint`, `npm run typecheck`, `npm test` (unit and PostgreSQL integration; `npm run test:unit` / `npm run test:db` separately) and `npm run build`. Database tests start their own embedded PostgreSQL. Local development is `npm run dev`, which starts the embedded database when needed and applies migrations first (`scripts/dev.ts`); `npm run db:start`, `npm run db:migrate` and `npm run dev:app` run each part alone (see README). `npm run db:seed:hawaii` loads test trips that cover every trip-page state (`scripts/demo-trips.ts`); when a feature adds a new state, add it there and to `tests/db/demo-seed.test.ts`.
 
 For changes to the import JSON files, validate JSON syntax with:
 

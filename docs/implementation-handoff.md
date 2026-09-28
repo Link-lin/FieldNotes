@@ -35,6 +35,7 @@ Last updated 28 Sep 2026 (review fixes B1, B2, I1 and F1 on `feat/review-fixes`,
   - I1: the map-link field accepts pasted coordinates such as `35.0116, 135.7681`. They are saved as a Google Maps search link for that point and pin the event; the field's hint says as you type whether the value will pin. The PRD's MAP-2 now allows this.
   - F1: daily pilot counts in a new `usage_counts` table (migration `0003_usage_counts`): import previews (clean, needing fixes, rejected), imported and manual trips and items, items skipped in preview, AI items edited or deleted, book-by dates set and items booked. No user, trip or content is stored; counting never fails a request. `npm run pilot:report` prints totals, weekly figures and rates. `npm run dev` applies the new migration itself.
   - Checks: lint, typecheck, `npm test` (157 tests) and the build passed before each commit. Browser checks in dev covered no hydration errors on `/import` in UTC, Los Angeles and Tokyo, the dashboard date in Honolulu versus UTC, pinning from pasted coordinates with the live hint, and a UI import with one skipped item followed by a correct `pilot:report`.
+  - Also on this branch: CLI scripts explain a refused database connection instead of a bare "Migration failed:"; `npm run dev` starts the local database and applies migrations first (`scripts/dev.ts`); and `npm run db:seed:hawaii` loads test trips covering every trip-page, dashboard, cost, map and sharing state (see the README). Tests: 166, all passing.
 - **Added since the first build:**
   - New-trip form:
     - destination suggestions;
@@ -122,6 +123,7 @@ A product-manager pass over `main` and `feat/event-panel` against the PRD, with 
 - **Run it locally:**
   1. `npm install`
   2. `npm run dev`. It starts the embedded PostgreSQL if it isn't running, applies new migrations, then starts the app; Ctrl+C stops both. `db:start`, `db:migrate` and `dev:app` still run each part alone.
+  3. Optional: after signing in once, `npm run db:seed:hawaii` in another terminal loads the test trips (Hawaii, a shared past Kyoto trip, an empty Lisbon trip). Re-run it to reset them. See the README.
 
   `.env.local` needs `AUTH_SECRET`, the Google client ID and secret, and `TRIP_OWNER_EMAILS` (see the README). Never commit it or overwrite it.
 - **Before every commit:** run `npm run lint`, `npm run typecheck`, `npm test` and `npm run build`.
@@ -134,7 +136,7 @@ A product-manager pass over `main` and `feat/event-panel` against the PRD, with 
 ## Next milestone
 
 1. Add a Maps Embed API key to `.env.local`, check the event panel's map, then merge `feat/event-panel`. The steps are in `claude/map-embed-setup.md` in the Claude project and in the README.
-2. Look over `feat/review-fixes` (B1, B2, I1, F1, and `npm run dev` now starting the database and migrating) in the browser, then merge it after `feat/event-panel`.
+2. Run `npm run db:seed:hawaii`, look over `feat/review-fixes` (B1, B2, I1, F1, the one-command start and the test trips) in the browser, then merge it after `feat/event-panel`.
 3. Check viewer invitations with two real Google accounts (see Status) and fix anything it finds.
 4. Pilot AI import with real plans and external AI tools. This has not been done yet; the counts are ready for it. Read `npm run pilot:report` weekly (clean previews, skipped items, edits per imported item, due-date use) before adding in-page AI generation or free-form parsing. Confirm whether TRIP-7 should be built.
 5. Remaining review items: B3–B5, I2–I10 and the owner decisions above.
