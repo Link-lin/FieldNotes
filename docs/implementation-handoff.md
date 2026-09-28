@@ -1,6 +1,6 @@
 # Field Notes: implementation handoff
 
-Last updated 27 Sep 2026 (event side panel on `feat/event-panel`). Read this first when picking the project up in a new session.
+Last updated 27 Sep 2026 (event side panel on `feat/event-panel`; product review of `main`). Read this first when picking the project up in a new session.
 
 ## Status
 
@@ -51,6 +51,44 @@ Last updated 27 Sep 2026 (event side panel on `feat/event-panel`). Read this fir
 - **Not built yet:**
   - TRIP-7 (append an imported plan to an existing trip) remains proposed.
 
+## Product review (27 Sep 2026)
+
+A product-manager pass over `main` and `feat/event-panel` against the PRD, with a production build, seeded data and a headless browser (owner, viewer, phone width). The full review, with evidence, is `claude/product-review-2026-09-27.md` in the Claude project "Travel Planner". Nothing from it has been fixed yet.
+
+- **PRD gaps:**
+  - ATLAS-4's "click the globe to choose a point" is not built (catalog search only).
+  - The section 8 pilot has not run, and the app records none of its measures (import success, edit/skip rates, due-date use).
+  - Hosting, backup retention, TRIP-7 and the currency-conversion option are undecided.
+- **Bugs:**
+  - B1: `/import` logs React hydration error #418 on every load, probably because currency names from `Intl.DisplayNames` differ between Node and the browser.
+  - B2: the dashboard's "Today is" uses the server's UTC date.
+  - B3: the date-range warning counts events already outside the trip.
+  - B4: the day map's empty state tells viewers to edit.
+  - B5: on phones the header's Bookings count wraps, and Field Notes and Atlas both link to `/`.
+- **Improvements, highest first:**
+  - I1: pinning is too hard. Only long map links with coordinates pin; start by accepting pasted coordinates, and decide on owner-confirmed geocoding (a MAP-2 change).
+  - I2: add "Use this budget" to the import budget warning.
+  - I3: show time, place and price on collapsed import cards, with Expand all.
+  - I5: use the friendly time-zone picker in the event form.
+  - I6: warn when an event is dated outside the trip.
+  - I8: compact the summary tiles on phones.
+  - I9: make the booking lists actionable (open the event, Mark booked, set a book-by date).
+  - Smaller: I4, I7, I10.
+- **Feature proposals:**
+  - Pilot counters (F1).
+  - Calendar .ics export (F2).
+  - Printable day sheets (F3).
+  - Duplicate a trip as a template (F4).
+  - Day notes (F5).
+  - TRIP-7 after the pilot (F6).
+- **Decisions for the owner:**
+  - Pinning approach.
+  - Pilot setup and counters.
+  - Hosting and backups.
+  - TRIP-7.
+  - Owner-only fields (conflicts with ACCESS-8).
+  - Gmail address matching for invitations.
+
 ## Where things are
 
 - `PRD.md` holds the requirements, with IDs such as TRIP-7 and ACCESS-3.
@@ -91,6 +129,7 @@ Last updated 27 Sep 2026 (event side panel on `feat/event-panel`). Read this fir
 
 ## Next milestone
 
-1. Add a Maps Embed API key to `.env.local`, check the event panel's map, then merge `feat/event-panel`.
-2. Check viewer invitations with two real Google accounts (see Status) and fix anything it finds.
-3. Pilot AI import with real plans and external AI tools. This has not been done yet. Track repair, edit and skip rates before adding in-page AI generation or free-form parsing. Confirm whether TRIP-7 should be built.
+1. Add a Maps Embed API key to `.env.local`, check the event panel's map, then merge `feat/event-panel`. The steps are in `claude/map-embed-setup.md` in the Claude project and in the README.
+2. Fix bugs B1 and B2 from the product review, then pasted-coordinate pinning (I1), then the pilot counters (F1). This order is suggested; the owner has not confirmed it.
+3. Check viewer invitations with two real Google accounts (see Status) and fix anything it finds.
+4. Pilot AI import with real plans and external AI tools. This has not been done yet. Track repair, edit and skip rates before adding in-page AI generation or free-form parsing. Confirm whether TRIP-7 should be built.
