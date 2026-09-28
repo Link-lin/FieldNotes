@@ -35,7 +35,7 @@ Type: Source Serif 4 for headings and figures, IBM Plex Mono for small uppercase
 **Trip page** (`/trips/[tripId]`). Changing tabs replaces the address rather than adding history. Escape returns to the dashboard only when no menu, dialog or text field has focus. Top to bottom:
 
 1. Back to all trips, status and role tags, title, destination, a postmark stamp (city, start month and year, length), and owner actions: **Add to itinerary**, **Edit trip** (which also holds **Delete trip**), **Share**, and **Show on globe** (when the trip has a point). Viewers see only **Show on globe**. **Import AI plan** would join the owner actions if TRIP-7 is approved.
-2. Summary tiles (TRIP-4): time to departure or day *N* of *M*, length, events, pinned, straight-line distance, planned versus budget, items to book.
+2. Summary tiles (TRIP-4): time to departure or day *N* of *M*, length, events, pinned, straight-line distance, planned versus budget, items to book. At 600 px and narrower they form one compact strip that scrolls sideways and runs to the screen edges, so the day tabs come sooner; the strip takes keyboard focus only while it overflows.
 3. Tabs (ARIA tabs with arrow keys): **Whole trip** (default), then one per date in the trip range, plus **Outside trip dates** tabs when needed. Each shows the trip-day number, event and pin counts, and a **Today** marker. Empty days say "Nothing planned". Switching tabs eases the tab colours (0.28 s) and glides the strip to keep the chosen tab in view; the new timeline slides in about 28 px from the side of the chosen tab and fades up (0.32 s), its first eight events settle in 35 ms apart, and the map card's contents settle as it changes. Reduced motion switches instantly.
 4. Two columns. Left: day sections with the timeline, then **Undated flights** and **Undated** in Whole trip; right (sticky on wide screens, first on phones): the day map and stop list.
 5. **Planned costs**, then **Still to book** (read-only for viewers) and **Globe location**. Events deleted during this visit appear under **Recently deleted** after the last day, each with **Restore**, for 10 minutes.
@@ -76,4 +76,4 @@ Everything here is decorative and off under reduced motion, including pseudo-ele
 - A trip with two currencies shows two cost cards, no combined total, and a budget comparison only in the budget currency.
 - Text meets 4.5:1 and control borders 3:1 against their background.
 - With reduced motion set, nothing animates and nothing is hidden waiting for an animation.
-- Keyboard: pins, tabs, menus, dialogs, toasts and the floating button are reachable, with visible focus.
+- Keyboard: pins, tabs, menus, dialogs, toasts, the floating button and the phone tile strip are reachable, with visible focus.

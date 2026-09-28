@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
 import type { TripDetailDTO } from "@/shared/dto";
 import { formatMoney } from "@/shared/money";
 import { ProgressBar } from "@/components/ui/ProgressBar/ProgressBar";
@@ -16,12 +19,26 @@ function Tile({ label, warn, budget, children }: { label: string; warn?: boolean
   );
 }
 
-/** At-a-glance numbers: status, length, events, pins, distance, money and what's left to book. */
+/**
+ * At-a-glance numbers: status, length, events, pins, distance, money and what's left to book. On
+ * phones they form one strip that scrolls sideways (I8); only while it overflows can it take focus,
+ * so a keyboard can scroll it too.
+ */
 export function TripTiles({ data, pinned, distanceKm, toBook, overdue }: Props) {
   const { trip, items, budgetComparison: cmp, plannedTotals: totals } = data;
   const days = trip.dayCount;
+  const strip = useRef<HTMLDivElement>(null);
+  const [scrolls, setScrolls] = useState(false);
+  useEffect(() => {
+    const el = strip.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    // Also re-checked when the data changes, since a new tile can make the strip overflow.
+    const observer = new ResizeObserver(() => setScrolls(el.scrollWidth > el.clientWidth + 1));
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [data]);
   return (
-    <div className={styles.tiles}>
+    <div className={styles.tiles} ref={strip} role="group" aria-label="Trip summary" tabIndex={scrolls ? 0 : undefined}>
       {trip.status === "upcoming" ? (
         <Tile label="Until departure"><b>{trip.daysToStart}<small>{trip.daysToStart === 1 ? "day" : "days"}</small></b></Tile>
       ) : trip.status === "ongoing" ? (
