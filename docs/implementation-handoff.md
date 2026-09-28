@@ -1,6 +1,6 @@
 # Field Notes: implementation handoff
 
-Last updated 27 Sep 2026 (event side panel on `feat/event-panel`; product review of `main`). Read this first when picking the project up in a new session.
+Last updated 28 Sep 2026 (review fixes B1, B2, I1 and F1 on `feat/review-fixes`, which sits on `feat/event-panel`). Read this first when picking the project up in a new session.
 
 ## Status
 
@@ -29,6 +29,12 @@ Last updated 27 Sep 2026 (event side panel on `feat/event-panel`; product review
   - The map uses Google's Maps Embed API and needs `GOOGLE_MAPS_EMBED_API_KEY` (a browser key restricted to the Maps Embed API and the site). It shows a flight's route, the owner's pin, or the place name. It loads only when a panel opens; the CSP allows frames from `www.google.com` only and the frame sends only the site origin as referrer. Without a key the panel has no map.
   - Modal and the panel share `src/lib/use-dialog.ts`.
   - Checks: lint, typecheck, 145 tests and the build passed before each commit. A headless-browser run with seeded sessions covered opening by click and keyboard, the slide-in, focus, notes autosave, Previous/Next, Escape/close/faded-page close with focus back on the row, links and the menu not opening the panel, Edit event from the panel, the viewer's read-only panel, reduced motion, phone width and the embed addresses. The map itself could not load in that sandbox (Google was unreachable), so **check the map with a real key**.
+- **Review fixes B1, B2, I1 and F1 are on `feat/review-fixes`** (branched from `feat/event-panel`; neither is merged into `main`). Four code commits and this docs commit:
+  - B1: `/import` no longer logs hydration error #418. Currency names are bundled (`src/shared/currencies.ts`) instead of coming from `Intl.DisplayNames`, whose names differ between Node and browsers. The time-zone picker also read this device's zone and the full zone list on the server; both are now read after hydration through `useClientValue` (`src/lib/client-value.ts`).
+  - B2: the dashboard shows the viewer's own date ("today is 27 Sep"), read in the browser, instead of the server's UTC date.
+  - I1: the map-link field accepts pasted coordinates such as `35.0116, 135.7681`. They are saved as a Google Maps search link for that point and pin the event; the field's hint says as you type whether the value will pin. The PRD's MAP-2 now allows this.
+  - F1: daily pilot counts in a new `usage_counts` table (migration `0003_usage_counts`): import previews (clean, needing fixes, rejected), imported and manual trips and items, items skipped in preview, AI items edited or deleted, book-by dates set and items booked. No user, trip or content is stored; counting never fails a request. `npm run pilot:report` prints totals, weekly figures and rates. **Run `npm run db:migrate` once** after checking out this branch; until then nothing is counted (a one-line `[usage]` error is logged per action).
+  - Checks: lint, typecheck, `npm test` (157 tests) and the build passed before each commit. Browser checks in dev covered no hydration errors on `/import` in UTC, Los Angeles and Tokyo, the dashboard date in Honolulu versus UTC, pinning from pasted coordinates with the live hint, and a UI import with one skipped item followed by a correct `pilot:report`.
 - **Added since the first build:**
   - New-trip form:
     - destination suggestions;
@@ -53,20 +59,20 @@ Last updated 27 Sep 2026 (event side panel on `feat/event-panel`; product review
 
 ## Product review (27 Sep 2026)
 
-A product-manager pass over `main` and `feat/event-panel` against the PRD, with a production build, seeded data and a headless browser (owner, viewer, phone width). The full review, with evidence, is `claude/product-review-2026-09-27.md` in the Claude project "Travel Planner". Nothing from it has been fixed yet.
+A product-manager pass over `main` and `feat/event-panel` against the PRD, with a production build, seeded data and a headless browser (owner, viewer, phone width). The full review, with evidence, is `claude/product-review-2026-09-27.md` in the Claude project "Travel Planner". B1, B2, I1 (pasted coordinates only) and F1 are fixed on `feat/review-fixes`; the rest is open.
 
 - **PRD gaps:**
   - ATLAS-4's "click the globe to choose a point" is not built (catalog search only).
-  - The section 8 pilot has not run, and the app records none of its measures (import success, edit/skip rates, due-date use).
+  - The section 8 pilot has not run. The app now records its measures as daily counts (F1, on `feat/review-fixes`); time spent and response quality still have to be observed with the pilot owners.
   - Hosting, backup retention, TRIP-7 and the currency-conversion option are undecided.
 - **Bugs:**
-  - B1: `/import` logs React hydration error #418 on every load, probably because currency names from `Intl.DisplayNames` differ between Node and the browser.
-  - B2: the dashboard's "Today is" uses the server's UTC date.
+  - B1 (fixed): `/import` logged React hydration error #418 on every load (currency names and the time-zone picker).
+  - B2 (fixed): the dashboard's "Today is" used the server's UTC date.
   - B3: the date-range warning counts events already outside the trip.
   - B4: the day map's empty state tells viewers to edit.
   - B5: on phones the header's Bookings count wraps, and Field Notes and Atlas both link to `/`.
 - **Improvements, highest first:**
-  - I1: pinning is too hard. Only long map links with coordinates pin; start by accepting pasted coordinates, and decide on owner-confirmed geocoding (a MAP-2 change).
+  - I1: pinning is too hard. Pasted coordinates now pin (fixed); owner-confirmed geocoding is still a decision (a MAP-2 change).
   - I2: add "Use this budget" to the import budget warning.
   - I3: show time, place and price on collapsed import cards, with Expand all.
   - I5: use the friendly time-zone picker in the event form.
@@ -75,7 +81,7 @@ A product-manager pass over `main` and `feat/event-panel` against the PRD, with 
   - I9: make the booking lists actionable (open the event, Mark booked, set a book-by date).
   - Smaller: I4, I7, I10.
 - **Feature proposals:**
-  - Pilot counters (F1).
+  - Pilot counters (F1, built).
   - Calendar .ics export (F2).
   - Printable day sheets (F3).
   - Duplicate a trip as a template (F4).
@@ -116,7 +122,7 @@ A product-manager pass over `main` and `feat/event-panel` against the PRD, with 
 - **Run it locally:**
   1. `npm install`
   2. `npm run db:start`, which starts embedded PostgreSQL.
-  3. `npm run db:migrate`
+  3. `npm run db:migrate` (again after pulling a branch with a new migration, such as `0003_usage_counts`)
   4. `npm run dev`
 
   `.env.local` needs `AUTH_SECRET`, the Google client ID and secret, and `TRIP_OWNER_EMAILS` (see the README). Never commit it or overwrite it.
@@ -130,6 +136,7 @@ A product-manager pass over `main` and `feat/event-panel` against the PRD, with 
 ## Next milestone
 
 1. Add a Maps Embed API key to `.env.local`, check the event panel's map, then merge `feat/event-panel`. The steps are in `claude/map-embed-setup.md` in the Claude project and in the README.
-2. Fix bugs B1 and B2 from the product review, then pasted-coordinate pinning (I1), then the pilot counters (F1). This order is suggested; the owner has not confirmed it.
+2. Run `npm run db:migrate`, look over `feat/review-fixes` (B1, B2, I1, F1) in the browser, then merge it after `feat/event-panel`.
 3. Check viewer invitations with two real Google accounts (see Status) and fix anything it finds.
-4. Pilot AI import with real plans and external AI tools. This has not been done yet. Track repair, edit and skip rates before adding in-page AI generation or free-form parsing. Confirm whether TRIP-7 should be built.
+4. Pilot AI import with real plans and external AI tools. This has not been done yet; the counts are ready for it. Read `npm run pilot:report` weekly (clean previews, skipped items, edits per imported item, due-date use) before adding in-page AI generation or free-form parsing. Confirm whether TRIP-7 should be built.
+5. Remaining review items: B3–B5, I2–I10 and the owner decisions above.
