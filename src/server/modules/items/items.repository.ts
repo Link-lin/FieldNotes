@@ -47,6 +47,17 @@ export async function updateItemRow(tx: Tx, itemId: string, expectedVersion: num
     .executeTakeFirst();
 }
 
+/** Notes only, when the version still matches; undefined means someone else changed it first. */
+export async function updateNotes(tx: Tx, itemId: string, expectedVersion: number, notes: string | null): Promise<PlanItemRow | undefined> {
+  return tx
+    .updateTable("plan_items")
+    .set({ notes, version: sql`version + 1`, updated_at: sql`now()` })
+    .where("id", "=", itemId)
+    .where("version", "=", expectedVersion)
+    .returningAll()
+    .executeTakeFirst();
+}
+
 export async function softDelete(tx: Tx, itemId: string): Promise<void> {
   await tx.updateTable("plan_items").set({ deleted_at: sql`now()`, version: sql`version + 1` }).where("id", "=", itemId).execute();
 }

@@ -67,6 +67,28 @@ export async function updateItem(
   });
 }
 
+/** TRIP-10: save an event's notes from its side panel. Same owner, version and trip-version rules as a full edit. */
+export async function updateItemNotes(
+  db: Kysely<DB>,
+  actor: Actor,
+  tripId: string,
+  itemId: string,
+  body: { notes: string | null; expectedVersion: number },
+  now = new Date(),
+): Promise<PlanItemDTO> {
+  return db.transaction().execute(async (tx) => {
+    const { trip } = await requireTripOwner(tx, actor, tripId, true);
+    await repo.purgeExpired(tx, trip.id);
+    const current = await repo.loadItemForUpdate(tx, trip.id, itemId);
+    if (current.version !== body.expectedVersion) throw conflict();
+    const notes = body.notes?.trim() || null;
+    const row = await repo.updateNotes(tx, current.id, body.expectedVersion, notes);
+    if (!row) throw conflict();
+    await bumpTripVersion(tx, trip.id);
+    return dto(row, trip.time_zone, now);
+  });
+}
+
 /** TRIP-8: immediate soft delete; restorable for 10 minutes. */
 export async function deleteItem(db: Kysely<DB>, actor: Actor, tripId: string, itemId: string, expectedVersion: number): Promise<void> {
   await db.transaction().execute(async (tx) => {

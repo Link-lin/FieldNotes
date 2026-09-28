@@ -145,6 +145,8 @@ export type TripPatch = z.infer<typeof tripPatchSchema>;
 export const itemPatchSchema = z
   .object({ item: itemInputSchema, expectedVersion: z.number().int().min(1), confirmTypeChange: z.boolean().optional(), confirmPrice: z.boolean().optional() })
   .strict();
+/** TRIP-10: the owner edits an event's notes from its side panel; the rest of the event is unchanged. */
+export const itemNotesSchema = z.object({ notes: optionalText(5000), expectedVersion: z.number().int().min(1) }).strict();
 export const versionSchema = z.object({ expectedVersion: z.number().int().min(1) }).strict();
 
 /** Convert zod issues into stable, path-addressed field errors. */
