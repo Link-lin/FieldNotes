@@ -45,11 +45,12 @@ npm run build
 
 ## Test trips
 
-`npm run db:seed:hawaii` loads three test trips into your local database for the first address in `TRIP_OWNER_EMAILS` (or `npm run db:seed:hawaii -- you@example.com`). Sign in to the app once first so your account exists, and keep the database running (`npm run dev` in another terminal). Running it again replaces the test trips; your other trips are not touched.
+`npm run db:seed:hawaii` loads four test trips into your local database for the first address in `TRIP_OWNER_EMAILS` (or `npm run db:seed:hawaii -- you@example.com`). Sign in to the app once first so your account exists, and keep the database running (`npm run dev` in another terminal). Running it again replaces the test trips; your other trips are not touched.
 
 - **Hawaii test trip** (starts three weeks from today, 31 events): every event type; timed, date-only, undated and outside-the-trip events; booked, scheduled-but-unbooked, placeholder, undated and overnight flights; an event in another time zone; pins from Google, Apple Maps, OpenStreetMap and pasted coordinates; a shortened and a look-alike link that don't pin; overdue, due-today, upcoming and undated booking tasks; AI drafts with unverified and confirmed prices; a second currency; a budget; and a viewer, a pending, an expired and a revoked invitation in **Share**.
 - **Kyoto long weekend**: a past trip over budget, owned by a made-up friend (Sam Rivera) and shared with you, so you can see the read-only viewer view.
 - **Lisbon & Porto**: far in the future, no events and no globe point.
+- **Kauaʻi long weekend**: happening now (yesterday to tomorrow), so the trip shows Travelling now and **Up next** picks the next event of the day.
 
 Book-by dates are relative to the day you run it, so re-run it to reset the overdue and due-today states. Deleting and undoing an event, time-zone changes, the import flow and signing in as a viewer still need doing by hand. Development only: it refuses to run with `NODE_ENV=production`.
 

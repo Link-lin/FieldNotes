@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { TripDetailDTO } from "@/shared/dto";
+import type { PlanItemDTO, TripDetailDTO } from "@/shared/dto";
 import { Button, ButtonLink } from "@/components/ui/Button/Button";
 import { EditIcon, PlusIcon, ShareIcon, StatusIcon } from "@/components/ui/Icon/icons";
 import { Tag } from "@/components/ui/Tag/Tag";
@@ -10,12 +10,23 @@ import { dashboardUrl } from "@/features/dashboard/dashboard-return";
 import { cx } from "@/lib/cx";
 import { dateRangeLabel, STATUS_LABEL } from "@/lib/format";
 import { Stamp } from "./Stamp/Stamp";
+import { UpNext } from "./UpNext/UpNext";
 import styles from "./TripHeader.module.css";
 
-type Props = { trip: TripDetailDTO["trip"]; owner: boolean; compact?: boolean; onAdd: () => void; onEdit: () => void; onShare: () => void };
+type Props = {
+  trip: TripDetailDTO["trip"];
+  owner: boolean;
+  compact?: boolean;
+  /** With these, a wide header also shows the Up next card. */
+  items?: PlanItemDTO[];
+  onOpenEvent?: (item: PlanItemDTO) => void;
+  onAdd: () => void;
+  onEdit: () => void;
+  onShare: () => void;
+};
 
-/** Back to all trips, dates and zone, status and role, the title, and the owner's actions. */
-export function TripHeader({ trip, owner, compact = false, onAdd, onEdit, onShare }: Props) {
+/** Back to all trips, dates and zone, status and role, the title, the owner's actions and, when wide, what's up next. */
+export function TripHeader({ trip, owner, compact = false, items, onOpenEvent, onAdd, onEdit, onShare }: Props) {
   const router = useRouter();
   return (
     <>
@@ -52,6 +63,7 @@ export function TripHeader({ trip, owner, compact = false, onAdd, onEdit, onShar
           ) : null}
           {trip.atlasLocation ? <ButtonLink variant={owner ? "quiet" : "outline"} href={`/?focus=${trip.id}`}>Show on globe</ButtonLink> : null}
         </div>
+        {!compact && items && onOpenEvent ? <UpNext className={styles.upNext} trip={trip} items={items} onOpen={onOpenEvent} /> : null}
       </header>
     </>
   );

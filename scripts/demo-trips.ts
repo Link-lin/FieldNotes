@@ -18,6 +18,7 @@ import { addDays, dateInZone } from "@/shared/time";
 
 export const HAWAII_TITLE = "Hawaii test trip: Oʻahu, Maui & the Big Island";
 export const LISBON_TITLE = "Lisbon & Porto (test, no events yet)";
+export const KAUAI_TITLE = "Kauaʻi long weekend (test, happening now)";
 export const KYOTO_TITLE = "Kyoto long weekend (test, shared with you)";
 /** A made-up person who owns the shared Kyoto trip and is an accepted viewer of Hawaii. */
 export const TEST_FRIEND = { email: "sam.rivera@example.com", name: "Sam Rivera (test)" };
@@ -541,7 +542,69 @@ export function demoTrips(today: string): TripSpec[] {
     items: [],
   };
 
-  return [hawaii, kyoto, lisbon];
+  // Happening now (yesterday to tomorrow): the Travelling now tile and ticket, and Up next during a trip.
+  const kd0 = (n: number) => addDays(today, n);
+  const kauai: TripSpec = {
+    owner: "you",
+    title: KAUAI_TITLE,
+    destination: "Kauaʻi, Hawaiʻi",
+    startDate: kd0(-1),
+    endDate: kd0(1),
+    timeZone: HAWAII_ZONE,
+    budget: null,
+    ownerPoint: { latitude: 22.07, longitude: -159.5 },
+    viewers: [],
+    items: [
+      {
+        type: "transport",
+        title: "Pick up the rental jeep",
+        location: "Līhuʻe Airport (LIH)",
+        date: kd0(-1),
+        time: "14:00",
+        bookingStatus: "booked",
+        price: usd("210.00"),
+      },
+      {
+        type: "activity",
+        title: "Kalalau Lookout at sunrise",
+        location: "Kalalau Lookout, Kōkeʻe State Park",
+        mapUrl: "22.15140, -159.64670",
+        date: kd0(0),
+        time: "06:30",
+        durationMinutes: 90,
+        bookingStatus: "not_required",
+      },
+      {
+        type: "meal",
+        title: "Dinner at Hanalei Dolphin",
+        location: "Hanalei Dolphin, Hanalei",
+        date: kd0(0),
+        time: "18:00",
+        bookingStatus: "needs_booking",
+        bookingDueDate: kd0(0),
+        price: usd("120", "estimate"),
+      },
+      {
+        type: "activity",
+        title: "Hanalei Bay beach morning",
+        location: "Hanalei Bay",
+        date: kd0(1), // date only: Up next can show it once today is over
+        bookingStatus: "not_required",
+      },
+      {
+        type: "flight",
+        title: "LIH → HNL",
+        airline: "Hawaiian Airlines",
+        flightNumber: "HA 294",
+        departure: flightEnd("LIH", `${kd0(1)}T15:10`, HAWAII_ZONE),
+        arrival: flightEnd("HNL", `${kd0(1)}T15:50`, HAWAII_ZONE),
+        bookingStatus: "booked",
+        price: usd("79.00"),
+      },
+    ],
+  };
+
+  return [hawaii, kyoto, lisbon, kauai];
 }
 
 function toInput(spec: ItemSpec): unknown {
@@ -595,7 +658,7 @@ export async function seedDemoTrips(db: Kysely<DB>, you: { id: string; email: st
     const old = await tx
       .selectFrom("trips")
       .select("id")
-      .where((eb) => eb.or([eb.and([eb("owner_user_id", "=", you.id), eb("title", "in", [HAWAII_TITLE, LISBON_TITLE])]), eb("owner_user_id", "=", friend.id)]))
+      .where((eb) => eb.or([eb.and([eb("owner_user_id", "=", you.id), eb("title", "in", [HAWAII_TITLE, LISBON_TITLE, KAUAI_TITLE])]), eb("owner_user_id", "=", friend.id)]))
       .execute();
     for (const t of old) await deleteTripRow(tx, t.id);
 

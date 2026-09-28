@@ -1,6 +1,6 @@
 import type { PlanItemDTO, TripDetailDTO } from "@/shared/dto";
 import { haversineKm } from "@/shared/map-links";
-import { dateRange } from "@/shared/time";
+import { addDays, dateRange } from "@/shared/time";
 import { fmtDay } from "@/lib/format";
 
 type Trip = TripDetailDTO["trip"];
@@ -65,4 +65,35 @@ export function eventTimeText(item: PlanItemDTO, tripZone: string): string {
   if (!item.localDate) return "No date";
   if (!item.localTime) return "Time not set";
   return `${item.localTime}${item.timeZone && item.timeZone !== tripZone ? ` (${item.timeZone})` : ""}${item.durationMinutes ? ` · ${item.durationMinutes} min` : ""}`;
+}
+
+/**
+ * The event the header's Up next card shows: the first dated event from today (trip zone) in
+ * timeline order. `now` (the browser's clock, known only after hydration) also skips today's timed
+ * events that have already started. Past trips have none.
+ */
+export function upNext(trip: Trip, items: PlanItemDTO[], now: number | null): { item: PlanItemDTO; label: string } | null {
+  if (trip.status === "past") return null;
+  const item = items.find((i) => {
+    if (!i.timelineDate || i.timelineDate < trip.today) return false;
+    if (i.timelineDate > trip.today || now === null || !i.sortInstant) return true;
+    return Date.parse(i.sortInstant) >= now;
+  });
+  if (!item) return null;
+  const date = item.timelineDate!;
+  return { item, label: date === trip.today ? "Today" : date === addDays(trip.today, 1) ? "Tomorrow" : fmtDay(date) };
+}
+
+/** The dated flights as one route line, "SFO → HNL → OGG"; a gap between segments starts a new run. */
+export function flightRoute(items: PlanItemDTO[]): string | null {
+  const runs: string[][] = [];
+  for (const i of items) {
+    const dep = i.flightDetails?.departure.airportCode;
+    const arr = i.flightDetails?.arrival.airportCode;
+    if (!i.timelineDate || !dep || !arr) continue;
+    const run = runs[runs.length - 1];
+    if (run && run[run.length - 1] === dep) run.push(arr);
+    else runs.push([dep, arr]);
+  }
+  return runs.length ? runs.map((run) => run.join(" → ")).join(" · ") : null;
 }

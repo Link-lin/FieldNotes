@@ -4,7 +4,8 @@ import { listInvitations } from "@/server/modules/invitations/invitations.servic
 import { getTripDetail } from "@/server/modules/trips/trips.service";
 import { actorFor } from "@/server/auth/actor";
 import { flightReadyToBook } from "@/shared/booking";
-import { HAWAII_TITLE, KYOTO_TITLE, LISBON_TITLE, seedDemoTrips, TEST_FRIEND } from "../../scripts/demo-trips";
+import { upNext } from "@/features/trips/TripPage/trip-days";
+import { HAWAII_TITLE, KAUAI_TITLE, KYOTO_TITLE, LISBON_TITLE, seedDemoTrips, TEST_FRIEND } from "../../scripts/demo-trips";
 import { makeActor, reset, testDb } from "./helpers";
 
 const NOW = new Date("2026-09-28T20:00:00Z"); // 28 Sep in Hawaii
@@ -87,6 +88,11 @@ describe("test trips seed", () => {
     expect(kyoto.budgetComparison).toMatchObject({ currency: "JPY", over: true });
     expect((await getTripDetail(testDb(), owner, ids[LISBON_TITLE]!, NOW)).items).toHaveLength(0);
 
+    // Happening now: day 2 of 3, and Up next skips today's sunrise (10:00 in Hawaii) for tonight's dinner.
+    expect(byTitle[KAUAI_TITLE]).toMatchObject({ role: "owner", status: "ongoing", dayIndex: 2, dayCount: 3 });
+    const kauai = await getTripDetail(testDb(), owner, ids[KAUAI_TITLE]!, NOW);
+    expect(upNext(kauai.trip, kauai.items, NOW.getTime())).toMatchObject({ item: { title: "Dinner at Hanalei Dolphin" }, label: "Today" });
+
     const friend = await testDb().selectFrom("User").select(["id", "email"]).where("email", "=", TEST_FRIEND.email).executeTakeFirstOrThrow();
     const asFriend = await getTripDetail(testDb(), actorFor(friend), ids[HAWAII_TITLE]!, NOW);
     expect(asFriend.trip.role).toBe("viewer");
@@ -100,7 +106,7 @@ describe("test trips seed", () => {
     await seed();
     await seed();
     const trips = await testDb().selectFrom("trips").select(["id", "title"]).execute();
-    expect(trips.map((t) => t.title).sort()).toEqual([HAWAII_TITLE, KYOTO_TITLE, LISBON_TITLE, "My real trip"].sort());
+    expect(trips.map((t) => t.title).sort()).toEqual([HAWAII_TITLE, KAUAI_TITLE, KYOTO_TITLE, LISBON_TITLE, "My real trip"].sort());
     expect(trips.find((t) => t.title === "My real trip")?.id).toBe(mine.id);
     const users = await testDb().selectFrom("User").select("email").where("email", "=", TEST_FRIEND.email).execute();
     expect(users).toHaveLength(1);

@@ -8,6 +8,13 @@
 .title:focus { outline: none; }
 .dest { color: var(--ink-2); font-size: var(--text-lg); padding-right: 128px; }
 .actions { display: flex; flex-wrap: wrap; gap: 10px; }
+/* Up next fills the wide header's right side, left of the stamp; narrower layouts leave it out. */
+.head > .upNext { display: none; }
+@media (min-width: 1280px) {
+  .head:has(> .upNext) { grid-template-columns: minmax(0, 1fr) minmax(280px, 380px); column-gap: var(--space-8); padding-right: 136px; }
+  .head:has(> .upNext) > :is(.meta, .title, .dest, .actions) { grid-column: 1; padding-right: 0; }
+  .head > .upNext { display: grid; grid-column: 2; grid-row: 1 / span 4; align-self: center; }
+}
 .head[data-compact] { gap: var(--space-2); }
 .head[data-compact] .meta, .head[data-compact] .title, .head[data-compact] .dest { padding-right: 0; }
 .head[data-compact] .title { font-size: clamp(30px, 3.5vw, 42px); }

@@ -258,7 +258,7 @@ export function TripPage({ data, initialDay, initialEvent, initialView, mapsKey 
       <article className={styles.trip}>
         <div className={styles.hero} data-view={view}>
           <div className={styles.heading}>
-            <TripHeader trip={trip} owner={owner} compact={view === "bookings"} onAdd={() => openAdd(all ? "" : day, "[data-add-top]")} onEdit={() => setEditingTrip(true)} onShare={() => setSharing(true)} />
+            <TripHeader trip={trip} owner={owner} compact={view === "bookings"} items={items} onOpenEvent={(i) => openPanel(i, { trigger: "[data-up-next]" })} onAdd={() => openAdd(all ? "" : day, "[data-add-top]")} onEdit={() => setEditingTrip(true)} onShare={() => setSharing(true)} />
           </div>
           <div className={styles.sectionNav}>
             <TripViewNav selected={view} toBook={toBook.length} overdue={overdueCount} onSelect={selectView} />
