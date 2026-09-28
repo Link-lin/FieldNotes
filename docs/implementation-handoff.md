@@ -1,10 +1,10 @@
 # Field Notes: implementation handoff
 
-Last updated 28 Sep 2026 (review polish on `feat/review-polish`, branched from `main` at `c35934b`; not merged). Read this first when picking the project up in a new session.
+Last updated 28 Sep 2026 (`main`, after fast-forwarding `feat/review-polish`). Read this first when picking the project up in a new session.
 
 ## Status
 
-- **Review polish is on `feat/review-polish`** (7 commits on `main`, not merged or pushed):
+- **Review polish is merged into local `main`** (fast-forward of `feat/review-polish`, 14 commits from `c35934b` to `1f57461`; not pushed):
   - Notes-save failure, browser-checked with forced server errors (500 and 409) on desktop and the phone event page: the typed text stays, and Close, Escape, the faded page, Previous/Next and Edit event no longer leave silently. Before this branch a 409 or a server that stayed down left no way out but reloading; now leaving asks **Stay** (focused) or **Leave without saving**. A successful retry closes normally and the notes persist.
   - Road route with three or more pins: the test trips now have two three-stop days (day 1: HNL arrival, hotel, dinner; day 4: OGG arrival, rental car, hotel). The embed address was checked in a browser (origin, one waypoint, destination in page order, driving mode). Google's own drawing of that route still needs a look with the real key.
   - B3: the edit-trip date warning counts only events the new range pushes outside.
@@ -151,14 +151,14 @@ A product-manager pass over the earlier `main` and `feat/event-panel` against th
   `.env.local` needs `AUTH_SECRET`, the Google client ID and secret, and `TRIP_OWNER_EMAILS` (see the README). Never commit it or overwrite it.
 - **Before every commit:** run `npm run lint`, `npm run typecheck`, `npm test` and `npm run build`.
 - **Pinned versions:** vitest 3.2.7 (4.x hit an npm install bug) and kysely 0.28.x.
-- **Git:** remote `origin` is https://github.com/Link-lin/FieldNotes.git. Work on a branch and merge into `main`. The owner pushes. On 28 Sep, local `main` fast-forwarded from `0893e57` to `3e52314`, adding 18 commits from `feat/event-panel`, `feat/review-fixes`, `feat/day-map-geography` and `feat/event-panel-inline-edit`. Post-merge lint, typecheck, 172 tests and the production build passed. Local `main` is ahead of `origin/main`; nothing from this merge has been pushed. The feature branch refs remain available for now.
+- **Git:** remote `origin` is https://github.com/Link-lin/FieldNotes.git. Work on a branch and merge into `main`. The owner pushes. On 28 Sep, local `main` fast-forwarded from `0893e57` to `3e52314`, adding 18 commits from `feat/event-panel`, `feat/review-fixes`, `feat/day-map-geography` and `feat/event-panel-inline-edit`. Post-merge lint, typecheck, 172 tests and the production build passed. Later on 28 Sep it fast-forwarded again to `feat/review-polish` (review fixes B3, B5, I2, I5, I6, notes-save exit prompt, one map link per place, airport names in road routes, day-tab motion). Local `main` is ahead of `origin/main`; nothing from these merges has been pushed. `feat/review-polish` can be deleted. The feature branch refs remain available for now.
 - **iCloud:** the project folder is under `~/Documents`, which iCloud Drive syncs. iCloud sometimes leaves conflict copies named `name 2.ts` or `folder 2` (and `.git/index 2`) after git rewrites many files. They are untracked duplicates. Don't commit them. Moving the repo out of iCloud-synced folders avoids this.
 - **Scratch:** `.e2e/` holds build bundles for browser checks. It is gitignored and safe to delete.
 - **Agent sessions on this folder:** a Cowork session reaches the folder from a Linux VM, so it can't use the macOS `node_modules`; it runs checks in a separate Linux clone. Git there needs file-deletion permission for the folder, or it leaves `.git/*.lock` files that block the next git command.
 
 ## Next milestone
 
-1. Look over `feat/review-polish` and merge it into `main`. With the real Maps key, open the Hawaii test trip (re-run `npm run db:seed:hawaii` first), switch day 1 or day 4 to **Road route**, and check that the start is now labelled as the airport.
+1. Re-run `npm run db:seed:hawaii`, then with the real Maps key check that Hawaii day 1's **Road route** starts at the airport by name, and try the day-tab animation.
 2. Check viewer invitations with two real Google accounts (see Status) and fix anything it finds.
 3. Pilot AI import with real plans and external AI tools. This has not been done yet; the counts are ready for it. Read `npm run pilot:report` weekly (clean previews, skipped items, edits per imported item, due-date use) before adding in-page AI generation or free-form parsing. Confirm whether TRIP-7 should be built.
 4. Remaining review items: I3 (details on collapsed import cards, Expand all), I8 (compact phone tiles), I9 (actionable booking lists), the smaller I4, I7 and I10, and the owner decisions above.
