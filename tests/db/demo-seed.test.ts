@@ -42,6 +42,10 @@ describe("test trips seed", () => {
     expect(pinned.length).toBeGreaterThanOrEqual(7);
     expect(new Set(pinned.map((i) => i.mapProvider))).toEqual(new Set(["Google Maps", "Apple Maps", "OpenStreetMap"]));
     expect(items.some((i) => i.coordinates?.source === "airport")).toBe(true);
+    // At least one day has three or more pins, so the multi-stop road route can be checked.
+    const pinsByDay = new Map<string, number>();
+    for (const i of items) if (i.coordinates && i.timelineDate) pinsByDay.set(i.timelineDate, (pinsByDay.get(i.timelineDate) ?? 0) + 1);
+    expect(Math.max(...pinsByDay.values())).toBeGreaterThanOrEqual(3);
     const unpinned = items.filter((i) => i.mapUrl && !i.coordinates).map((i) => i.mapProvider);
     expect(unpinned).toEqual(expect.arrayContaining(["Google Maps", "maps.google.com.example.net"]));
     expect(items.find((i) => i.title.startsWith("Check in: Outrigger"))?.mapUrl).not.toMatch(/entry=|g_ep=/);

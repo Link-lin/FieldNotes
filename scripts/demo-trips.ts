@@ -160,6 +160,7 @@ export function demoTrips(today: string): TripSpec[] {
         type: "meal",
         title: "Sunset dinner at Duke's Waikiki",
         location: "Duke's Waikiki, 2335 Kalākaua Ave, Honolulu",
+        mapUrl: "21.27670, -157.82780", // with the HNL arrival and the hotel: a three-stop road route
         date: d(0),
         time: "18:30",
         durationMinutes: 90,
@@ -265,6 +266,7 @@ export function demoTrips(today: string): TripSpec[] {
         type: "transport",
         title: "Maui rental car",
         location: "Kahului Airport (OGG) rental car center",
+        mapUrl: "https://www.google.com/maps/@20.89300,-156.43900,17z", // OGG arrival, rental car, hotel: three stops
         date: d(3),
         time: "10:30",
         bookingStatus: "needs_booking",
