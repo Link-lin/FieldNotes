@@ -13,6 +13,9 @@
     --kf-fly: fly;
     --kf-stamp-in: stamp-in;
     --kf-blink: blink;
+    --kf-fade-out: fade-out;
+    --kf-panel-in: panel-in;
+    --kf-panel-out: panel-out;
   }
 
   @keyframes rise { from { opacity: 0; transform: translateY(16px); } }
@@ -23,6 +26,9 @@
   @keyframes fly { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(6px); } }
   @keyframes stamp-in { from { opacity: 0; transform: rotate(-10deg) scale(1.7); } 60% { opacity: 1; } }
   @keyframes blink { 50% { opacity: 0.25; } }
+  @keyframes fade-out { to { opacity: 0; } }
+  @keyframes panel-in { from { transform: translateX(100%); } }
+  @keyframes panel-out { to { transform: translateX(100%); } }
 
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; transition: none !important; }

@@ -32,16 +32,24 @@ export function useDialog(ref: React.RefObject<HTMLElement | null>, { active, on
 
   useEffect(() => {
     if (!active) return;
+    const el = ref.current;
     const trigger = document.activeElement as HTMLElement | null;
     const root = document.getElementById("app-root");
     if (root) root.inert = true;
     document.body.style.overflow = "hidden";
     const first =
       opts.current.initialFocus?.() ??
-      ref.current?.querySelector<HTMLElement>('input:not([disabled]):not([type="hidden"]), select, textarea') ??
-      ref.current?.querySelector<HTMLElement>("button:not([disabled])");
+      el?.querySelector<HTMLElement>('input:not([disabled]):not([type="hidden"]), select, textarea') ??
+      el?.querySelector<HTMLElement>("button:not([disabled])");
     first?.focus();
+    // Escape still closes if focus has fallen out of the dialog (for example onto a button that
+    // just became disabled). Inside the dialog, onKeyDown handles it and stops propagation.
+    const onDocKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !e.defaultPrevented && !el?.contains(document.activeElement)) close.current();
+    };
+    document.addEventListener("keydown", onDocKey);
     return () => {
+      document.removeEventListener("keydown", onDocKey);
       if (root) root.inert = false;
       document.body.style.overflow = "";
       const visible = (el: HTMLElement | null) => !!el && el.isConnected && el.getClientRects().length > 0;
@@ -51,7 +59,8 @@ export function useDialog(ref: React.RefObject<HTMLElement | null>, { active, on
       // Wait a frame so a re-render that replaced the trigger has committed. Leave focus alone if
       // another dialog opened in the meantime (for example Edit event from the side panel).
       requestAnimationFrame(() => {
-        if (document.activeElement?.closest('[role="dialog"]')) return;
+        const other = document.activeElement?.closest('[role="dialog"]');
+        if (other && other !== el) return;
         const again = opts.current.triggerSelector ? document.querySelector<HTMLElement>(opts.current.triggerSelector) : null;
         (visible(again) ? again : target)?.focus();
       });

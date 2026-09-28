@@ -7,6 +7,12 @@
 .event[data-lit]::after { opacity: 1; }
 .event[data-lit] .time { color: var(--vermilion-ink); }
 .num { position: absolute; left: -30px; top: 0; }
+/* The row's details button covers the whole row (the same area as the highlight); links and the
+   menu are raised above it so they stay clickable. */
+.open { position: absolute; inset: -10px -14px -10px -10px; z-index: 0; border: 0; padding: 0; background: none; border-radius: var(--radius-lg); cursor: pointer; }
+.open:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.links, .num { z-index: 1; }
+.links { position: relative; }
 .event[data-lit] .num { box-shadow: 0 0 0 4px var(--vermilion-soft), 0 0 0 5px rgba(222, 79, 42, 0.35); }
 /* Room for the three-dot button. */
 .event[data-owned="true"] > :is(.time, .title, .flight) { margin-right: 40px; }

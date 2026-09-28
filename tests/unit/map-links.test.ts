@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cleanMapUrl, coordinatesFromMapUrl, googleDayUrl, haversineKm, providerLabel } from "@/shared/map-links";
+import { cleanMapUrl, coordinatesFromMapUrl, embedTarget, googleDayUrl, googleEmbedUrl, haversineKm, providerLabel } from "@/shared/map-links";
 
 describe("provider labels (MAP-1)", () => {
   it("names known providers by exact host", () => {
@@ -64,5 +64,30 @@ describe("cleanMapUrl length", () => {
   it("rejects a link that grows past 2048 characters when normalized", () => {
     expect(cleanMapUrl(`https://maps.google.com/?q=${"é".repeat(400)}`)).toBeNull();
     expect(cleanMapUrl("https://maps.google.com/?q=Kyoto&utm_source=x")).toBe("https://maps.google.com/?q=Kyoto");
+  });
+});
+
+describe("embedded event map (MAP-8)", () => {
+  const base = { location: null, coordinates: null, flightDetails: null };
+  const flight = (from: string | null, to: string | null) => ({ ...base, flightDetails: { departure: { airportCode: from }, arrival: { airportCode: to } } });
+
+  it("shows a flight's route, or its one known airport", () => {
+    expect(embedTarget(flight("SFO", "HND"), "Tokyo, Japan")).toEqual({ mode: "directions", origin: "SFO airport", destination: "HND airport" });
+    expect(embedTarget(flight(null, "KIX"), "Kyoto, Japan")).toEqual({ mode: "place", q: "KIX airport" });
+    expect(embedTarget(flight(null, null), "Kyoto, Japan")).toBeNull();
+  });
+
+  it("prefers the pin, then the place name with the trip destination when it isn't mentioned", () => {
+    expect(embedTarget({ ...base, location: "Nishiki Market", coordinates: { latitude: 35.005, longitude: 135.765432 } }, "Kyoto, Japan")).toEqual({ mode: "place", q: "35.00500,135.76543" });
+    expect(embedTarget({ ...base, location: "Fushimi Inari Taisha" }, "Kyoto, Japan")).toEqual({ mode: "place", q: "Fushimi Inari Taisha, Kyoto, Japan" });
+    expect(embedTarget({ ...base, location: "Nishiki Market, kyoto" }, "Kyoto, Japan")).toEqual({ mode: "place", q: "Nishiki Market, kyoto" });
+    expect(embedTarget({ ...base, location: "   " }, "Kyoto, Japan")).toBeNull();
+  });
+
+  it("builds Maps Embed API addresses with every value encoded", () => {
+    expect(googleEmbedUrl("k&1", { mode: "place", q: "Café & bar, Kyoto" })).toBe("https://www.google.com/maps/embed/v1/place?key=k%261&q=Caf%C3%A9%20%26%20bar%2C%20Kyoto");
+    expect(googleEmbedUrl("k", { mode: "directions", origin: "SFO airport", destination: "HND airport" })).toBe(
+      "https://www.google.com/maps/embed/v1/directions?key=k&origin=SFO%20airport&destination=HND%20airport&mode=flying",
+    );
   });
 });

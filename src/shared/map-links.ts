@@ -117,6 +117,46 @@ export function googleDirectionsUrl(destination: string): string {
   return "https://www.google.com/maps/dir/?api=1&destination=" + encodeURIComponent(destination);
 }
 
+/** What the event side panel's embedded Google map shows (MAP-8). */
+export type EmbedTarget = { mode: "place"; q: string } | { mode: "directions"; origin: string; destination: string };
+
+type EmbedItem = {
+  location: string | null;
+  coordinates: { latitude: number; longitude: number } | null;
+  flightDetails: { departure: { airportCode: string | null }; arrival: { airportCode: string | null } } | null;
+};
+
+/**
+ * MAP-8: a flight with both airports shows the route, one airport shows that airport; any other
+ * event shows its pin when it has one, else its place name. A place name that doesn't already
+ * mention the trip's main destination gets it appended, so "Fushimi Inari" finds Kyoto's.
+ * Returns null when the event has no place at all.
+ */
+export function embedTarget(item: EmbedItem, destination: string): EmbedTarget | null {
+  const f = item.flightDetails;
+  if (f) {
+    const from = f.departure.airportCode;
+    const to = f.arrival.airportCode;
+    if (from && to) return { mode: "directions", origin: `${from} airport`, destination: `${to} airport` };
+    const one = to ?? from;
+    return one ? { mode: "place", q: `${one} airport` } : null;
+  }
+  if (item.coordinates) return { mode: "place", q: `${item.coordinates.latitude.toFixed(5)},${item.coordinates.longitude.toFixed(5)}` };
+  const place = item.location?.trim();
+  if (!place) return null;
+  const city = destination.split(",")[0]?.trim().toLowerCase() ?? "";
+  return { mode: "place", q: city && !place.toLowerCase().includes(city) ? `${place}, ${destination}` : place };
+}
+
+/** The Maps Embed API address for a target. The key is a browser key restricted to this site. */
+export function googleEmbedUrl(key: string, t: EmbedTarget): string {
+  const k = "key=" + encodeURIComponent(key);
+  if (t.mode === "directions") {
+    return `https://www.google.com/maps/embed/v1/directions?${k}&origin=${encodeURIComponent(t.origin)}&destination=${encodeURIComponent(t.destination)}&mode=flying`;
+  }
+  return `https://www.google.com/maps/embed/v1/place?${k}&q=${encodeURIComponent(t.q)}`;
+}
+
 /** Hand-off for one day (MAP-6): at most the first 10 stops. */
 export function googleDayUrl(stops: ReadonlyArray<readonly [number, number]>): string | null {
   const s = stops.slice(0, 10);

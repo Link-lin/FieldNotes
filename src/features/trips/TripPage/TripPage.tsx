@@ -13,6 +13,7 @@ import { AddFab } from "./AddFab/AddFab";
 import { BookingList } from "./BookingList/BookingList";
 import { CostsSection } from "./CostsSection/CostsSection";
 import { DaySection, SubHeading, TodayMark } from "./DaySection/DaySection";
+import { EventPanel } from "./EventPanel/EventPanel";
 import { DayTabs } from "./DayTabs/DayTabs";
 import { GlobeLocation } from "./GlobeLocation/GlobeLocation";
 import { MapPanel } from "./MapPanel/MapPanel";
@@ -34,7 +35,7 @@ type ItemFormState = { item: PlanItemDTO | null; date: string; trigger: string |
  * costs, bookings and globe location. This component holds the page state and actions; each part
  * renders itself.
  */
-export function TripPage({ data, initialDay }: { data: TripDetailDTO; initialDay: string | null }) {
+export function TripPage({ data, initialDay, mapsKey }: { data: TripDetailDTO; initialDay: string | null; mapsKey: string | null }) {
   const router = useRouter();
   const toast = useToast();
   const { trip, items } = data;
@@ -58,6 +59,9 @@ export function TripPage({ data, initialDay }: { data: TripDetailDTO; initialDay
   const [sharing, setSharing] = useState(false);
   const [itemForm, setItemForm] = useState<ItemFormState | null>(null);
   const [menuFor, setMenuFor] = useState<string | null>(null);
+  // The event side panel (TRIP-10). `open` turns false while it slides out; `snapshot` keeps an
+  // event that disappeared (deleted elsewhere) on screen until then.
+  const [panel, setPanel] = useState<{ id: string; open: boolean; snapshot: PlanItemDTO } | null>(null);
   // Deleted this visit and still restorable, so Undo stays reachable after the toast closes.
   const [recentlyDeleted, setRecentlyDeleted] = useState<PlanItemDTO[]>([]);
 
@@ -154,6 +158,23 @@ export function TripPage({ data, initialDay }: { data: TripDetailDTO; initialDay
   const defaultCurrency = lastPriced?.plannedPrice?.currency ?? trip.budget?.currency ?? data.recentCurrencies[0] ?? "USD";
   const openAdd = (date: string, trigger: string | null) => setItemForm({ item: null, date, trigger });
 
+  // Events in the order the current tab shows them, for the panel's Previous and Next.
+  const shown = [
+    ...(all ? days : [day]).flatMap((d) => {
+      const list = byDate.get(d) ?? [];
+      return [...list.filter((i) => i.sortInstant), ...list.filter((i) => !i.sortInstant)];
+    }),
+    ...(all ? [...undatedFlights, ...undated] : []),
+  ];
+  const panelItem = panel ? (items.find((i) => i.id === panel.id) ?? panel.snapshot) : null;
+  const panelAt = panelItem ? shown.findIndex((i) => i.id === panelItem.id) : -1;
+  const openPanel = (item: PlanItemDTO) => {
+    setMenuFor(null);
+    setPanel({ id: item.id, open: true, snapshot: item });
+  };
+  const closePanel = () => setPanel((p) => (p ? { ...p, open: false } : p));
+  const panelExited = () => setPanel((p) => (p && !p.open ? null : p));
+
   const timeline = (list: PlanItemDTO[], numbered: boolean) => (
     <Timeline
       items={list}
@@ -162,6 +183,7 @@ export function TripPage({ data, initialDay }: { data: TripDetailDTO; initialDay
       tripZone={trip.timeZone}
       menuFor={menuFor}
       onMenu={setMenuFor}
+      onOpen={openPanel}
       onEdit={(i) => {
         setMenuFor(null);
         setItemForm({ item: i, date: "", trigger: `[data-menu="${i.id}"]` });
@@ -251,6 +273,26 @@ export function TripPage({ data, initialDay }: { data: TripDetailDTO; initialDay
             router.refresh();
             toast({ message: `${created ? "Event added" : "Event updated"}${saved.coordinates?.source === "map_link" ? " and pinned on the map" : saved.mapUrl && !saved.coordinates ? ". The map link has no coordinates the app can read, so it is not on the map" : ""}.` });
           }}
+        />
+      ) : null}
+      {panel && panelItem ? (
+        <EventPanel
+          trip={trip}
+          item={panelItem}
+          open={panel.open}
+          owner={owner}
+          num={numbers.get(panelItem.id) ?? null}
+          mapsKey={mapsKey}
+          prev={panelAt > 0 ? (shown[panelAt - 1] ?? null) : null}
+          next={panelAt >= 0 ? (shown[panelAt + 1] ?? null) : null}
+          onGo={(i) => setPanel({ id: i.id, open: true, snapshot: i })}
+          onClose={closePanel}
+          onExited={panelExited}
+          onEdit={(i) => {
+            closePanel();
+            setItemForm({ item: i, date: "", trigger: `[data-details="${i.id}"]` });
+          }}
+          onNotesSaved={() => router.refresh()}
         />
       ) : null}
       {sharing && owner ? <ShareDialog trip={trip} onClose={() => setSharing(false)} /> : null}

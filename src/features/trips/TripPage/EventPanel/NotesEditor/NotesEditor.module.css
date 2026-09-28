@@ -1,0 +1,10 @@
+.notes { display: grid; gap: var(--space-2); }
+.label { font: 500 11px var(--mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-3); }
+.field { width: 100%; min-height: 120px; resize: vertical; padding: 10px 12px; border: 1px solid var(--ctl); border-radius: var(--radius-md); background: var(--paper); line-height: 1.5; transition: border-color 0.2s, background 0.2s; }
+.field:focus { border-color: var(--ink); background: var(--card); }
+.field[aria-invalid="true"] { border-color: var(--vermilion-ink); }
+.foot { display: flex; justify-content: space-between; gap: var(--space-2); font-size: var(--text-sm); color: var(--ink-3); }
+.status[data-status="saved"] { color: var(--forest); }
+.status[data-status="error"], .status[data-status="conflict"] { color: var(--vermilion-ink); }
+.count { font-variant-numeric: tabular-nums; }
+.error { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); color: var(--vermilion-ink); font-size: var(--text-sm); }

@@ -52,3 +52,15 @@ export function straightLineKm(stops: Stop[]): number {
   });
   return km;
 }
+
+/** The time shown for an event: its local time (and zone when not the trip's), or why there is none. */
+export function eventTimeText(item: PlanItemDTO, tripZone: string): string {
+  if (item.flightDetails) {
+    const d = item.flightDetails.departure;
+    if (d.localDateTime) return `${d.localDateTime.slice(11)}${d.timeZone && d.timeZone !== tripZone ? ` (${d.timeZone})` : ""}`;
+    return item.timelineDate ? "Time not set" : "No date";
+  }
+  if (!item.localDate) return "No date";
+  if (!item.localTime) return "Time not set";
+  return `${item.localTime}${item.timeZone && item.timeZone !== tripZone ? ` (${item.timeZone})` : ""}${item.durationMinutes ? ` · ${item.durationMinutes} min` : ""}`;
+}

@@ -10,13 +10,14 @@ type Props = {
   tripZone: string;
   menuFor: string | null;
   onMenu: (id: string | null) => void;
+  onOpen: (item: PlanItemDTO) => void;
   onEdit: (item: PlanItemDTO) => void;
   onDuplicate: (item: PlanItemDTO) => void;
   onDelete: (item: PlanItemDTO) => void;
 };
 
 /** A vertical line of events in time order. */
-export function Timeline({ items, numbers, owner, tripZone, menuFor, onMenu, onEdit, onDuplicate, onDelete }: Props) {
+export function Timeline({ items, numbers, owner, tripZone, menuFor, onMenu, onOpen, onEdit, onDuplicate, onDelete }: Props) {
   return (
     <ul className={styles.timeline} data-timeline>
       {items.map((i) => (
@@ -28,6 +29,7 @@ export function Timeline({ items, numbers, owner, tripZone, menuFor, onMenu, onE
           tripZone={tripZone}
           menuOpen={menuFor === i.id}
           onMenu={(o) => onMenu(o ? i.id : null)}
+          onOpen={() => onOpen(i)}
           onEdit={() => onEdit(i)}
           onDuplicate={() => onDuplicate(i)}
           onDelete={() => onDelete(i)}

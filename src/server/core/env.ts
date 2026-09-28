@@ -26,3 +26,13 @@ export function appOrigin(): string {
   if (process.env.NODE_ENV === "production") throw new Error("APP_ORIGIN must be set in production.");
   return "http://localhost:3000";
 }
+
+/**
+ * Browser key for the Google Maps Embed API, shown in the event side panel (MAP-8). Optional:
+ * without it the panel shows the event without a map. Restrict the key to the Maps Embed API and
+ * to this site's address in Google Cloud; the page sends only its origin as the referrer.
+ */
+export function mapsEmbedKey(): string | null {
+  const key = process.env.GOOGLE_MAPS_EMBED_API_KEY?.trim();
+  return key ? key : null;
+}

@@ -1,0 +1,51 @@
+/* The trip page fades behind a paper-coloured wash while the panel is open. */
+.backdrop {
+  position: fixed; inset: 0; z-index: var(--z-modal);
+  background: color-mix(in srgb, var(--paper) 62%, transparent);
+  backdrop-filter: blur(1.5px) saturate(0.85);
+  animation: var(--kf-fade-in) 0.3s var(--ease-out) both;
+}
+.backdrop[data-state="closing"] { animation: var(--kf-fade-out) 0.24s ease-in both; pointer-events: none; }
+
+/* The panel slides in from the right edge and back out on close. */
+.panel {
+  position: absolute; top: 0; right: 0; bottom: 0; width: min(460px, 100%);
+  display: flex; flex-direction: column;
+  background: var(--card); border-left: 1px solid var(--line);
+  box-shadow: -24px 0 60px rgba(60, 44, 20, 0.16);
+  overflow-y: auto; overscroll-behavior: contain;
+  animation: var(--kf-panel-in) 0.38s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: transform;
+}
+.backdrop[data-state="closing"] .panel { animation: var(--kf-panel-out) 0.26s cubic-bezier(0.5, 0, 0.75, 0) both; }
+
+.bar { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); padding: var(--space-3) var(--space-4); background: var(--card); border-bottom: 1px solid var(--line); }
+.step { display: flex; gap: var(--space-2); }
+.close { width: var(--tap); height: var(--tap); border-radius: 50%; border: 1px solid var(--ctl); background: none; font-size: 22px; line-height: 1; color: var(--ink-2); display: grid; place-items: center; transition: border-color 0.2s, color 0.2s, transform 0.2s; }
+.close:hover { border-color: var(--ink); color: var(--ink); transform: rotate(90deg); }
+
+/* Each event's content fades up gently, on open and when stepping to another event. */
+.body { display: grid; gap: var(--space-5); padding: var(--space-5) var(--space-5) var(--space-8); animation: var(--kf-rise) 0.34s 0.06s var(--ease-out) both; }
+.head { display: grid; gap: var(--space-2); }
+.when { margin: 0; display: flex; align-items: center; gap: var(--space-2); font: 500 12px var(--mono); letter-spacing: 0.06em; color: var(--ink-3); }
+.title { font-size: clamp(24px, 4vw, 30px); line-height: 1.15; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.section { display: grid; gap: var(--space-2); }
+.place { margin: 0; display: inline-flex; gap: 6px; align-items: center; color: var(--ink-2); }
+.place svg { width: 14px; height: 14px; flex: none; }
+.links { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+
+.facts { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: var(--space-2) var(--space-4); font-size: var(--text-md); }
+.facts:empty { display: none; }
+.facts dt { font: 500 11px var(--mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-3); padding-top: 2px; }
+.facts dd { margin: 0; }
+
+.label { margin: 0; font: 500 11px var(--mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-3); }
+.notes { margin: 0; white-space: pre-wrap; line-height: 1.55; }
+.actions { display: flex; justify-content: flex-end; }
+
+@media (max-width: 600px) {
+  .panel { border-left: 0; }
+  .body { padding: var(--space-4) var(--space-4) var(--space-7); }
+}

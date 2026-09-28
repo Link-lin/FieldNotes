@@ -8,7 +8,8 @@ import { Menu, MenuItem } from "@/components/ui/Menu/Menu";
 import { Tag } from "@/components/ui/Tag/Tag";
 import { priceText, TYPE_LABEL } from "@/lib/format";
 import { StopNumber } from "../../StopNumber/StopNumber";
-import { FlightCard } from "./FlightCard/FlightCard";
+import { eventTimeText } from "../../trip-days";
+import { FlightCard } from "../../FlightCard/FlightCard";
 import styles from "./EventRow.module.css";
 
 type Props = {
@@ -18,31 +19,25 @@ type Props = {
   tripZone: string;
   menuOpen: boolean;
   onMenu: (open: boolean) => void;
+  /** Opens the event's side panel (TRIP-10). */
+  onOpen: () => void;
   onEdit: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
 };
 
-function timeText(item: PlanItemDTO, tripZone: string): string {
-  if (item.flightDetails) {
-    const d = item.flightDetails.departure;
-    if (d.localDateTime) return `${d.localDateTime.slice(11)}${d.timeZone && d.timeZone !== tripZone ? ` (${d.timeZone})` : ""}`;
-    return item.timelineDate ? "Time not set" : "No date";
-  }
-  if (!item.localDate) return "No date";
-  if (!item.localTime) return "Time not set";
-  return `${item.localTime}${item.timeZone && item.timeZone !== tripZone ? ` (${item.timeZone})` : ""}${item.durationMinutes ? ` · ${item.durationMinutes} min` : ""}`;
-}
-
 /**
  * One timeline row: number, time, title (or flight card), notes, place links, tags, and the
- * owner's three-dot menu (TRIP-8). data-hl links it with its pin and stop-list line.
+ * owner's three-dot menu (TRIP-8). data-hl links it with its pin and stop-list line. The whole
+ * row opens the event's side panel (TRIP-10) through one stretched button; links and the menu
+ * sit above it and keep working.
  */
-export function EventRow({ item, num, owner, tripZone, menuOpen, onMenu, onEdit, onDuplicate, onDelete }: Props) {
+export function EventRow({ item, num, owner, tripZone, menuOpen, onMenu, onOpen, onEdit, onDuplicate, onDelete }: Props) {
   const f = item.flightDetails;
   return (
     <li className={styles.event} data-hl={item.id} data-numbered={!!num} data-owned={owner} data-menu-open={menuOpen}>
       {num ? <StopNumber n={num.n} need={num.need} className={styles.num} /> : null}
+      <button type="button" className={styles.open} data-details={item.id} aria-haspopup="dialog" aria-label={`Details for ${item.title}`} onClick={onOpen} />
       {owner ? (
         <Menu
           className={styles.menu}
@@ -60,7 +55,7 @@ export function EventRow({ item, num, owner, tripZone, menuOpen, onMenu, onEdit,
           <MenuItem icon={<TrashIcon />} danger onClick={onDelete}>Delete event</MenuItem>
         </Menu>
       ) : null}
-      <span className={styles.time}>{timeText(item, tripZone)}</span>
+      <span className={styles.time}>{eventTimeText(item, tripZone)}</span>
       {f ? <FlightCard item={item} className={styles.flight} /> : <span className={styles.title}>{item.title}</span>}
       {item.notes ? <p className={styles.notes}>{item.notes}</p> : null}
       {item.location || item.mapUrl || item.links.length ? (

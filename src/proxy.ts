@@ -15,6 +15,8 @@ export function proxy(request: NextRequest) {
     "img-src 'self' data: blob:",
     "font-src 'self'",
     "connect-src 'self'",
+    // The event side panel embeds Google's Maps Embed API (MAP-8); nothing else may be framed.
+    "frame-src https://www.google.com",
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self' https://accounts.google.com",
