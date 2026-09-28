@@ -54,7 +54,7 @@ export function GoogleRoadMap({ stops, apiKey }: { stops: Stop[]; apiKey: string
         <span className={styles.loading} aria-hidden="true">Loading road map…</span>
       </div>
       <figcaption className="note">
-        Map by Google. Opening this view sends its pinned coordinates to Google.
+        Map by Google. Opening this view sends its pinned coordinates, and the codes of airports you arrive at, to Google.
         {route ? " Route markers are Google’s; the numbered stop list below matches the itinerary." : " Add another pinned stop on this day to show a road route."}
         {chunks.length > 1 ? " Flights and long routes are shown in separate segments." : ""}
       </figcaption>
