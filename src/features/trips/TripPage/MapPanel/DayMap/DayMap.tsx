@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cx as cn } from "@/lib/cx";
 import type { Stop } from "../../trip-days";
+import { StopNumber } from "../../StopNumber/StopNumber";
 import { MAP_CITIES, outlinePaths, outlineProjection } from "./geography";
 import styles from "./DayMap.module.css";
 
@@ -24,6 +25,9 @@ export function DayMap({ stops, onPin }: { stops: Stop[]; onPin: (id: string) =>
   const ptrs = useRef(new Map<number, { x: number; y: number }>());
   const pinch = useRef<{ d: number; w: number } | null>(null);
   const moved = useRef(false);
+  // A shared marker (several stops at nearly one place) opens a short list of those stops.
+  const [openLead, setOpenLead] = useState<string | null>(null);
+  const list = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const el = svg.current;
@@ -81,12 +85,14 @@ export function DayMap({ stops, onPin }: { stops: Stop[]; onPin: (id: string) =>
     .map((p, i) => ({ p, i }))
     .filter(({ i }) => lead[i] === i)
     .map(({ p, i }) => {
-      const group = [i, ...(members.get(i) ?? [])].map((g) => pts[g]!.s.n);
+      const together = [i, ...(members.get(i) ?? [])].map((g) => pts[g]!.s);
+      const group = together.map((s) => s.n);
       const joined = group.join("·");
-      const text = group.length > 1 ? (joined.length <= 5 ? joined : `${group[0]}+`) : String(group[0]);
+      // "2·9", or "2+3" (stop 2 and three more) when the numbers don't fit.
+      const text = group.length > 1 ? (joined.length <= 5 ? joined : `${group[0]}+${group.length - 1}`) : String(group[0]);
       const r = group.length > 1 ? pr + (text.length > 2 ? 7 : 3) : pr;
       const label = group.length > 1 ? `Stops ${group.join(", ")}` : short(p.s.name);
-      return { p, i, group, text, r, label, right: p.x < W0 * 0.62 };
+      return { p, i, group, together, text, r, label, right: p.x < W0 * 0.62 };
     });
   const placed: Array<{ x: number; y: number; w: number; h: number }> = [];
   const circles = shown.map((d) => ({ x: screen[d.i]!.x, y: screen[d.i]!.y, r: (d.r + 2) * k }));
@@ -102,6 +108,33 @@ export function DayMap({ stops, onPin }: { stops: Stop[]; onPin: (id: string) =>
     if (ok) placed.push({ x: bx, y: by, w, h });
     return ok;
   });
+
+  const open = shown.find((d) => d.p.s.id === openLead && d.group.length > 1) ?? null;
+  const openAt = open ? screen[open.i]! : null;
+  useEffect(() => {
+    if (!openLead) return;
+    const onDown = (e: PointerEvent) => {
+      const t = e.target as Element | null;
+      if (!list.current?.contains(t) && !t?.closest?.(`[data-pin="${CSS.escape(openLead)}"]`)) setOpenLead(null);
+    };
+    document.addEventListener("pointerdown", onDown);
+    return () => document.removeEventListener("pointerdown", onDown);
+  }, [openLead]);
+  const pinFor = (id: string) => svg.current?.querySelector<SVGGElement>(`[data-pin="${CSS.escape(id)}"]`) ?? null;
+  function closeList(refocus: boolean) {
+    const lead = openLead;
+    setOpenLead(null);
+    if (refocus && lead) requestAnimationFrame(() => pinFor(lead)?.focus());
+  }
+  function activate(d: (typeof shown)[number]) {
+    if (d.group.length < 2) {
+      onPin(d.p.s.id);
+      return;
+    }
+    const opening = openLead !== d.p.s.id;
+    setOpenLead(opening ? d.p.s.id : null);
+    if (opening) requestAnimationFrame(() => list.current?.querySelector<HTMLButtonElement>("button")?.focus());
+  }
 
   // City labels stay the same screen size while zooming. Prominent cities show first, smaller
   // ones become eligible when zoomed in, and none cover a stop pin or a stop label.
@@ -133,6 +166,7 @@ export function DayMap({ stops, onPin }: { stops: Stop[]; onPin: (id: string) =>
     const w = Math.max(W0 / 12, Math.min(W0 * 2, nw));
     if (Math.abs(w - cur.w) < 0.01) return false;
     const h = (w * H0) / W0;
+    setOpenLead(null); // the list would no longer sit beside its marker
     setVb(clampVb({ x: ux - ((ux - cur.x) * w) / cur.w, y: uy - ((uy - cur.y) * h) / cur.h, w, h }));
     return true;
   }
@@ -186,6 +220,7 @@ export function DayMap({ stops, onPin }: { stops: Stop[]; onPin: (id: string) =>
     if (d.moved) {
       const r = svg.current!.getBoundingClientRect();
       const cur = vb;
+      setOpenLead(null);
       setVb(clampVb({ ...cur, x: d.vx - (dx / r.width) * cur.w, y: d.vy - (dy / r.height) * cur.h }));
     }
   }
@@ -264,14 +299,17 @@ export function DayMap({ stops, onPin }: { stops: Stop[]; onPin: (id: string) =>
               className={styles.pin}
               data-hl={d.p.s.id}
               transform={`translate(${d.p.x.toFixed(1)} ${d.p.y.toFixed(1)}) scale(${1 / z})`}
+              data-pin={d.p.s.id}
               tabIndex={0}
               role="button"
               aria-label={d.group.length > 1 ? `Stops ${d.group.join(", ")}, at nearly the same place` : `Stop ${d.p.s.n}: ${d.p.s.name}`}
-              onClick={() => onPin(d.p.s.id)}
+              aria-haspopup={d.group.length > 1 ? "dialog" : undefined}
+              aria-expanded={d.group.length > 1 ? openLead === d.p.s.id : undefined}
+              onClick={() => activate(d)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
-                  onPin(d.p.s.id);
+                  activate(d);
                 }
               }}
             >
@@ -285,6 +323,43 @@ export function DayMap({ stops, onPin }: { stops: Stop[]; onPin: (id: string) =>
             </g>
           ))}
         </svg>
+        {open && openAt ? (
+          <div
+            ref={list}
+            className={styles.stops}
+            role="dialog"
+            aria-label={`Stops ${open.group.join(", ")}, at nearly the same place`}
+            style={{ left: Math.max(8, Math.min(openAt.x + (open.r + 8) * k, (screenW || W0) - 288)), top: Math.max(8, openAt.y - 18) }}
+            onKeyDown={(e) => {
+              if (e.key !== "Escape") return;
+              e.preventDefault();
+              e.stopPropagation();
+              closeList(true);
+            }}
+            onBlur={(e) => {
+              if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOpenLead(null);
+            }}
+          >
+            <p className={styles.stopsHead}>Same place · {open.group.length} stops</p>
+            <ul>
+              {open.together.map((s) => (
+                <li key={s.id}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      closeList(true);
+                      onPin(s.id);
+                    }}
+                  >
+                    <StopNumber n={s.n} need={s.need} />
+                    <span>{s.name}</span>
+                    <span className={styles.stopsDay}>{s.dayLabel}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
         <div className={styles.controls}>
           <span className={styles.zoom}>
             <button type="button" aria-label="Zoom in on the map" disabled={z > 11.9} onClick={() => zoomTo(vb.x + vb.w / 2, vb.y + vb.h / 2, vb.w / 1.5)}>+</button>
@@ -299,7 +374,7 @@ export function DayMap({ stops, onPin }: { stops: Stop[]; onPin: (id: string) =>
             <text x="11" y="40" textAnchor="middle" fontFamily="var(--mono)" fontSize="10" fill="currentColor">N</text>
           </svg>
           {Math.abs(z - 1) > 0.02 ? (
-            <button className={cn("mono", styles.reset)} type="button" onClick={() => setVb({ x: 0, y: 0, w: W0, h: H0 })}>Reset view</button>
+            <button className={cn("mono", styles.reset)} type="button" onClick={() => { setOpenLead(null); setVb({ x: 0, y: 0, w: W0, h: H0 }); }}>Reset view</button>
           ) : null}
         </div>
       </div>

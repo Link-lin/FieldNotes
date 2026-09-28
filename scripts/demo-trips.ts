@@ -251,6 +251,16 @@ export function demoTrips(today: string): TripSpec[] {
         bookingStatus: "needs_booking", // no book-by date
         price: usd("398.00"),
       },
+      {
+        type: "meal",
+        title: "Mai tais back at Duke's",
+        location: "Duke's Waikiki, 2335 Kalākaua Ave, Honolulu",
+        mapUrl: "21.27670, -157.82780", // a return visit: the same point as day 1's dinner, so Whole trip shares one marker
+        date: d(2),
+        time: "21:30",
+        bookingStatus: "not_required",
+        ai: true,
+      },
 
       // Day 4 — hop to Maui: fully scheduled but not booked yet, so its booking task offers Mark booked.
       {

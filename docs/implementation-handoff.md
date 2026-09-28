@@ -15,6 +15,7 @@ Last updated 28 Sep 2026. Read this first, then [AGENTS.md](../AGENTS.md). Keep 
   - The import preview's one-line card summaries (time, place, price), **Expand all** / **Collapse all**, and its date and time pickers (paste a response with an invalid date to see the text field, then fix it).
   - The trip Bookings actions: **Mark booked** with **Undo**, and setting/removing a book-by date (including focus when a task moves between urgency groups). Re-run the seed first. Desktop and phone navigation from the dashboard shortcut into Bookings, phone event return, empty states and no phone overflow have been browser-checked.
   - The phone itinerary tile strip (600 px and narrower).
+  - The Whole trip map's shared marker for the Duke's return visit (Hawaii days 1 and 3): its number list, the stop list it opens, keyboard use and closing.
   - The timeline without "Time not set" and "No date" lines, and the slim cards for unscheduled flights (OGG → KOA, and the undated backup hop with no airports).
   - The trip page at about 1,100, 1,400 and 2,000 px: the **Up next** card (Hawaii before the trip, Kauaʻi during it; re-run the seed first), the figures bar beside the view switch (and wrapping below it), the narrower map column, the one-row map controls, and a long day's stop list scrolling inside the map card.
 - **The AI import pilot has not run.** It needs real travel plans and external AI tools, so don't describe it as done.

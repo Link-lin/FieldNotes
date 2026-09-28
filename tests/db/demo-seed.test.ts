@@ -49,6 +49,11 @@ describe("test trips seed", () => {
     const pinsByDay = new Map<string, number>();
     for (const i of items) if (i.coordinates && i.timelineDate) pinsByDay.set(i.timelineDate, (pinsByDay.get(i.timelineDate) ?? 0) + 1);
     expect(Math.max(...pinsByDay.values())).toBeGreaterThanOrEqual(3);
+    // A return visit: two events on different days at exactly the same point.
+    const points = items.filter((i) => i.coordinates?.source === "map_link" && i.timelineDate).map((i) => `${i.coordinates!.latitude},${i.coordinates!.longitude}|${i.timelineDate}`);
+    const byPoint = new Map<string, Set<string>>();
+    for (const p of points) { const [at, day] = p.split("|") as [string, string]; byPoint.set(at, (byPoint.get(at) ?? new Set()).add(day)); }
+    expect([...byPoint.values()].some((days) => days.size > 1)).toBe(true);
     const unpinned = items.filter((i) => i.mapUrl && !i.coordinates).map((i) => i.mapProvider);
     expect(unpinned).toEqual(expect.arrayContaining(["Google Maps", "maps.google.com.example.net"]));
     expect(items.find((i) => i.title.startsWith("Check in: Outrigger"))?.mapUrl).not.toMatch(/entry=|g_ep=/);

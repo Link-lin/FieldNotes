@@ -27,3 +27,11 @@
 .reset { position: absolute; right: var(--space-3); bottom: var(--space-3); pointer-events: auto; border: 1px solid var(--ink); background: var(--card); border-radius: var(--radius-pill); padding: 4px var(--space-3); font-size: var(--text-2xs); }
 .empty { padding: var(--space-8) var(--space-4); text-align: center; color: var(--ink-2); display: grid; gap: 6px; }
 @media (pointer: coarse) { .reset { min-height: 44px; } }
+/* The stops behind a shared marker, beside it on the map. */
+.stops { position: absolute; z-index: 3; width: min(280px, calc(100% - 16px)); padding: var(--space-2); background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-md); box-shadow: var(--shadow); animation: var(--kf-settle) 0.2s var(--ease-out) both; }
+.stopsHead { margin: 0 0 var(--space-1); padding: 0 var(--space-2); color: var(--ink-3); font: 500 10px var(--mono); letter-spacing: 0.14em; text-transform: uppercase; }
+.stops ul { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.stops button { width: 100%; display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: var(--space-2); align-items: center; padding: 6px var(--space-2); border: 0; border-radius: var(--radius-xs); background: none; color: var(--ink); font: inherit; font-size: var(--text-md); text-align: left; cursor: pointer; }
+.stops button:hover, .stops button:focus-visible { background: var(--vermilion-wash); }
+.stops button > :first-child { grid-row: span 2; }
+.stopsDay { color: var(--ink-3); font-size: var(--text-sm); }
