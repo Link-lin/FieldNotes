@@ -10,17 +10,17 @@ Owners share a trip from its **Share** dialog: invite one email, copy the one-ti
 
 ## Requirements
 
-Node.js 22 or later and npm. PostgreSQL 16 or 17 is optional: `npm run db:start` runs a local embedded server.
+Node.js 22 or later and npm. PostgreSQL 16 or 17 is optional: `npm run dev` runs a local embedded server for you.
 
 ## Setup
 
 ```sh
 npm install
 cp .env.example .env.local      # then fill in the values below
-npm run db:start                # terminal 1: local PostgreSQL on port 5433 (data in .pgdata/)
-npm run db:migrate              # terminal 2: create the tables (run again after pulling new migrations)
 npm run dev                     # http://localhost:3000
 ```
+
+`npm run dev` starts the local PostgreSQL (port 5433, data in `.pgdata/`) if it isn't already running, applies any new migrations, then starts the app. Ctrl+C stops both. If `DATABASE_URL` points somewhere else, or a database is already running on that port, it uses that database and doesn't start or stop anything. `npm run db:start` (the database on its own), `npm run db:migrate` (migrations on their own, as in production) and `npm run dev:app` (the app only) are still available.
 
 In `.env.local`:
 
@@ -45,7 +45,7 @@ npm run build
 
 ## Pilot report
 
-`npm run pilot:report` prints the daily usage counts recorded for the AI import pilot (PRD section 8): totals, weekly figures and rates such as clean previews and skipped items. It reads `DATABASE_URL` from `.env.local`. The counts hold no account, trip or content data. Run `npm run db:migrate` first so the `usage_counts` table exists; until then the app simply records nothing.
+`npm run pilot:report` prints the daily usage counts recorded for the AI import pilot (PRD section 8): totals, weekly figures and rates such as clean previews and skipped items. It reads `DATABASE_URL` from `.env.local`, so the database must be running (`npm run dev` or `npm run db:start`). The counts hold no account, trip or content data.
 
 ## Data
 

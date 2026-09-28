@@ -33,7 +33,7 @@ Last updated 28 Sep 2026 (review fixes B1, B2, I1 and F1 on `feat/review-fixes`,
   - B1: `/import` no longer logs hydration error #418. Currency names are bundled (`src/shared/currencies.ts`) instead of coming from `Intl.DisplayNames`, whose names differ between Node and browsers. The time-zone picker also read this device's zone and the full zone list on the server; both are now read after hydration through `useClientValue` (`src/lib/client-value.ts`).
   - B2: the dashboard shows the viewer's own date ("today is 27 Sep"), read in the browser, instead of the server's UTC date.
   - I1: the map-link field accepts pasted coordinates such as `35.0116, 135.7681`. They are saved as a Google Maps search link for that point and pin the event; the field's hint says as you type whether the value will pin. The PRD's MAP-2 now allows this.
-  - F1: daily pilot counts in a new `usage_counts` table (migration `0003_usage_counts`): import previews (clean, needing fixes, rejected), imported and manual trips and items, items skipped in preview, AI items edited or deleted, book-by dates set and items booked. No user, trip or content is stored; counting never fails a request. `npm run pilot:report` prints totals, weekly figures and rates. **Run `npm run db:migrate` once** after checking out this branch; until then nothing is counted (a one-line `[usage]` error is logged per action).
+  - F1: daily pilot counts in a new `usage_counts` table (migration `0003_usage_counts`): import previews (clean, needing fixes, rejected), imported and manual trips and items, items skipped in preview, AI items edited or deleted, book-by dates set and items booked. No user, trip or content is stored; counting never fails a request. `npm run pilot:report` prints totals, weekly figures and rates. `npm run dev` applies the new migration itself.
   - Checks: lint, typecheck, `npm test` (157 tests) and the build passed before each commit. Browser checks in dev covered no hydration errors on `/import` in UTC, Los Angeles and Tokyo, the dashboard date in Honolulu versus UTC, pinning from pasted coordinates with the live hint, and a UI import with one skipped item followed by a correct `pilot:report`.
 - **Added since the first build:**
   - New-trip form:
@@ -121,9 +121,7 @@ A product-manager pass over `main` and `feat/event-panel` against the PRD, with 
 
 - **Run it locally:**
   1. `npm install`
-  2. `npm run db:start`, which starts embedded PostgreSQL.
-  3. `npm run db:migrate` (again after pulling a branch with a new migration, such as `0003_usage_counts`)
-  4. `npm run dev`
+  2. `npm run dev`. It starts the embedded PostgreSQL if it isn't running, applies new migrations, then starts the app; Ctrl+C stops both. `db:start`, `db:migrate` and `dev:app` still run each part alone.
 
   `.env.local` needs `AUTH_SECRET`, the Google client ID and secret, and `TRIP_OWNER_EMAILS` (see the README). Never commit it or overwrite it.
 - **Before every commit:** run `npm run lint`, `npm run typecheck`, `npm test` and `npm run build`.
@@ -136,7 +134,7 @@ A product-manager pass over `main` and `feat/event-panel` against the PRD, with 
 ## Next milestone
 
 1. Add a Maps Embed API key to `.env.local`, check the event panel's map, then merge `feat/event-panel`. The steps are in `claude/map-embed-setup.md` in the Claude project and in the README.
-2. Run `npm run db:migrate`, look over `feat/review-fixes` (B1, B2, I1, F1) in the browser, then merge it after `feat/event-panel`.
+2. Look over `feat/review-fixes` (B1, B2, I1, F1, and `npm run dev` now starting the database and migrating) in the browser, then merge it after `feat/event-panel`.
 3. Check viewer invitations with two real Google accounts (see Status) and fix anything it finds.
 4. Pilot AI import with real plans and external AI tools. This has not been done yet; the counts are ready for it. Read `npm run pilot:report` weekly (clean previews, skipped items, edits per imported item, due-date use) before adding in-page AI generation or free-form parsing. Confirm whether TRIP-7 should be built.
 5. Remaining review items: B3–B5, I2–I10 and the owner decisions above.
