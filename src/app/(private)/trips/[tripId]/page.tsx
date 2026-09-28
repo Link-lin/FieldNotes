@@ -6,17 +6,17 @@ import { currentActor, pageActor } from "@/server/auth/session";
 import { getTripDetail } from "@/server/modules/trips/trips.service";
 import { TripPage } from "@/features/trips/TripPage/TripPage";
 
-type Props = { params: Promise<{ tripId: string }>; searchParams: Promise<{ day?: string }> };
+type Props = { params: Promise<{ tripId: string }>; searchParams: Promise<{ day?: string; event?: string }> };
 
 export default async function TripRoute({ params, searchParams }: Props) {
   const { tripId } = await params;
   const actor = await pageActor(`/trips/${encodeURIComponent(tripId)}`);
-  const { day } = await searchParams;
+  const { day, event } = await searchParams;
   const data = await getTripDetail(getDb(), actor, tripId).catch((err: unknown) => {
     if (err instanceof HttpError && err.status === 404) notFound();
     throw err;
   });
-  return <TripPage key={tripId} data={data} initialDay={day ?? null} mapsKey={mapsEmbedKey()} />;
+  return <TripPage key={tripId} data={data} initialDay={day ?? null} initialEvent={event ?? null} mapsKey={mapsEmbedKey()} />;
 }
 
 export async function generateMetadata({ params }: Props) {

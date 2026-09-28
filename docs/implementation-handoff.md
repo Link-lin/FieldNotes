@@ -4,13 +4,14 @@ Last updated 28 Sep 2026. Read this first, then [AGENTS.md](../AGENTS.md). Keep 
 
 ## Where things stand
 
-- **`main` is the working branch; the owner pushes it.** Lint, typecheck, 179 tests and the production build pass.
-- **Built:** everything listed under "Built so far" in the [README](../README.md): sign-in with an owner allowlist, trips and the globe dashboard, the trip page (day tabs, events, costs, booking list, outline day map with an optional Google road route), the event view and editor with an embedded Google map, AI import from an external chat, read-only viewer invitations, account deletion, pilot counts, and test trips.
+- **`main` is the working branch; the owner pushes it.** Lint, typecheck, 184 tests and the production build pass.
+- **Built:** everything listed under "Built so far" in the [README](../README.md): sign-in with an owner allowlist, trips and the globe dashboard, the trip page (day tabs, events, costs, a booking list that the dashboard shares, where tasks are marked booked and dated, outline day map with an optional Google road route), the event view and editor with an embedded Google map, AI import from an external chat, read-only viewer invitations, account deletion, pilot counts, and test trips.
 - **Not built:** TRIP-7 (import into an existing trip, proposed) and ATLAS-4's click-the-globe point picker (catalog search only).
 - **Not yet verified by hand:**
   - Viewer invitations with two real Google accounts: the sign-in round trip after opening a link, a brand-new invitee passing the sign-in gate, and **Switch Google account**.
   - After the last change, that the Road route on Hawaii day 1 starts at the airport by name. Re-run the seed first.
   - The import preview's one-line card summaries (time, place, price) and **Expand all** / **Collapse all**.
+  - The booking lists: opening a task's event from the dashboard (side panel on desktop, event page on phones), **Mark booked** with **Undo**, and the inline book-by date. Re-run the seed first.
 - **The AI import pilot has not run.** It needs real travel plans and external AI tools, so don't describe it as done.
 
 ## Run it
@@ -26,11 +27,10 @@ Last updated 28 Sep 2026. Read this first, then [AGENTS.md](../AGENTS.md). Keep 
 1. Do the two hand checks above.
 2. Run the AI import pilot with real plans and read `npm run pilot:report` weekly: clean previews, skipped items, edits per imported item, and due-date use. Decide on TRIP-7 afterwards.
 3. Remaining product-review items, highest value first:
-   - **I9:** make the booking lists actionable: open the event, **Mark booked**, set a book-by date.
    - **I8:** compact the summary tiles on phones.
    - **I4:** date pickers in the import preview once a value is valid.
    - **I7:** less repetition in the timeline ("Time not set", empty flight placeholders).
-   - **I10:** pins and stop-list entries open the event view, and desktop events get their own address (phones already have one).
+   - **I10:** pins and stop-list entries open the event view, and an open desktop panel keeps its own address (the trip page already opens `?event=` links from the dashboard, and phones have one).
 4. Candidate features: calendar (.ics) export, printable day sheets, duplicating a trip as a template, and day notes.
 
 ## Open decisions for the owner

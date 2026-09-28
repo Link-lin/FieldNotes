@@ -1,6 +1,7 @@
 import "server-only";
 import type { Insertable } from "kysely";
 import type { PlanItemRow, PlanItemsTable } from "@/server/core/db/schema";
+import { flightReadyToBook } from "@/shared/booking";
 import type { FieldError } from "@/shared/dto";
 import { cleanMapUrl, coordinatesFromMapUrl, mapLinkFromInput } from "@/shared/map-links";
 import { trimAmount } from "@/shared/money";
@@ -33,6 +34,16 @@ export function scheduleErrors(input: ItemInput, tripZone: string): FieldError[]
     check(input.localDate, input.localTime, input.timeZone ?? tripZone, input.timeDisambiguation, "localTime");
   }
   return errors;
+}
+
+type FlightColumns = "type" | "departure_airport_code" | "departure_local_datetime" | "departure_time_zone" | "arrival_airport_code" | "arrival_local_datetime" | "arrival_time_zone";
+
+/** FLIGHT-2 on a stored row: any other event can be marked Booked; a flight needs both airports, local times and zones. */
+export function canMarkBooked(row: Pick<PlanItemRow, FlightColumns>): boolean {
+  return row.type !== "flight" || flightReadyToBook({
+    departure: { airportCode: row.departure_airport_code, localDateTime: row.departure_local_datetime, timeZone: row.departure_time_zone },
+    arrival: { airportCode: row.arrival_airport_code, localDateTime: row.arrival_local_datetime, timeZone: row.arrival_time_zone },
+  });
 }
 
 function mapFields(input: ItemInput, current: PlanItemRow | null): { map_url: string | null; latitude: string | null; longitude: string | null } | FieldError {

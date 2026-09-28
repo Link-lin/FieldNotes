@@ -251,7 +251,7 @@ export function demoTrips(today: string): TripSpec[] {
         price: usd("398.00"),
       },
 
-      // Day 4 — hop to Maui.
+      // Day 4 — hop to Maui: fully scheduled but not booked yet, so its booking task offers Mark booked.
       {
         type: "flight",
         title: "HNL → OGG",
@@ -259,7 +259,8 @@ export function demoTrips(today: string): TripSpec[] {
         flightNumber: "HA 142",
         departure: flightEnd("HNL", dt(3, "09:10"), HAWAII_ZONE),
         arrival: flightEnd("OGG", dt(3, "09:52"), HAWAII_ZONE),
-        bookingStatus: "booked",
+        bookingStatus: "needs_booking",
+        bookingDueDate: due(4),
         price: usd("89.00"),
       },
       {

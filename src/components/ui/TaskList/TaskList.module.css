@@ -1,6 +1,7 @@
 .list { display: grid; gap: var(--space-2); }
 .task { display: flex; gap: var(--space-2); align-items: flex-start; font-size: var(--text-md); color: var(--ink-2); }
-.task svg { width: 15px; height: 15px; flex: none; margin-top: 3px; }
+.task > svg { width: 15px; height: 15px; flex: none; margin-top: 3px; }
+.body { min-width: 0; flex: 1; }
 .task a { text-decoration: none; }
 .task a:hover { text-decoration: underline; }
 .overdue { color: var(--vermilion-ink); font-weight: 600; }

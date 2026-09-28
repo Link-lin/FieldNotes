@@ -58,6 +58,17 @@ export async function updateNotes(tx: Tx, itemId: string, expectedVersion: numbe
     .executeTakeFirst();
 }
 
+/** Booking state and book-by date only, when the version still matches; undefined means someone else changed it first. */
+export async function updateBooking(tx: Tx, itemId: string, expectedVersion: number, status: "needs_booking" | "booked", dueDate: string | null): Promise<PlanItemRow | undefined> {
+  return tx
+    .updateTable("plan_items")
+    .set({ booking_status: status, booking_due_date: dueDate, version: sql`version + 1`, updated_at: sql`now()` })
+    .where("id", "=", itemId)
+    .where("version", "=", expectedVersion)
+    .returningAll()
+    .executeTakeFirst();
+}
+
 export async function softDelete(tx: Tx, itemId: string): Promise<void> {
   await tx.updateTable("plan_items").set({ deleted_at: sql`now()`, version: sql`version + 1` }).where("id", "=", itemId).execute();
 }
@@ -99,12 +110,15 @@ export async function setTimeDisambiguation(tx: Tx, itemId: string, value: "earl
   await tx.updateTable("plan_items").set({ time_disambiguation: value, version: sql`version + 1`, updated_at: sql`now()` }).where("id", "=", itemId).execute();
 }
 
-/** Items still to book in the given trips (id, trip, title, due date). */
+/** Items still to book in the given trips: id, trip, title, due date, version, and what FLIGHT-2 needs to know. */
 export async function openBookingItems(db: Conn, tripIds: string[], withDueDateOnly = false) {
   if (!tripIds.length) return [];
   let q = db
     .selectFrom("plan_items")
-    .select(["id", "trip_id", "title", "booking_due_date"])
+    .select([
+      "id", "trip_id", "title", "booking_due_date", "version", "type",
+      "departure_airport_code", "departure_local_datetime", "departure_time_zone", "arrival_airport_code", "arrival_local_datetime", "arrival_time_zone",
+    ])
     .where("trip_id", "in", tripIds)
     .where("booking_status", "=", "needs_booking")
     .where("deleted_at", "is", null);

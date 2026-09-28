@@ -3,6 +3,7 @@ import type { Kysely } from "kysely";
 import type { DB } from "@/server/core/db/schema";
 import type { Actor } from "@/server/auth/actor";
 import { openBookingItems } from "@/server/modules/items/items.repository";
+import { canMarkBooked } from "@/server/modules/items/items.rules";
 import { recentCurrencies } from "@/server/modules/trips/budget.repository";
 import { tripSummary } from "@/server/modules/trips/trips.mapper";
 import { visibleTrips } from "@/server/modules/trips/trips.repository";
@@ -33,8 +34,10 @@ export async function getDashboard(db: Kysely<DB>, actor: Actor, now = new Date(
         tripTitle: trip.title,
         itemId: i.id,
         itemTitle: i.title,
+        itemVersion: i.version,
         dueDate: i.booking_due_date,
         state: i.booking_due_date ? dueState(i.booking_due_date, today) : ("no_due_date" as const),
+        canMarkBooked: canMarkBooked(i),
       };
     })
     .sort(byDue);

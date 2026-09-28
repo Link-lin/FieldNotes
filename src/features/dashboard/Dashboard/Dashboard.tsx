@@ -33,11 +33,12 @@ export function Dashboard({ data, focus, initialFilter }: { data: DashboardDTO; 
     if (fromGlobe && id) document.querySelector(`[data-trip="${id}"]`)?.scrollIntoView({ block: "nearest" });
   }
 
-  // Coming back from a trip: restore scroll and put focus on that trip's card.
+  // Coming back from a trip: restore scroll and put focus on that trip's card, or the booking task opened.
   useEffect(() => {
     const saved = takeReturn();
     if (!saved?.trip || focus) return;
-    const link = document.querySelector<HTMLElement>(`[data-open="${CSS.escape(saved.trip)}"]`);
+    const task = saved.task ? document.querySelector<HTMLElement>(`[data-task-open="${CSS.escape(saved.task)}"]`) : null;
+    const link = task ?? document.querySelector<HTMLElement>(`[data-open="${CSS.escape(saved.trip)}"]`);
     if (!link) return;
     const list = innerScroller();
     if (list && typeof saved.list === "number") list.scrollTop = saved.list;
@@ -47,8 +48,9 @@ export function Dashboard({ data, focus, initialFilter }: { data: DashboardDTO; 
 
   // Any link into a trip remembers where the dashboard was.
   const onOpen = (e: React.MouseEvent) => {
-    const id = (e.target as Element).closest?.("[data-trip-link]")?.getAttribute("data-trip-link");
-    if (id) rememberReturn(id);
+    const link = (e.target as Element).closest?.("[data-trip-link]");
+    const id = link?.getAttribute("data-trip-link");
+    if (id) rememberReturn(id, link?.getAttribute("data-task-open") ?? undefined);
   };
 
   function onFilter(f: Filter) {

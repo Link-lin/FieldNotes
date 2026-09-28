@@ -40,7 +40,7 @@ Validate these assumptions with real trips before adding native AI, live data, o
 - Planned item prices, a trip budget, same-currency totals, and amount left or over in the budget's currency.
 - Booking tasks with owner-set due dates in an in-app list, not notifications.
 - A full-page trip view with a timeline, day tabs, an outline map, per-item map links, an event view with a live Google map and notes, and an optional Google road map the user opens deliberately.
-- Owner actions on the trip page only: add, edit and delete events, edit trip details, share, and delete the trip. The dashboard offers **New trip** and **Create from an AI plan**. Importing an AI plan into an existing trip is proposed (TRIP-7) and not in the baseline until confirmed.
+- Owner actions on the trip page only: add, edit and delete events, edit trip details, share, and delete the trip. The dashboard offers **New trip** and **Create from an AI plan**, and its booking list can mark items **Booked** and set book-by dates (BOOK-3). Importing an AI plan into an existing trip is proposed (TRIP-7) and not in the baseline until confirmed.
 
 ### Build later
 
@@ -71,7 +71,7 @@ These summaries show how the requirements fit together. The rules are in the fun
 
 **Create and share trips manually.** **New trip** creates an empty trip from its required details (DASH-3). To share, the owner enters an email, copies the invitation and sends it themselves; the invitee signs in with the matching Google account (ACCESS-3 to ACCESS-6, ACCESS-11). The owner can revoke access or delete the trip (DASH-5).
 
-**Use the dashboard.** The dashboard lists every trip the user owns or can view, grouped as Upcoming, Ongoing or Past, with a synchronized globe (DASH-1, DASH-2, ATLAS-1 to ATLAS-6). Each trip card shows title, destination, dates, and whether the user is the owner or a viewer. Owners see their upcoming and overdue booking tasks; viewer trips do not count toward owner-only summaries (BOOK-3). Owners edit trip details (DASH-6), add items by hand, and edit imported items without regenerating the whole plan (PLAN-3).
+**Use the dashboard.** The dashboard lists every trip the user owns or can view, grouped as Upcoming, Ongoing or Past, with a synchronized globe (DASH-1, DASH-2, ATLAS-1 to ATLAS-6). Each trip card shows title, destination, dates, and whether the user is the owner or a viewer. Owners see their upcoming and overdue booking tasks and can open, book or date them there; viewer trips do not count toward owner-only summaries (BOOK-3). Owners edit trip details (DASH-6), add items by hand, and edit imported items without regenerating the whole plan (PLAN-3).
 
 ## 5. Functional requirements
 
@@ -138,12 +138,12 @@ These summaries show how the requirements fit together. The rules are in the fun
 
 - **BOOK-1:** The owner can mark a reservable item **Needs booking** or **Booked**. Non-reservable items do not need a booking state.
 - **BOOK-2:** The owner sets a date-only due date for a booking task, in the trip time zone. A task is due on that local date and becomes overdue at the start of the next local date. The app does not guess a booking deadline.
-- **BOOK-3:** Items marked **Needs booking** appear in a booking list on the trip page. They also appear on the owner’s dashboard: items with due dates as upcoming or overdue, and items without one as needing a date. The MVP sends no email, push, or background notifications.
+- **BOOK-3:** Items marked **Needs booking** appear in a booking list on the trip page. They also appear on the owner’s dashboard: items with due dates as upcoming or overdue, and items without one as needing a date. In either list a task opens its event’s view (TRIP-10), and the owner can mark it **Booked** (a flight only with its FLIGHT-2 fields) or set, change or clear its due date without opening the item form. The MVP sends no email, push, or background notifications.
 - **BOOK-4:** Marking an item **Booked** removes it from the booking list and clears its due date. The owner can edit or clear a due date while an item is **Needs booking**.
 
 ### Trip page
 
-- **TRIP-1:** Opening a trip shows it on its own page with a stable, deep-linkable address. Back or **All trips** returns to the dashboard with its filter and scroll position preserved and focus on that trip's card. Changing tabs adds no browser history, so one Back always returns to the dashboard.
+- **TRIP-1:** Opening a trip shows it on its own page with a stable, deep-linkable address. Back or **All trips** returns to the dashboard with its filter and scroll position preserved and focus on that trip's card, or on the booking task that was opened. Changing tabs adds no browser history, so one Back always returns to the dashboard.
 - **TRIP-2:** The trip page offers **Whole trip** (the default), one tab per date in the trip range, and an **Outside trip dates** tab for any item date outside it. Day numbers count from the trip start date (Day 1). Empty days say "Nothing planned" and, for the owner, offer the add row. Within a day, **Unscheduled** items follow timed items (PLAN-1); **Undated** and **Undated flights** appear only in Whole trip, after the last day. Pins are numbered in that order; undated items are unnumbered. Whole trip shows every day with the same headings, timeline and numbering as the day tabs, then costs, the booking list (read-only for viewers) and the globe location.
 - **TRIP-3:** Only the owner sees add, edit, import, share and delete actions. **Add to itinerary** stays reachable while scrolling, is repeated at the end of each day, and defaults its date to the day in view. A viewer sees none of these controls.
 - **TRIP-4:** Summary tiles show only values derived from stored data: time to departure, day *N* of *M* or trip ended (in the trip time zone, as DASH-2); length in days; item count; pinned count; total straight-line distance between same-day stops; planned versus budget; and items to book (all **Needs booking** items, with or without a due date). No tile shows an invented, sample, or cross-currency-summed figure.
@@ -214,10 +214,10 @@ The MVP is acceptable when:
 - Imported items are never shown as confirmed bookings without owner confirmation, and every accepted item can be manually edited.
 - A flight item cannot be marked **Booked** until departure and arrival airport codes, local date-times, and time zones are present.
 - A user can enter item prices and a trip budget and see correct same-currency planned totals, with amount left or over budget only for the budget's currency and unlike currencies never combined.
-- An owner can add an itinerary item from the trip page (floating button or the end of any day) and can edit or delete any event from the three-dot menu on its row; a deletion survives closing the tab and can be undone for 10 minutes; the dashboard has no event controls; a viewer sees none of these controls. All of this works by keyboard with focus kept on a sensible control.
+- An owner can add an itinerary item from the trip page (floating button or the end of any day) and can edit or delete any event from the three-dot menu on its row; a deletion survives closing the tab and can be undone for 10 minutes; the dashboard's only event controls are **Mark booked** and the book-by date in its booking list; a viewer sees none of these controls. All of this works by keyboard with focus kept on a sensible control.
 - A saved Google Maps, Apple Maps or OpenStreetMap link with coordinates, or pasted decimal coordinates, pins its stop; a shortened, Amap or Baidu link, or one the app cannot read, leaves the item unpinned with a clear message. Import never pins. A look-alike host is labeled by its real host. The trip page makes no map, tile, geocoding or font request to a third party, except the Google Maps Embed frame once an event view (MAP-8) or the road view (MAP-9) is opened.
 - Whole trip and per-day views show the same items and numbering, and a single-day view can open that day in Google Maps on click.
-- Booking tasks with date-only due dates appear as due on that date and overdue from the next date in the trip time zone; they clear when marked booked.
+- Booking tasks with date-only due dates appear as due on that date and overdue from the next date in the trip time zone; they clear when marked booked. The owner can mark a task booked or set its due date from either booking list.
 - An unauthenticated visitor cannot retrieve trip content; a viewer can see only invited trips and cannot edit them; access revocation takes effect on subsequent requests.
 
 ## 9. Roadmap and decisions

@@ -148,6 +148,11 @@ export const itemPatchSchema = z
 /** TRIP-10: the owner edits an event's notes from its side panel; the rest of the event is unchanged. */
 export const itemNotesSchema = z.object({ notes: optionalText(5000), expectedVersion: z.number().int().min(1) }).strict();
 export const versionSchema = z.object({ expectedVersion: z.number().int().min(1) }).strict();
+/** BOOK-3, BOOK-4: a booking-list action. Booked clears the book-by date; the service checks FLIGHT-2. */
+export const itemBookingSchema = z
+  .object({ bookingStatus: z.enum(["needs_booking", "booked"]), bookingDueDate: dateStr.nullable(), expectedVersion: z.number().int().min(1) })
+  .strict()
+  .refine((b) => !b.bookingDueDate || b.bookingStatus === "needs_booking", { path: ["bookingDueDate"], message: "A book-by date is only for events that need booking." });
 
 /** Convert zod issues into stable, path-addressed field errors. */
 export function toFieldErrors(error: z.ZodError): FieldError[] {

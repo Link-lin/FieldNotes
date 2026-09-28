@@ -115,10 +115,10 @@ sequenceDiagram
 | Auth | `src/server/auth/`: `auth.ts` (Auth.js with the Kysely adapter), `session.ts`, `actor.ts`, `sign-in-gate.ts`, and `access.ts`, the per-trip authorization boundary. |
 | Domain and data | `src/server/modules/<feature>/`: `*.service.ts` (rules and access checks), `*.repository.ts` (SQL only), `*.mapper.ts` (rows to DTOs). Features: `trips` (with `budget.repository.ts` and `time-zone.service.ts`), `items` (with `items.rules.ts`), `dashboard`, `account`, `places` (bundled catalog and airports), `import` (with `import.rules.ts`), `invitations` (with `invitations.rules.ts` for token, status and staging-cookie helpers), and `usage` (`usage.rules.ts` for count names and report maths, `usage.service.ts` for best-effort `countUsage`). |
 | Database | `src/server/core/db/client.ts` and `schema.ts`, `db/migrations/`, `db/migrate.ts` (migration provider), `scripts/migrate.ts` (`npm run db:migrate`), `scripts/dev.ts`, `scripts/dev-db.ts`, `scripts/pilot-report.ts`, `scripts/seed-hawaii.ts` and `scripts/demo-trips.ts`. |
-| Shared | `src/shared`: zod schemas, DTO types, time, money, currency codes and names (`currencies.ts`), map links (`map-links.ts`, including pasted coordinates and embed URLs) and redirect helpers (`safe-path.ts`), used by browser and server. `src/lib/client-value.ts` holds browser-only values; `src/lib/use-dialog.ts` holds shared dialog behavior. |
+| Shared | `src/shared`: zod schemas, DTO types, time, money, currency codes and names (`currencies.ts`), the FLIGHT-2 booking check (`booking.ts`), map links (`map-links.ts`, including pasted coordinates and embed URLs) and redirect helpers (`safe-path.ts`), used by browser and server. `src/lib/client-value.ts` holds browser-only values; `src/lib/use-dialog.ts` holds shared dialog behavior. |
 | Bundled data | `src/data/places.json` (Natural Earth 10m populated places v5.1.2 plus `world-atlas` 50m country centroids), `src/data/airports.json` (OurAirports large and medium airports with IATA codes), `src/data/map-cities.json` (day-map city labels). Built by `npm run data:build`; sources and licenses in `src/data/SOURCES.md`. |
 | UI building blocks | `src/components/ui/<Name>/` (Button, Tag, Field, Card, Banner, Modal, Toast, Menu, Section, TaskList, ProgressBar, Logo, Icon) and `src/components/layout/` (AppShell, AppHeader with AccountMenu, PageMessage). |
-| Screens | `src/features/<feature>/<Screen>/`: `dashboard/Dashboard` (Hero, TripList, BookingTasks, Globe), `trips/TripPage` (TripHeader, TripTiles, DayTabs, DaySection, Timeline, MapPanel with DayMap, EventPanel with EventMap and NotesEditor, FlightCard, CostsSection, BookingList, GlobeLocation), `trips/EventPage` (reuses EventPanel as a page), `trips/TripForm`, `trips/ItemForm`, `trips/TripPage/ShareDialog` (InviteLink, ViewerList), `import/ImportPage`, `invitations/InvitePage`, `currency`, `auth/SignInCard`. |
+| Screens | `src/features/<feature>/<Screen>/`: `dashboard/Dashboard` (Hero, TripList, BookingTasks, Globe), `trips/TripPage` (TripHeader, TripTiles, DayTabs, DaySection, Timeline, MapPanel with DayMap, EventPanel with EventMap and NotesEditor, FlightCard, CostsSection, BookingList, GlobeLocation), `trips/EventPage` (reuses EventPanel as a page), `trips/BookingTask` (one booking-list row, used by the dashboard and the trip page), `trips/TripForm`, `trips/ItemForm`, `trips/TripPage/ShareDialog` (InviteLink, ViewerList), `import/ImportPage`, `invitations/InvitePage`, `currency`, `auth/SignInCard`. |
 | Styles | `src/styles` (tokens, base, utilities, motion) plus one `.module.css` per component. |
 | Tests | `tests/unit` (pure logic) and `tests/db` (DAL, route handlers, sign-in gate and the test-trip seed against embedded PostgreSQL). |
 | Configuration | `.env.example` lists variable names only; the README covers Google OAuth setup. |
@@ -285,6 +285,7 @@ Responses never include SQL, stack traces, session or invitation tokens, or othe
 | `PATCH /api/trips/{tripId}/items/{itemId}` | Item fields and `expectedVersion`; `confirmTypeChange: true` to switch to or from flight; optional `confirmPrice: true`. | Owner; the item must belong to the trip. A confirmed type change clears incompatible schedule fields, and a `not_required` item becoming a flight becomes `needs_booking`. |
 | `DELETE /api/trips/{tripId}/items/{itemId}` | `{ "expectedVersion": 2 }`. | Owner. Sets `deleted_at` and bumps the trip version. |
 | `PATCH /api/trips/{tripId}/items/{itemId}/notes` | `{ "notes": string \| null, "expectedVersion": 3 }` (TRIP-10). | Owner. Stores trimmed notes only (blank is null, at most 5,000 characters) with the same lock, purge and version rules as a full edit. |
+| `PATCH /api/trips/{tripId}/items/{itemId}/booking` | `{ "bookingStatus": "needs_booking" \| "booked", "bookingDueDate": "2026-10-03" \| null, "expectedVersion": 3 }` (BOOK-3, BOOK-4). | Owner. Changes only the booking state and book-by date, with the same lock, purge and version rules as a full edit. **Booked** clears the date; it is 422 `flight_incomplete` for a flight without its FLIGHT-2 fields, and a date sent with **Booked** is 422. |
 | `POST /api/trips/{tripId}/items/{itemId}/restore` | Undo a deletion. | Owner. Clears `deleted_at` on the same row and bumps the trip version. 410 after 10 minutes; 409 if the cap is full; 409 `restore_time_invalid` if the local time no longer exists or is now ambiguous in the trip zone. |
 | `GET /api/import/schema` | The JSON v1 schema. | Allowlisted owner. Serves `docs/design/json-v1.schema.json` unchanged. |
 | `POST /api/import/preview` | `{ "responseText": "...", "ownerProvidedBudget": MoneyDTO \| null }`. | Allowlisted owner. See [JSON v1 contract](#json-v1-contract). Writes only a pilot count. |
@@ -331,7 +332,9 @@ type TripSummaryDTO = {
 
 type BookingTaskDTO = {
   tripId: string; tripTitle: string; itemId: string; itemTitle: string;
+  itemVersion: number; // expectedVersion for the booking actions
   dueDate: string | null; state: DueState | "no_due_date";
+  canMarkBooked: boolean; // false for a flight without its FLIGHT-2 fields
 };
 
 type DashboardDTO = {
@@ -438,7 +441,7 @@ type InvitationDTO = {
 type InvitationLinkDTO = { invitationId: string; invitationUrl: string; expiresAt: string; invitation: InvitationDTO };
 ```
 
-Return types: `GET /api/trips` returns `DashboardDTO`; trip detail returns `TripDetailDTO`; trip creation returns `TripSummaryDTO`; item create, update, duplicate, notes and restore return `PlanItemDTO`; place search returns `PlaceDTO[]`; import preview returns `ImportPreviewDTO`; commit and invitation acceptance return `{ tripId }`; invitation creation or reissue returns `InvitationLinkDTO` once, and the URL is never stored or listed; delete and revoke return `204`. The server computes due states, totals and trip status so the browser's zone or floating-point behavior cannot change them.
+Return types: `GET /api/trips` returns `DashboardDTO`; trip detail returns `TripDetailDTO`; trip creation returns `TripSummaryDTO`; item create, update, duplicate, notes, booking and restore return `PlanItemDTO`; place search returns `PlaceDTO[]`; import preview returns `ImportPreviewDTO`; commit and invitation acceptance return `{ tripId }`; invitation creation or reissue returns `InvitationLinkDTO` once, and the URL is never stored or listed; delete and revoke return `204`. The server computes due states, totals and trip status so the browser's zone or floating-point behavior cannot change them.
 
 ### API validation and error semantics
 
@@ -560,12 +563,14 @@ needs_booking ──owner clears need──> not_required
 
 Only the owner changes status. Flights are never `not_required`; a new or imported flight starts as `needs_booking`. Moving to `booked` validates flight completeness and clears the due date; reopening needs a new due date if wanted. Imports can set only `not_required` or `needs_booking`, and flights only `needs_booking`. A trip-zone change can change the due state but never the stored date. There is no cron, scheduler, email provider or push-token table.
 
+**Booking lists.** The trip page's list and the dashboard's use one row, `features/trips/BookingTask`. Its title opens the event (TRIP-10). For the owner, **Mark booked** and the inline book-by date call `PATCH …/booking`. **Mark booked** is offered only when the flight check passes: `canMarkBooked` on the dashboard, `flightReadyToBook` (`src/shared/booking.ts`) on the trip page, and the server checks again. Its toast's **Undo** sends `needs_booking` with the previous date and the new version. A row shows the saved result at once and then refreshes the page data; a 409 keeps the row's message and reloads the data so a retry uses the newer version.
+
 ### Dashboard
 
 - One query returns owned trips (while allowlisted) and accepted shared trips, deduplicated, each with a `role`. It feeds both the list and the globe; nothing else reaches the globe. `canCreateTrips` drives the empty state and create actions; an account with no trips sees an empty state with account settings and deletion.
-- `ownerBookingTasks` covers only owned trips and includes tasks with no book-by date (`no_due_date`). There is no paid-spend summary.
+- `ownerBookingTasks` covers only owned trips and includes tasks with no book-by date (`no_due_date`). Each task carries the item's version and `canMarkBooked`, and links to `/trips/{tripId}?event={itemId}`; at phone widths the link goes straight to the event page. There is no paid-spend summary.
 - Tickets use `daysToStart`, `dayIndex` or `daysSinceEnd` ("3 days ago"), computed in each trip's zone. The hero shows the viewer's own local date, read in the browser.
-- The status filter lives in `?filter=` and applies to list and globe. Returning from a trip (Back or All trips) restores the filter, list scroll and focus on that trip's card.
+- The status filter lives in `?filter=` and applies to list and globe. Returning from a trip (Back or All trips) restores the filter, list scroll and focus on that trip's card, or on the booking task that was opened.
 - The list renders at once; the globe loads lazily. If it fails, a short error replaces it and the list, filters and point editor keep working. A trip without a point stays in the list, and the owner can set one.
 - **Desktop layout.** At 901 px wide and 620 px tall or more, the dashboard fits one screen and the page never scrolls. The intro and trip list form a left column that scrolls inside itself; the globe fills the right. The globe canvas spans the whole area, centered in the right-hand stage, so when zoomed it spills under the left column, which veils it (paper at 86% opacity, fading out at its right edge). Wheel over the list scrolls it; wheel over the globe zooms. Phones and short windows scroll normally.
 - **Globe.** A canvas orthographic globe from `d3-geo` and `world-atlas` land-110m, with no WebGL. It keeps the [Atlas v1](atlas-v1.md) behaviors: intro spin, a pulse that stops after 10 s idle, drag, wheel and button zoom, reduced motion and the shared-point callout. Borders are a `topojson` mesh of `world-atlas` countries-110m, stroked thinly. Country names sit at the centroid of each country's largest polygon, largest countries first, and show only when the country is wide enough on screen, away from the horizon and clear of other names, markers and marker labels.
@@ -588,7 +593,7 @@ Only the owner changes status. Flights are never `not_required`; a new or import
 
 Product rules are TRIP-1 to TRIP-10, MAP-1 to MAP-9 and BUDGET-6 to BUDGET-7; layout and visuals are in [Trip page v1](trip-page-v1.md).
 
-- **Route and state.** `/trips/[tripId]` is a full page. The selected tab is in `?day=all|YYYY-MM-DD`, updated with `history.replaceState`, so a day is linkable and one Back returns to the dashboard (TRIP-1). An unknown day falls back to `all`. Tabs cover every date from `startDate` to `endDate` plus any out-of-range item dates. Day numbers are `date − startDate + 1`. Tabs follow the WAI-ARIA tabs pattern (tablist, `aria-controls`, roving `tabindex`, arrow keys). Escape goes back only when no menu, dialog or editable field has focus.
+- **Route and state.** `/trips/[tripId]` is a full page. The selected tab is in `?day=all|YYYY-MM-DD`, updated with `history.replaceState`, so a day is linkable and one Back returns to the dashboard (TRIP-1). An unknown day falls back to `all`. `?event={itemId}` (from a dashboard booking task) opens that event once the page is on screen and is then removed with `history.replaceState`, so a reload or Back behaves as before; at phone widths it replaces the address with the event page. Tabs cover every date from `startDate` to `endDate` plus any out-of-range item dates. Day numbers are `date − startDate + 1`. Tabs follow the WAI-ARIA tabs pattern (tablist, `aria-controls`, roving `tabindex`, arrow keys). Escape goes back only when no menu, dialog or editable field has focus.
 - **Sections.** Pin numbers are assigned once across the trip and reused in day tabs. Within a day, timed events come first and date-only events follow under **Unscheduled**. **Undated flights** and **Undated** follow the last day, in Whole trip only (TRIP-2). Events deleted during the visit are listed under **Recently deleted** with a Restore button, so undo stays reachable after the toast closes.
 - **Status and tiles.** The trip header and dashboard tickets use the server's `status`, `daysToStart`, `dayIndex`, `daysSinceEnd` and `dayCount` (TRIP-5); the browser does no zone arithmetic. Other tiles are counted from the DTO; items to book counts every `needs_booking` item. The costs tile shows only when price data exists.
 - **Event edit and delete.** Each owner event row has a visible three-dot menu (ARIA menu button; Tab or Escape closes it) with Edit event and Delete event. Edit opens the item editor (TRIP-9) in the event view (see [Event view](#event-view)). Delete calls `DELETE` at once, removes the row and shows a toast with **Undo** that takes focus, stays at least 10 seconds and pauses on hover or focus; Undo calls `…/restore`. A failed delete restores the row with an error. Focus then moves to the next event's menu button or the day's add row. Viewers get no menu, and the routes reject them.
@@ -617,7 +622,7 @@ Product rules are TRIP-1 to TRIP-10, MAP-1 to MAP-9 and BUDGET-6 to BUDGET-7; la
 
 ### Event view
 
-- **Side panel (desktop, TRIP-10).** Clicking an event row opens it in an 820 px right-hand panel over a faded page. The row carries one stretched details button (`data-details`) under its content; links and the menu sit above it. The panel uses the shared dialog behavior in `src/lib/use-dialog.ts` (also used by Modal): inert page, scroll lock, focus to the close button, Tab kept inside, Escape (even when focus has fallen out) and focus back to the row. It stays mounted while sliding out and unmounts on the animation's end or after 380 ms, so it still closes under reduced motion. Previous and Next follow the current tab's order.
+- **Side panel (desktop, TRIP-10).** Clicking an event row or a booking task, or arriving with `?event=`, opens it in an 820 px right-hand panel over a faded page. The row carries one stretched details button (`data-details`) under its content; links and the menu sit above it. The panel uses the shared dialog behavior in `src/lib/use-dialog.ts` (also used by Modal): inert page, scroll lock, focus to the close button, Tab kept inside, Escape (even when focus has fallen out) and focus back to the row or booking task that opened it. It stays mounted while sliding out and unmounts on the animation's end or after 380 ms, so it still closes under reduced motion. Previous and Next follow the current tab's order.
 - **Event page (phones).** Below 601 px, event actions navigate to `/trips/{tripId}/items/{itemId}`, which reuses `EventPanel` content without modal behavior. The page checks trip read access and returns 404 for a missing or inaccessible item; mutations keep the owner checks in the API.
 - **Editing.** The panel contains the item editor rather than opening a second modal. The editor has a wrapping title field, the saved-place map (with a note that it changes after saving) and fields grouped in detail-view order. It tracks unsaved changes, confirms discarding through its own controls and saves with the versioned `PATCH`. `ItemForm` keeps its add-dialog presentation for new items.
 - **Notes (MAP-8, TRIP-10).** Notes save through `PATCH …/notes` 800 ms after typing stops, on blur and on close. A `409` stops further saves and keeps the text. After a failed save, leaving through Close, Escape, the faded page, Previous/Next, Edit event or the phone page's return asks **Stay** (focused; Escape also stays) or **Leave without saving**, so a conflict or an unreachable server never traps the owner. Moving to the editor waits for a pending notes save and stays put if it fails. A successful save refreshes page data so the row and version stay current.
@@ -768,6 +773,8 @@ Daily totals in `usage_counts` support the pilot in the PRD's "Validation and MV
 | `due_date_set` | A book-by date is new or changed. |
 | `item_booked` | An item changes to **Booked**. |
 
+Booking-list actions count only `due_date_set` and `item_booked`, never `ai_item_edited`.
+
 `countUsage` (`usage.service.ts`) runs after the action succeeds, outside its transaction. It upserts `count = count + n` and swallows errors, logging only the error class, so a missing table or failed count never fails the owner's request. `npm run pilot:report` (`scripts/pilot-report.ts`) reads the table with `DATABASE_URL` and prints totals, figures per ISO week (Monday start) and four rates: clean previews and rejected previews out of all previews, items skipped out of items reviewed in confirmed imports, and owner edits per imported item. It has no web route.
 
 ## 8. Development and testing
@@ -798,6 +805,7 @@ Vitest runs `unit` and `db` projects (`npm run test:unit`, `npm run test:db`, or
 - Atomic import with rollback; same-key races (one trip), changed payload (409), retry after deletion (410, `payload_hash` null), retry raced with deletion; owner-budget rules; 413 with no write.
 - The 250-item cap under concurrent create and duplicate; shared limits for manual and imported data.
 - Trip and account cascades; soft delete, restore, purge and `restore_time_invalid`; duplicate rules; version conflicts; check constraints.
+- Booking-list actions: Booked clears the date, Undo, FLIGHT-2 refusal, version and Origin checks, owner-only access and pilot counts.
 - Owner, viewer, unrelated-account and anonymous access; revocation on the next request; a revoked viewer can still sign in and delete their account.
 - Invitations: pending, expired, revoked, wrong email, success, retry, race, staging cookie; raw token never stored; grants survive an email change; an accepted link cannot bind another account.
 - Pilot counts and the demo seed.
@@ -838,7 +846,7 @@ Vitest runs `unit` and `db` projects (`npm run test:unit`, `npm run test:db`, or
 | IMPORT-1 to IMPORT-10 | [JSON v1 contract](#json-v1-contract), [Import](#import), `import_receipts` | Import unit and route tests; log review |
 | PLAN-1 to PLAN-5 | `plan_items`, [Time zones](#time-zones), [Map links and pins](#map-links-and-pins) | Time and CRUD tests |
 | FLIGHT-1 to FLIGHT-3 | `plan_items`, [Time zones](#time-zones), [Trip and event forms](#trip-and-event-forms) | Flight and DST tests |
-| BOOK-1 to BOOK-4 | [Booking status and due state](#booking-status-and-due-state) | Due-state tests |
+| BOOK-1 to BOOK-4 | [Booking status and due state](#booking-status-and-due-state) | Due-state and booking route tests |
 | BUDGET-1 to BUDGET-7 | [Money](#money) | Money tests |
 | TRIP-1 to TRIP-10 | [Trip page and day map](#trip-page-and-day-map), [Event view](#event-view) | Browser checks, notes route tests |
 | MAP-1 to MAP-9 | [Map links and pins](#map-links-and-pins), [Day map](#day-map), [Event view](#event-view) | Map-link, day-map and road-run tests; third-party request check |

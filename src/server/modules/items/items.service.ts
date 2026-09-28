@@ -10,7 +10,7 @@ import type { ItemInput } from "@/shared/schemas";
 import { dateInZone, resolveLocal } from "@/shared/time";
 import { itemDto } from "./items.mapper";
 import * as repo from "./items.repository";
-import { scheduleErrors, toValues } from "./items.rules";
+import { canMarkBooked, scheduleErrors, toValues } from "./items.rules";
 import { countUsage } from "@/server/modules/usage/usage.service";
 import type { UsageEvent } from "@/server/modules/usage/usage.rules";
 
@@ -107,6 +107,38 @@ export async function updateItemNotes(
     return dto(row, trip.time_zone, now);
   });
   if (wasAi) await countUsage(db, [{ name: "ai_item_edited" }]);
+  return saved;
+}
+
+/**
+ * BOOK-3, BOOK-4: from a booking list, mark an event Booked (which clears its book-by date), or set,
+ * change or clear the book-by date. A flight can be Booked only with its FLIGHT-2 fields. Same owner,
+ * version and trip-version rules as a full edit; only the booking pilot counts apply.
+ */
+export async function updateItemBooking(
+  db: Kysely<DB>,
+  actor: Actor,
+  tripId: string,
+  itemId: string,
+  body: { bookingStatus: "needs_booking" | "booked"; bookingDueDate: string | null; expectedVersion: number },
+  now = new Date(),
+): Promise<PlanItemDTO> {
+  let before: PlanItemRow | null = null;
+  const saved = await db.transaction().execute(async (tx) => {
+    const { trip } = await requireTripOwner(tx, actor, tripId, true);
+    await repo.purgeExpired(tx, trip.id);
+    const current = await repo.loadItemForUpdate(tx, trip.id, itemId);
+    if (current.version !== body.expectedVersion) throw conflict();
+    if (body.bookingStatus === "booked" && !canMarkBooked(current)) {
+      throw invalid([{ path: "bookingStatus", code: "flight_incomplete", message: "Add both airports, their local times and time zones before marking this flight booked." }]);
+    }
+    before = current;
+    const row = await repo.updateBooking(tx, current.id, body.expectedVersion, body.bookingStatus, body.bookingStatus === "needs_booking" ? body.bookingDueDate : null);
+    if (!row) throw conflict();
+    await bumpTripVersion(tx, trip.id);
+    return dto(row, trip.time_zone, now);
+  });
+  await countUsage(db, bookingUsage(before as PlanItemRow | null, saved));
   return saved;
 }
 

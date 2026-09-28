@@ -28,8 +28,12 @@ export type BookingTaskDTO = {
   tripTitle: string;
   itemId: string;
   itemTitle: string;
+  /** The item's version, for the booking-list actions (BOOK-4). */
+  itemVersion: number;
   dueDate: string | null;
   state: DueState | "no_due_date";
+  /** False for a flight still missing its FLIGHT-2 fields. */
+  canMarkBooked: boolean;
 };
 
 export type DashboardDTO = {

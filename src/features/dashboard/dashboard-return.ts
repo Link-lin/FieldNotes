@@ -1,10 +1,11 @@
 /**
  * Remembers where the dashboard was (filter URL, scroll, which trip was opened) so Back or
- * "All trips" can restore it and put focus on that trip's card (TRIP-1).
+ * "All trips" can restore it and put focus on that trip's card, or on the booking task that was
+ * opened (TRIP-1).
  */
 export const DASH_RETURN_KEY = "fn.dashboard-return";
 
-type Saved = { url?: string; trip?: string; y?: number; list?: number };
+type Saved = { url?: string; trip?: string; task?: string; y?: number; list?: number };
 
 /** On desktop the page doesn't scroll; the dashboard's left column does. */
 export function innerScroller(): HTMLElement | null {
@@ -12,9 +13,9 @@ export function innerScroller(): HTMLElement | null {
   return el && getComputedStyle(el).overflowY === "auto" ? el : null;
 }
 
-export function rememberReturn(tripId: string) {
+export function rememberReturn(tripId: string, task?: string) {
   try {
-    const saved: Saved = { url: window.location.pathname + window.location.search, trip: tripId, y: window.scrollY, list: innerScroller()?.scrollTop ?? 0 };
+    const saved: Saved = { url: window.location.pathname + window.location.search, trip: tripId, task, y: window.scrollY, list: innerScroller()?.scrollTop ?? 0 };
     sessionStorage.setItem(DASH_RETURN_KEY, JSON.stringify(saved));
   } catch {}
 }

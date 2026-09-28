@@ -7,11 +7,11 @@ export function TaskList({ className, children }: { className?: string; children
   return <div className={cx(styles.list, className)}>{children}</div>;
 }
 
-export function Task({ overdue, children }: { overdue?: boolean; children: React.ReactNode }) {
+export function Task({ overdue, children, ...rest }: { overdue?: boolean; children: React.ReactNode } & React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cx(styles.task, overdue && styles.overdue)}>
+    <div className={cx(styles.task, overdue && styles.overdue)} {...rest}>
       {overdue ? <WarnIcon /> : <ClockIcon />}
-      <span>{children}</span>
+      <div className={styles.body}>{children}</div>
     </div>
   );
 }

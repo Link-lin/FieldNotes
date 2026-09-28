@@ -3,6 +3,7 @@ import { getDashboard } from "@/server/modules/dashboard/dashboard.service";
 import { listInvitations } from "@/server/modules/invitations/invitations.service";
 import { getTripDetail } from "@/server/modules/trips/trips.service";
 import { actorFor } from "@/server/auth/actor";
+import { flightReadyToBook } from "@/shared/booking";
 import { HAWAII_TITLE, KYOTO_TITLE, LISBON_TITLE, seedDemoTrips, TEST_FRIEND } from "../../scripts/demo-trips";
 import { makeActor, reset, testDb } from "./helpers";
 
@@ -58,6 +59,10 @@ describe("test trips seed", () => {
     expect(items.some((i) => i.source === "ai" && i.plannedPrice?.source === "owner")).toBe(true);
     expect(new Set(items.map((i) => i.plannedPrice?.label).filter(Boolean))).toEqual(new Set(["estimate", "quote"]));
     expect(items.some((i) => i.plannedPrice?.amount && Number(i.plannedPrice.amount) === 0)).toBe(true);
+    // Flights still to book: one with its FLIGHT-2 fields (Mark booked offered) and placeholders without.
+    const flightsToBook = items.filter((i) => i.flightDetails && i.bookingStatus === "needs_booking");
+    expect(flightsToBook.some((i) => flightReadyToBook(i.flightDetails!))).toBe(true);
+    expect(flightsToBook.some((i) => !flightReadyToBook(i.flightDetails!))).toBe(true);
 
     // Costs: two currencies kept apart, under budget in USD.
     expect(detail.plannedTotals.map((t) => t.currency).sort()).toEqual(["EUR", "USD"]);
@@ -76,6 +81,7 @@ describe("test trips seed", () => {
     expect(byTitle[KYOTO_TITLE]).toMatchObject({ role: "viewer", status: "past", ownerName: TEST_FRIEND.name, atlasLocation: { source: "catalog" } });
     expect(byTitle[LISBON_TITLE]).toMatchObject({ role: "owner", status: "upcoming", atlasLocation: null });
     expect(new Set(dash.ownerBookingTasks.map((t) => t.state))).toEqual(new Set(["overdue", "due_today", "upcoming", "no_due_date"]));
+    expect(new Set(dash.ownerBookingTasks.map((t) => t.canMarkBooked))).toEqual(new Set([true, false]));
 
     const kyoto = await getTripDetail(testDb(), owner, ids[KYOTO_TITLE]!, NOW);
     expect(kyoto.trip.role).toBe("viewer");

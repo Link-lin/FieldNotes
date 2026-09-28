@@ -18,6 +18,11 @@ export function browserZone(): string {
   return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 }
 
+/** Phone widths open an event on its own page instead of the side panel (TRIP-10). Call it only in the browser. */
+export function isPhoneWidth(): boolean {
+  return window.matchMedia("(max-width: 600px)").matches;
+}
+
 /** Today's date on this device (YYYY-MM-DD, local time). Call it only in the browser. */
 export function localToday(): string {
   const d = new Date();

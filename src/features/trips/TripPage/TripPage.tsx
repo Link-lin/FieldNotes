@@ -8,6 +8,7 @@ import { dashboardUrl } from "@/features/dashboard/dashboard-return";
 import { ItemForm } from "@/features/trips/ItemForm/ItemForm";
 import { TripForm } from "@/features/trips/TripForm/TripForm";
 import { api } from "@/lib/api";
+import { isPhoneWidth } from "@/lib/client-value";
 import { fmtDay } from "@/lib/format";
 import { AddFab } from "./AddFab/AddFab";
 import { BookingList } from "./BookingList/BookingList";
@@ -36,7 +37,7 @@ type ItemFormState = { item: PlanItemDTO | null; date: string; trigger: string |
  * costs, bookings and globe location. This component holds the page state and actions; each part
  * renders itself.
  */
-export function TripPage({ data, initialDay, mapsKey }: { data: TripDetailDTO; initialDay: string | null; mapsKey: string | null }) {
+export function TripPage({ data, initialDay, initialEvent, mapsKey }: { data: TripDetailDTO; initialDay: string | null; initialEvent: string | null; mapsKey: string | null }) {
   const router = useRouter();
   const toast = useToast();
   const { trip, items } = data;
@@ -181,18 +182,39 @@ export function TripPage({ data, initialDay, mapsKey }: { data: TripDetailDTO; i
   const currentPanelItem = panel ? items.find((i) => i.id === panel.id) : null;
   const panelItem = panel ? (currentPanelItem && currentPanelItem.version >= panel.snapshot.version ? currentPanelItem : panel.snapshot) : null;
   const panelAt = panelItem ? shown.findIndex((i) => i.id === panelItem.id) : -1;
-  const openPanel = (item: PlanItemDTO, editing = false) => {
+  // `trigger` is where focus returns when the panel closes; `replace` keeps an arrival link out of history.
+  const openPanel = (item: PlanItemDTO, { editing = false, trigger, replace = false }: { editing?: boolean; trigger?: string; replace?: boolean } = {}) => {
     setMenuFor(null);
-    if (window.matchMedia("(max-width: 600px)").matches) {
+    if (isPhoneWidth()) {
       const query = new URLSearchParams();
       if (!all) query.set("day", day);
       if (editing) query.set("edit", "1");
-      router.push(`/trips/${trip.id}/items/${item.id}${query.size ? `?${query}` : ""}`);
+      const href = `/trips/${trip.id}/items/${item.id}${query.size ? `?${query}` : ""}`;
+      if (replace) router.replace(href);
+      else router.push(href);
       return;
     }
-    setPanel({ id: item.id, open: true, snapshot: item, initialEditing: editing, trigger: editing ? `[data-menu="${item.id}"]` : `[data-details="${item.id}"]` });
+    setPanel({ id: item.id, open: true, snapshot: item, initialEditing: editing, trigger: trigger ?? (editing ? `[data-menu="${item.id}"]` : `[data-details="${item.id}"]`) });
   };
   const closePanel = () => setPanel((p) => (p ? { ...p, open: false } : p));
+
+  // A dashboard booking task links here with ?event= to open that event once the page is on screen.
+  // The address then drops it, so a reload or Back behaves as before. Runs once the frame fires, which
+  // also survives the development double mount.
+  const arrivingEvent = useRef(initialEvent);
+  useEffect(() => {
+    const id = arrivingEvent.current;
+    if (!id) return;
+    const frame = requestAnimationFrame(() => {
+      arrivingEvent.current = null;
+      const url = new URL(window.location.href);
+      url.searchParams.delete("event");
+      window.history.replaceState(window.history.state, "", url);
+      const item = items.find((i) => i.id === id);
+      if (item) openPanel(item, { replace: true });
+    });
+    return () => cancelAnimationFrame(frame);
+  });
   const panelExited = () => setPanel((p) => (p && !p.open ? null : p));
 
   const timeline = (list: PlanItemDTO[], numbered: boolean) => (
@@ -206,7 +228,7 @@ export function TripPage({ data, initialDay, mapsKey }: { data: TripDetailDTO; i
       onOpen={(i) => openPanel(i)}
       onEdit={(i) => {
         setMenuFor(null);
-        openPanel(i, true);
+        openPanel(i, { editing: true });
       }}
       onDuplicate={duplicateEvent}
       onDelete={deleteEvent}
@@ -270,7 +292,7 @@ export function TripPage({ data, initialDay, mapsKey }: { data: TripDetailDTO; i
 
         <CostsSection data={data} owner={owner} />
         <div className={styles.details}>
-          <BookingList items={items} owner={owner} ownerName={trip.ownerName} />
+          <BookingList trip={trip} items={items} owner={owner} onOpen={(i) => openPanel(i, { trigger: `[data-task-open="${i.id}"]` })} />
           <GlobeLocation trip={trip} owner={owner} />
         </div>
       </article>
