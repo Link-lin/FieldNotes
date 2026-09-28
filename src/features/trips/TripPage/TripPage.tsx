@@ -61,7 +61,7 @@ export function TripPage({ data, initialDay, mapsKey }: { data: TripDetailDTO; i
   const [menuFor, setMenuFor] = useState<string | null>(null);
   // The event side panel (TRIP-10). `open` turns false while it slides out; `snapshot` keeps an
   // event that disappeared (deleted elsewhere) on screen until then.
-  const [panel, setPanel] = useState<{ id: string; open: boolean; snapshot: PlanItemDTO } | null>(null);
+  const [panel, setPanel] = useState<{ id: string; open: boolean; snapshot: PlanItemDTO; initialEditing: boolean; trigger: string } | null>(null);
   // Deleted this visit and still restorable, so Undo stays reachable after the toast closes.
   const [recentlyDeleted, setRecentlyDeleted] = useState<PlanItemDTO[]>([]);
 
@@ -166,11 +166,19 @@ export function TripPage({ data, initialDay, mapsKey }: { data: TripDetailDTO; i
     }),
     ...(all ? [...undatedFlights, ...undated] : []),
   ];
-  const panelItem = panel ? (items.find((i) => i.id === panel.id) ?? panel.snapshot) : null;
+  const currentPanelItem = panel ? items.find((i) => i.id === panel.id) : null;
+  const panelItem = panel ? (currentPanelItem && currentPanelItem.version >= panel.snapshot.version ? currentPanelItem : panel.snapshot) : null;
   const panelAt = panelItem ? shown.findIndex((i) => i.id === panelItem.id) : -1;
-  const openPanel = (item: PlanItemDTO) => {
+  const openPanel = (item: PlanItemDTO, editing = false) => {
     setMenuFor(null);
-    setPanel({ id: item.id, open: true, snapshot: item });
+    if (window.matchMedia("(max-width: 600px)").matches) {
+      const query = new URLSearchParams();
+      if (!all) query.set("day", day);
+      if (editing) query.set("edit", "1");
+      router.push(`/trips/${trip.id}/items/${item.id}${query.size ? `?${query}` : ""}`);
+      return;
+    }
+    setPanel({ id: item.id, open: true, snapshot: item, initialEditing: editing, trigger: editing ? `[data-menu="${item.id}"]` : `[data-details="${item.id}"]` });
   };
   const closePanel = () => setPanel((p) => (p ? { ...p, open: false } : p));
   const panelExited = () => setPanel((p) => (p && !p.open ? null : p));
@@ -183,10 +191,10 @@ export function TripPage({ data, initialDay, mapsKey }: { data: TripDetailDTO; i
       tripZone={trip.timeZone}
       menuFor={menuFor}
       onMenu={setMenuFor}
-      onOpen={openPanel}
+      onOpen={(i) => openPanel(i)}
       onEdit={(i) => {
         setMenuFor(null);
-        setItemForm({ item: i, date: "", trigger: `[data-menu="${i.id}"]` });
+        openPanel(i, true);
       }}
       onDuplicate={duplicateEvent}
       onDelete={deleteEvent}
@@ -283,16 +291,24 @@ export function TripPage({ data, initialDay, mapsKey }: { data: TripDetailDTO; i
           owner={owner}
           num={numbers.get(panelItem.id) ?? null}
           mapsKey={mapsKey}
+          defaultCurrency={defaultCurrency}
+          recentCurrencies={data.recentCurrencies}
+          initialEditing={panel.initialEditing}
+          triggerSelector={panel.trigger}
           prev={panelAt > 0 ? (shown[panelAt - 1] ?? null) : null}
           next={panelAt >= 0 ? (shown[panelAt + 1] ?? null) : null}
-          onGo={(i) => setPanel({ id: i.id, open: true, snapshot: i })}
+          onGo={(i) => setPanel({ id: i.id, open: true, snapshot: i, initialEditing: false, trigger: `[data-details="${i.id}"]` })}
           onClose={closePanel}
           onExited={panelExited}
-          onEdit={(i) => {
-            closePanel();
-            setItemForm({ item: i, date: "", trigger: `[data-details="${i.id}"]` });
+          onSaved={(saved) => {
+            setPanel((p) => p && p.id === saved.id ? { ...p, snapshot: saved } : p);
+            router.refresh();
+            toast({ message: "Event updated." });
           }}
-          onNotesSaved={() => router.refresh()}
+          onNotesSaved={(saved) => {
+            setPanel((p) => p && p.id === saved.id ? { ...p, snapshot: saved } : p);
+            router.refresh();
+          }}
         />
       ) : null}
       {sharing && owner ? <ShareDialog trip={trip} onClose={() => setSharing(false)} /> : null}

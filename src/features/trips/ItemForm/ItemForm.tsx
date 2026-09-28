@@ -24,10 +24,15 @@ type Props = {
   triggerSelector: string | null;
   onClose: () => void;
   onSaved: (item: PlanItemDTO, created: boolean) => void;
+  surface?: "modal" | "panel";
+  onDirtyChange?: (dirty: boolean) => void;
+  onBusyChange?: (busy: boolean) => void;
+  panelHeading?: string;
+  mapPreview?: React.ReactNode;
 };
 
 /** Add to itinerary / Edit event (TRIP-9). The server repeats every check. */
-export function ItemForm({ tripId, tripTitle, tripZone, defaultCurrency, recentCurrencies = [], defaultDate, item, triggerSelector, onClose, onSaved }: Props) {
+export function ItemForm({ tripId, tripTitle, tripZone, defaultCurrency, recentCurrencies = [], defaultDate, item, triggerSelector, onClose, onSaved, surface = "modal", onDirtyChange, onBusyChange, panelHeading, mapPreview }: Props) {
   const zoneList = useMemo(() => allZoneIds(), []);
   const f = item?.flightDetails;
   const ep = (e?: { airportCode: string | null; localDateTime: string | null; timeZone: string | null; timeDisambiguation: "earlier" | "later" | null }): Endpoint => ({
@@ -65,7 +70,10 @@ export function ItemForm({ tripId, tripTitle, tripZone, defaultCurrency, recentC
   const [needTypeConfirm, setNeedTypeConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
   const [confirmPrice, setConfirmPrice] = useState(false);
-  const up = (patch: Partial<typeof v>) => setV((o) => ({ ...o, ...patch }));
+  const up = (patch: Partial<typeof v>) => {
+    setV((o) => ({ ...o, ...patch }));
+    onDirtyChange?.(true);
+  };
   const err = (path: string) => errors.find((e) => e.path === path)?.message;
   const errId = (path: string) => `item-err-${path.replace(/[^a-zA-Z0-9]/g, "-")}`;
   const aria = (path: string) => (err(path) ? { "aria-invalid": true as const, "aria-describedby": errId(path) } : {});
@@ -107,11 +115,13 @@ export function ItemForm({ tripId, tripTitle, tripZone, defaultCurrency, recentC
       return;
     }
     setBusy(true);
+    onBusyChange?.(true);
     setMessage(null);
     const r = item
       ? await api<PlanItemDTO>("PATCH", `/api/trips/${tripId}/items/${item.id}`, { item: payload(), expectedVersion: item.version, ...(confirmTypeChange ? { confirmTypeChange: true } : {}), ...(confirmPrice ? { confirmPrice: true } : {}) })
       : await api<PlanItemDTO>("POST", `/api/trips/${tripId}/items`, payload());
     setBusy(false);
+    onBusyChange?.(false);
     if (r.ok) {
       onSaved(r.data, !item);
       return;
@@ -155,18 +165,31 @@ export function ItemForm({ tripId, tripTitle, tripZone, defaultCurrency, recentC
   );
   const optional = (words = "optional") => <span className="muted">{words}</span>;
 
-  return (
-    <Modal
-      title={item ? "Edit event" : "Add to itinerary"}
-      onClose={onClose}
-      triggerSelector={triggerSelector}
-      subtitle={<>{tripTitle}. A map link with coordinates, or coordinates on their own, puts the event on the day map.</>}
-    >
-      <form className={styles.form} onSubmit={(e) => submit(e)} noValidate>
+  const form = (
+      <form className={`${styles.form} ${surface === "panel" ? styles.panelForm : ""}`} onSubmit={(e) => submit(e)} noValidate>
+        {surface === "panel" ? (
+          <header className={styles.eventHead}>
+            <p className={styles.eyebrow}>EDIT EVENT · {panelHeading}</p>
+            <Field label="Event title" htmlFor="item-title" wide className={styles.titleField} {...fe("title")}>
+              <textarea id="item-title" rows={2} value={v.title} maxLength={200} placeholder="Event title" onChange={(e) => up({ title: e.target.value })} {...aria("title")} />
+            </Field>
+            <p className="note">Changes are saved when you choose Save changes.</p>
+          </header>
+        ) : null}
+        {surface === "panel" && mapPreview ? (
+          <div className={styles.mapPreview}>
+            {mapPreview}
+            <p className="note">This map shows the saved place. It updates after you save changes.</p>
+          </div>
+        ) : null}
+        <section className={styles.group} aria-label="Time and type">
+          {surface === "panel" ? <h3 className={styles.sectionTitle}>Time &amp; type</h3> : null}
         <FieldGrid>
+          {surface === "modal" ? (
           <Field label="What is it?" htmlFor="item-title" wide {...fe("title")}>
             <input id="item-title" value={v.title} maxLength={200} placeholder="Dinner at Gion Karyu" onChange={(e) => up({ title: e.target.value })} {...aria("title")} />
           </Field>
+          ) : null}
           <Field label="Type" htmlFor="item-type">
             <select
               id="item-type"
@@ -180,21 +203,6 @@ export function ItemForm({ tripId, tripTitle, tripZone, defaultCurrency, recentC
               {(Object.keys(TYPE_LABEL) as ItemType[]).map((k) => <option key={k} value={k}>{TYPE_LABEL[k]}</option>)}
             </select>
           </Field>
-          <Field label="Booking" htmlFor="item-booking" {...fe("bookingStatus")}>
-            <select id="item-booking" value={v.booking} onChange={(e) => up({ booking: e.target.value as typeof v.booking })} {...aria("bookingStatus")}>
-              {!isFlight ? <option value="not_required">Nothing to book</option> : null}
-              <option value="needs_booking">Needs booking</option>
-              <option value="booked" disabled={isFlight && !flightReady && v.booking !== "booked"}>
-                {isFlight && !flightReady ? "Booked (add both airports and times first)" : "Booked"}
-              </option>
-            </select>
-          </Field>
-          {v.booking === "needs_booking" ? (
-            <Field label={<>Book by {optional()}</>} htmlFor="item-due" {...fe("bookingDueDate")}>
-              <input id="item-due" type="date" value={v.due} onChange={(e) => up({ due: e.target.value })} {...aria("bookingDueDate")} />
-            </Field>
-          ) : null}
-
           {isFlight ? (
             <>
               <Field label={<>Airline {optional()}</>} htmlFor="item-airline">
@@ -248,7 +256,26 @@ export function ItemForm({ tripId, tripTitle, tripZone, defaultCurrency, recentC
               ) : null}
             </>
           )}
+        </FieldGrid>
+        </section>
 
+        <section className={styles.group} aria-label="Booking and planned price">
+          {surface === "panel" ? <h3 className={styles.sectionTitle}>Booking &amp; planned price</h3> : null}
+        <FieldGrid>
+          <Field label="Booking" htmlFor="item-booking" {...fe("bookingStatus")}>
+            <select id="item-booking" value={v.booking} onChange={(e) => up({ booking: e.target.value as typeof v.booking })} {...aria("bookingStatus")}>
+              {!isFlight ? <option value="not_required">Nothing to book</option> : null}
+              <option value="needs_booking">Needs booking</option>
+              <option value="booked" disabled={isFlight && !flightReady && v.booking !== "booked"}>
+                {isFlight && !flightReady ? "Booked (add both airports and times first)" : "Booked"}
+              </option>
+            </select>
+          </Field>
+          {v.booking === "needs_booking" ? (
+            <Field label={<>Book by {optional()}</>} htmlFor="item-due" {...fe("bookingDueDate")}>
+              <input id="item-due" type="date" value={v.due} onChange={(e) => up({ due: e.target.value })} {...aria("bookingDueDate")} />
+            </Field>
+          ) : null}
           <Field label={<>Planned price {optional()}</>} htmlFor="item-amount" wide {...fe("plannedPrice.amount")}>
             <MoneyInput
               amountId="item-amount"
@@ -275,9 +302,15 @@ export function ItemForm({ tripId, tripTitle, tripZone, defaultCurrency, recentC
               className={styles.wide}
               label="I checked this price; mark it as my estimate or quote"
               checked={confirmPrice}
-              onChange={(e) => setConfirmPrice(e.target.checked)}
+              onChange={(e) => { setConfirmPrice(e.target.checked); onDirtyChange?.(true); }}
             />
           ) : null}
+        </FieldGrid>
+        </section>
+
+        <section className={styles.group} aria-label="Place and map">
+          {surface === "panel" ? <h3 className={styles.sectionTitle}>Place &amp; map</h3> : null}
+        <FieldGrid>
           <Field label={<>Place {optional()}</>} htmlFor="item-location" wide>
             <input id="item-location" value={v.location} maxLength={500} placeholder="Fushimi Inari Taisha, Kyoto" onChange={(e) => up({ location: e.target.value })} />
           </Field>
@@ -306,13 +339,20 @@ export function ItemForm({ tripId, tripTitle, tripZone, defaultCurrency, recentC
               </div>
             </div>
           ) : null}
+        </FieldGrid>
+        </section>
+
+        <section className={styles.group} aria-label="Notes">
+          {surface === "panel" ? <h3 className={styles.sectionTitle}>Notes</h3> : null}
+        <FieldGrid>
           <Field label={<>Notes {optional()}</>} htmlFor="item-notes" wide>
             <textarea id="item-notes" maxLength={5000} value={v.notes} onChange={(e) => up({ notes: e.target.value })} />
           </Field>
         </FieldGrid>
+        </section>
         {message ? <FormError id="item-form-error">{message}</FormError> : null}
         <ModalActions>
-          <Button variant="quiet" onClick={onClose}>Cancel</Button>
+          <Button variant="quiet" disabled={busy} onClick={onClose}>{surface === "panel" ? "Back to details" : "Cancel"}</Button>
           {needTypeConfirm ? (
             <Button variant="dangerFill" disabled={busy} onClick={(e) => submit(e, true)}>Change type and clear times</Button>
           ) : (
@@ -320,6 +360,16 @@ export function ItemForm({ tripId, tripTitle, tripZone, defaultCurrency, recentC
           )}
         </ModalActions>
       </form>
+  );
+  if (surface === "panel") return form;
+  return (
+    <Modal
+      title={item ? "Edit event" : "Add to itinerary"}
+      onClose={onClose}
+      triggerSelector={triggerSelector}
+      subtitle={<>{tripTitle}. A map link with coordinates, or coordinates on their own, puts the event on the day map.</>}
+    >
+      {form}
     </Modal>
   );
 }

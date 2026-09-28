@@ -1,3 +1,15 @@
 .form { display: grid; gap: 14px; }
+.panelForm { gap: var(--space-5); padding-bottom: var(--space-4); }
+.panelForm > :last-child { position: sticky; bottom: 0; z-index: 2; padding: var(--space-3) 0; background: var(--card); border-top: 1px solid var(--line); }
+.eventHead { display: grid; gap: var(--space-2); }
+.eventHead p { margin: 0; }
+.eyebrow { font: 500 12px var(--mono); letter-spacing: 0.06em; color: var(--ink-3); }
+.titleField label { font: 500 11px var(--mono); letter-spacing: 0.14em; text-transform: uppercase; }
+.titleField textarea { min-height: 80px; field-sizing: content; resize: vertical; font-size: clamp(24px, 4vw, 30px); line-height: 1.15; font-weight: 600; padding-block: var(--space-2); }
+.mapPreview { display: grid; gap: var(--space-2); }
+.mapPreview > p { margin: 0; }
+.group { display: grid; gap: var(--space-3); }
+.panelForm .group + .group { border-top: 1px solid var(--line); padding-top: var(--space-4); }
+.sectionTitle { margin: 0; font: 500 11px var(--mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-3); }
 .wide { grid-column: 1 / -1; }
 .linkButtons { margin-top: 6px; }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { forwardRef, useEffect, useId, useImperativeHandle, useRef, useState } from "react";
 import type { PlanItemDTO } from "@/shared/dto";
 import { Button } from "@/components/ui/Button/Button";
 import { api } from "@/lib/api";
@@ -11,58 +11,66 @@ const DELAY_MS = 800;
 
 type Status = "idle" | "saving" | "saved" | "error" | "conflict";
 type Props = { tripId: string; item: PlanItemDTO; onSaved: (item: PlanItemDTO) => void };
+export type NotesFlushResult = { ok: true; item?: PlanItemDTO } | { ok: false };
+export type NotesEditorHandle = { flush: () => Promise<NotesFlushResult> };
 
 /**
  * TRIP-10: the owner's notes for one event, saved as they type (after a short pause), when the
  * field loses focus and when the panel closes. A failed save keeps the text; a newer version
  * elsewhere is reported instead of being overwritten.
  */
-export function NotesEditor({ tripId, item, onSaved }: Props) {
+export const NotesEditor = forwardRef<NotesEditorHandle, Props>(function NotesEditor({ tripId, item, onSaved }, ref) {
   const id = useId();
   const [text, setText] = useState(item.notes ?? "");
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
-  // Refs so saves and the unmount flush always see the latest values.
+  // Refs so concurrent saves and the exit flush always see the latest values.
   const latest = useRef(text);
   const saved = useRef(item.notes ?? "");
   const version = useRef(item.version);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const busy = useRef(false);
+  const inFlight = useRef<Promise<NotesFlushResult> | null>(null);
   const blocked = useRef(false);
 
-  async function save() {
+  async function save(): Promise<NotesFlushResult> {
     if (timer.current) clearTimeout(timer.current);
     timer.current = null;
     const value = latest.current.trim();
-    if (blocked.current || value === saved.current.trim()) return;
-    if (busy.current) {
-      // One save at a time; try again once this one finishes.
-      timer.current = setTimeout(() => void save(), DELAY_MS);
-      return;
+    if (blocked.current) return { ok: false };
+    if (inFlight.current) {
+      const result = await inFlight.current;
+      return result.ok ? save() : result;
     }
-    busy.current = true;
+    if (value === saved.current.trim()) return { ok: true };
     setStatus("saving");
-    const r = await api<PlanItemDTO>("PATCH", `/api/trips/${tripId}/items/${item.id}/notes`, { notes: value || null, expectedVersion: version.current });
-    busy.current = false;
-    if (r.ok) {
-      version.current = r.data.version;
-      saved.current = r.data.notes ?? "";
-      setStatus(latest.current.trim() === saved.current ? "saved" : "idle");
-      setError(null);
-      onSaved(r.data);
-      return;
-    }
-    if (r.status === 409) {
-      blocked.current = true;
-      setStatus("conflict");
-      setError("This event changed in another tab or window, so your notes weren't saved. Your text is still here: copy it, reload the page, then add it again.");
-    } else {
-      setStatus("error");
-      setError(r.message);
-    }
+    const request = api<PlanItemDTO>("PATCH", `/api/trips/${tripId}/items/${item.id}/notes`, { notes: value || null, expectedVersion: version.current }).then((r): NotesFlushResult => {
+      if (r.ok) {
+        version.current = r.data.version;
+        saved.current = r.data.notes ?? "";
+        setStatus(latest.current.trim() === saved.current ? "saved" : "idle");
+        setError(null);
+        onSaved(r.data);
+        return { ok: true, item: r.data };
+      }
+      if (r.status === 409) {
+        blocked.current = true;
+        setStatus("conflict");
+        setError("This event changed in another tab or window, so your notes weren't saved. Your text is still here: copy it, reload the page, then add it again.");
+      } else {
+        setStatus("error");
+        setError(r.message);
+      }
+      return { ok: false };
+    });
+    inFlight.current = request;
+    const result = await request;
+    inFlight.current = null;
+    return result.ok && latest.current.trim() !== saved.current.trim() ? save() : result;
   }
 
-  // Save whatever is pending when the panel closes or moves to another event.
+  useImperativeHandle(ref, () => ({ flush: save }));
+
+  // The panel flushes before transitions; cleanup covers an unexpected unmount.
   const flush = useRef(save);
   useEffect(() => {
     flush.current = save;
@@ -107,4 +115,4 @@ export function NotesEditor({ tripId, item, onSaved }: Props) {
       ) : null}
     </div>
   );
-}
+});
