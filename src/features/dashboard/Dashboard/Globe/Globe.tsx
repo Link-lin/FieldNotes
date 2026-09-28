@@ -182,6 +182,7 @@ export function Globe({ trips, selectedId, focusKey, onSelect, className }: Prop
       draw();
     });
     ro.observe(wrap.current!);
+    if (stage.current) ro.observe(stage.current);
     layout();
 
     // One short intro turn, then a decorative pulse that stops 10 s after the last interaction.

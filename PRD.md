@@ -97,6 +97,7 @@ These summaries show how the requirements fit together. The rules are in the fun
 - **DASH-4:** An empty dashboard explains how to create a trip. A trip with no itinerary items remains valid and can be edited manually.
 - **DASH-5:** The owner can permanently delete a trip after confirmation. Deletion revokes invitations and removes the trip’s items and associated booking state. Past trips remain until deleted.
 - **DASH-6:** The owner can edit a trip’s title, destination, dates, time zone, optional budget, and budget currency, with start on or before end. Editing dates never shifts or deletes item dates; items outside the new range stay visible, with a warning that counts only the items the new range pushes outside. Changing the time zone reinterprets non-flight local date-times that inherit it and recalculates booking due/overdue status; item-specific and airport time zones are unchanged. Before saving a time-zone change, the UI names the inherited local-time items and booking dates affected. Budget edits never change item prices or convert currencies.
+- **DASH-7:** On desktop, the dashboard starts with a wider trip-list pane beside the globe. The user can resize the two panes by dragging their divider or using the keyboard; both panes retain usable space, the chosen width persists on that browser, and the user can reset it. On narrow screens, the panes stack and the divider is hidden.
 
 ### Global trip view
 
