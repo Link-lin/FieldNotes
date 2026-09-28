@@ -190,6 +190,7 @@ export function EventPanel({ trip, item, open, owner, num, mapsKey, prev, next, 
               tripId={trip.id}
               tripTitle={trip.title}
               tripZone={trip.timeZone}
+              tripDates={trip}
               defaultCurrency={defaultCurrency}
               recentCurrencies={recentCurrencies}
               defaultDate=""

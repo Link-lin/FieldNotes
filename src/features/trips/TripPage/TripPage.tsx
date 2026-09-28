@@ -270,6 +270,7 @@ export function TripPage({ data, initialDay, mapsKey }: { data: TripDetailDTO; i
           tripId={trip.id}
           tripTitle={trip.title}
           tripZone={trip.timeZone}
+          tripDates={trip}
           defaultCurrency={defaultCurrency}
           recentCurrencies={data.recentCurrencies}
           defaultDate={itemForm.date}

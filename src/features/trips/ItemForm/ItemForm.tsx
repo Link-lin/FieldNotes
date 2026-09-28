@@ -8,7 +8,7 @@ import { CheckField, Field, FieldGrid, FormError } from "@/components/ui/Field/F
 import { Modal, ModalActions } from "@/components/ui/Modal/Modal";
 import { MoneyInput } from "@/features/currency/MoneyInput/MoneyInput";
 import { api } from "@/lib/api";
-import { TYPE_LABEL } from "@/lib/format";
+import { fmtShort, TYPE_LABEL } from "@/lib/format";
 import { TimeZoneSelect } from "@/features/trips/TripForm/TimeZoneSelect/TimeZoneSelect";
 import { zoneLabel } from "@/features/trips/TripForm/TimeZoneSelect/zones";
 import { FlightFields } from "./FlightFields/FlightFields";
@@ -19,6 +19,8 @@ type Props = {
   tripId: string;
   tripTitle: string;
   tripZone: string;
+  /** The trip's dates, to warn when an event falls outside them (I6). */
+  tripDates?: { startDate: string; endDate: string };
   defaultCurrency: string;
   recentCurrencies?: string[];
   defaultDate: string;
@@ -34,7 +36,7 @@ type Props = {
 };
 
 /** Add to itinerary / Edit event (TRIP-9). The server repeats every check. */
-export function ItemForm({ tripId, tripTitle, tripZone, defaultCurrency, recentCurrencies = [], defaultDate, item, triggerSelector, onClose, onSaved, surface = "modal", onDirtyChange, onBusyChange, panelHeading, mapPreview }: Props) {
+export function ItemForm({ tripId, tripTitle, tripZone, tripDates, defaultCurrency, recentCurrencies = [], defaultDate, item, triggerSelector, onClose, onSaved, surface = "modal", onDirtyChange, onBusyChange, panelHeading, mapPreview }: Props) {
   const f = item?.flightDetails;
   const ep = (e?: { airportCode: string | null; localDateTime: string | null; timeZone: string | null; timeDisambiguation: "earlier" | "later" | null }): Endpoint => ({
     code: e?.airportCode ?? "",
@@ -165,6 +167,14 @@ export function ItemForm({ tripId, tripTitle, tripZone, defaultCurrency, recentC
     </Field>
   );
   const optional = (words = "optional") => <span className="muted">{words}</span>;
+  // I6: saving outside the trip is allowed (parking the night before), but say so while typing.
+  const eventDay = isFlight ? (v.dep.dt ? v.dep.dt.slice(0, 10) : v.plannedDate) : v.noDate ? "" : v.date;
+  const outsideTrip = !!tripDates && !!eventDay && (eventDay < tripDates.startDate || eventDay > tripDates.endDate);
+  const outsideNote = outsideTrip && tripDates ? (
+    <p className={`note ${styles.wide}`} role="status" id="item-outside-note">
+      {fmtShort(eventDay)} is outside the trip ({fmtShort(tripDates.startDate)} to {fmtShort(tripDates.endDate)}). You can still save it; it will be listed under Outside trip dates.
+    </p>
+  ) : null;
 
   const form = (
       <form className={`${styles.form} ${surface === "panel" ? styles.panelForm : ""}`} onSubmit={(e) => submit(e)} noValidate>
@@ -229,6 +239,7 @@ export function ItemForm({ tripId, tripTitle, tripZone, defaultCurrency, recentC
                   showChoice={showChoice(`${side === "dep" ? "departure" : "arrival"}.timeDisambiguation`, v[side].choice)}
                 />
               ))}
+              {outsideNote}
               {v.booking === "booked" ? <p className={`note ${styles.wide}`}>A booked flight needs both airports, local times and time zones.</p> : null}
             </>
           ) : (
@@ -239,6 +250,7 @@ export function ItemForm({ tripId, tripTitle, tripZone, defaultCurrency, recentC
                   <Field label="Date" htmlFor="item-localDate" {...fe("localDate")}>
                     <input id="item-localDate" type="date" value={v.date} onChange={(e) => up({ date: e.target.value })} {...aria("localDate")} />
                   </Field>
+                  {outsideNote}
                   <Field label={<>Time {optional()}</>} htmlFor="item-time" {...fe("localTime")}>
                     <input id="item-time" type="time" value={v.time} onChange={(e) => up({ time: e.target.value })} {...aria("localTime")} />
                   </Field>
