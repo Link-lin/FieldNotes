@@ -20,7 +20,7 @@ export function AppHeader({ name, email, isOwner, bookingCount, ownedTrips, view
       <Logo href="/" />
       <div className={styles.right}>
         <nav className={`mono ${styles.nav}`} aria-label="Main">
-          <Link href="/">Atlas</Link>
+          <Link href="/" className={styles.atlas}>Atlas</Link>
           {isOwner ? (
             <Link href="/#bookings">
               Bookings <b>{bookingCount}</b>

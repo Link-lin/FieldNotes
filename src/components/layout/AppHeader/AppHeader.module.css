@@ -1,11 +1,17 @@
 .header { display: flex; flex: none; justify-content: space-between; align-items: center; gap: var(--space-4); padding: var(--space-5) var(--gutter); position: relative; z-index: var(--z-header); }
 .right { display: flex; align-items: center; gap: 18px; }
 .nav { display: flex; gap: var(--space-5); }
-.nav a { text-decoration: none; color: var(--ink-2); border-bottom: 1px solid transparent; padding: var(--space-1) 0; }
+.nav a { text-decoration: none; color: var(--ink-2); border-bottom: 1px solid transparent; padding: var(--space-1) 0; white-space: nowrap; }
 .nav a[aria-current="page"], .nav a:hover { color: var(--ink); border-bottom-color: var(--ink); }
 .nav b { color: var(--vermilion-ink); font-weight: 500; }
 
 /* Tighter on a one-screen page so the content gets the height. */
 @media (min-width: 901px) and (min-height: 620px) {
   :global(body:has([data-one-screen])) .header { padding-top: 14px; padding-bottom: 14px; }
+}
+
+/* Phones: the logo already goes to the atlas, so drop the duplicate link and keep Bookings on one line. */
+@media (max-width: 600px) {
+  .atlas { display: none; }
+  .right { gap: var(--space-4); }
 }
