@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { FieldError, ItemType } from "./dto";
 import { isCurrencyCode } from "./currencies";
 import { AMOUNT_PATTERN, trimAmount } from "./money";
-import { parseWebUrl } from "./map-links";
+import { coordinatesFromMapUrl, parseWebUrl } from "./map-links";
 import { isDate, isLocalDateTime, isTime, isTimeZone, resolveLocal } from "./time";
 
 /** Wire types for the external JSON v1 preview and its owner-confirmed commit. */
@@ -94,9 +94,19 @@ export const importCommitSchema = z.object({
   ownerProvidedBudget: nullable(importMoneySchema),
   trip: tripDraftSchema,
   items: z.array(planItemDraftSchema).max(250),
+  /** Owner-selected place lookups, in the same order as items. External JSON v1 never supplies these. */
+  confirmedMapUrls: z.array(z.string().max(2048).refine((value) => coordinatesFromMapUrl(value) !== null, "Choose a map location from the preview.").nullable()).max(250).optional(),
   /** How many previewed items the owner skipped; a pilot count only, not part of the import. */
   previewSkipped: z.number().int().min(0).max(250).optional(),
 }).strict().superRefine((value, ctx) => {
+  if (value.confirmedMapUrls && value.confirmedMapUrls.length !== value.items.length) {
+    ctx.addIssue({ code: "custom", path: ["confirmedMapUrls"], message: "Map choices must match the included items." });
+  }
+  value.confirmedMapUrls?.forEach((url, index) => {
+    if (url && (!value.items[index]?.location || value.items[index]?.type === "flight")) {
+      ctx.addIssue({ code: "custom", path: ["confirmedMapUrls", index], message: "Only a placed, non-flight event can use a suggested map location." });
+    }
+  });
   const budget = value.ownerProvidedBudget;
   const tripBudget = value.trip.budget;
   if ((budget === null) !== (tripBudget === null) || (budget && tripBudget &&
@@ -129,6 +139,12 @@ export const importCommitSchema = z.object({
 export type TripDraftDTO = z.infer<typeof tripDraftSchema>;
 export type PlanItemDraftDTO = z.infer<typeof planItemDraftSchema>;
 export type ImportCommitInput = z.infer<typeof importCommitSchema>;
+export const importLocationRequestSchema = z.object({
+  location: z.string().trim().min(2).max(500),
+  destination: z.string().trim().min(2).max(160),
+}).strict();
+export type ImportLocationCandidate = { label: string; latitude: number; longitude: number; confidence: number; kind: string };
+export type ImportLocationResult = { candidates: ImportLocationCandidate[] };
 export type ImportPreviewDTO = {
   trip: {
     values: Partial<Record<keyof TripDraftDTO, unknown>>;

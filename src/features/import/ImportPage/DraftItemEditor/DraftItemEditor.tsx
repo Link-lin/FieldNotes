@@ -2,12 +2,13 @@
 
 import { useMemo } from "react";
 import type { FieldError } from "@/shared/dto";
-import type { ImportPreviewDTO } from "@/shared/import";
+import type { ImportLocationCandidate, ImportPreviewDTO } from "@/shared/import";
 import { Button } from "@/components/ui/Button/Button";
 import { Field, FieldGrid } from "@/components/ui/Field/Field";
 import { Tag } from "@/components/ui/Tag/Tag";
 import { PickerInput } from "../PickerInput/PickerInput";
 import { previewGlance } from "../preview-summary";
+import { MapSuggestion } from "./MapSuggestion/MapSuggestion";
 import styles from "./DraftItemEditor.module.css";
 
 type Row = ImportPreviewDTO["items"][number];
@@ -16,6 +17,9 @@ type Props = {
   /** Whether the edit form is showing; the page holds it so Expand all and Collapse all can set every card. */
   open: boolean; onOpenChange: (open: boolean) => void;
   onChange: (path: string, value: unknown) => void; onIncluded: (included: boolean) => void; onRemoveUnsupported: () => void; onRemoveEmptySourceValues: () => void;
+  lookup: { status: "loading" | "ready" | "error"; candidates: ImportLocationCandidate[]; selected: number | null } | null;
+  onSelectLocation: (selected: number | null) => void;
+  onRetryLocation: () => void;
 };
 const TYPES = ["flight", "lodging", "transport", "meal", "activity", "other"];
 
@@ -29,7 +33,7 @@ function emptyFlightDetails() {
 }
 
 /** One unsaved AI item. Each field is corrected here or the whole item is explicitly skipped. */
-export function DraftItemEditor({ row, errors, busy, canRemoveEmptySourceValues, tripZone, open, onOpenChange, onChange, onIncluded, onRemoveUnsupported, onRemoveEmptySourceValues }: Props) {
+export function DraftItemEditor({ row, errors, busy, canRemoveEmptySourceValues, tripZone, open, onOpenChange, onChange, onIncluded, onRemoveUnsupported, onRemoveEmptySourceValues, lookup, onSelectLocation, onRetryLocation }: Props) {
   const id = (path: string) => `import-item-${row.index}-${path.replace(/[^a-zA-Z0-9]/g, "-")}`;
   const err = (path: string) => errors.find((e) => normalizedPath(e.path) === path)?.message;
   const field = (path: string) => ({ error: err(path), errorId: `${id(path)}-err` });
@@ -77,6 +81,7 @@ export function DraftItemEditor({ row, errors, busy, canRemoveEmptySourceValues,
             {errors.length ? <Tag tone="need">{errors.length} {errors.length === 1 ? "issue" : "issues"}</Tag> : null}
             {!row.included ? <Tag>Excluded</Tag> : null}
           </div>
+          {row.included && !isFlight && val("location") ? <MapSuggestion id={row.index} lookup={lookup} busy={busy} onSelect={onSelectLocation} onRetry={onRetryLocation} /> : null}
         </div>
         <Button variant={row.included ? "quiet" : "outline"} onClick={() => onIncluded(!row.included)} disabled={busy} aria-label={`${chosen}: ${val("title") || `item ${row.index + 1}`}`}>{chosen}</Button>
       </div>

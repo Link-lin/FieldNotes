@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { FieldError } from "@/shared/dto";
-import { importCommitSchema, importMoneySchema, tripDraftSchema, type ImportCommitInput, type ImportPreviewDTO } from "@/shared/import";
+import { openStreetMapPointUrl } from "@/shared/map-links";
+import { importCommitSchema, importMoneySchema, tripDraftSchema, type ImportCommitInput, type ImportLocationCandidate, type ImportLocationResult, type ImportPreviewDTO } from "@/shared/import";
 import { Banner } from "@/components/ui/Banner/Banner";
 import { Button } from "@/components/ui/Button/Button";
 import { FormError } from "@/components/ui/Field/Field";
@@ -24,6 +25,7 @@ const KEY = "field-notes-import-idempotency-key";
 const SENSITIVE = "Do not include passport details, payment-card data or booking-confirmation codes. Your AI chat has its own data policies.";
 const CONVERSION_PROMPT = buildConversionPrompt();
 const asText = (value: unknown): string => value == null ? "" : typeof value === "string" || typeof value === "number" ? String(value) : JSON.stringify(value);
+type PlaceLookup = { location: string; destination: string; status: "loading" | "ready" | "error"; candidates: ImportLocationCandidate[]; selected: number | null };
 
 function issuePath(path: PropertyKey[], included: ImportPreviewDTO["items"]): string {
   if (path[0] === "items" && typeof path[1] === "number") {
@@ -69,6 +71,10 @@ export function ImportPage() {
   const [builderOpen, setBuilderOpen] = useState(false);
   // Item cards showing their edit form. Cards with issues start open; Expand all and Collapse all set every card.
   const [openRows, setOpenRows] = useState<ReadonlySet<number>>(() => new Set());
+  const [lookups, setLookups] = useState<Record<number, PlaceLookup>>({});
+  const [lookupMessage, setLookupMessage] = useState<string | null>(null);
+  const [locating, setLocating] = useState(false);
+  const lookupRun = useRef(0);
   const inputRevision = useRef(0);
   const prompt = useMemo(() => buildImportPrompt(brief), [brief]);
   const locked = busy === "commit" || pending !== null;
@@ -80,7 +86,10 @@ export function ImportPage() {
     <DraftItemEditor key={row.index} row={row} errors={[...row.errors, ...rowErrors(localErrors, row.index)]} busy={locked} tripZone={previewZone}
       open={openRows.has(row.index)} onOpenChange={(open) => setRowOpen(row.index, open)}
       canRemoveEmptySourceValues={hasRemovableEmptySourceValues(row, preview.trip.values)} onChange={(path, value) => editItem(row.index, path, value)}
-      onIncluded={(value) => setIncluded(row.index, value)} onRemoveUnsupported={() => removeUnsupported(row.index)} onRemoveEmptySourceValues={() => removeEmptySourceValues(row.index)} />
+      onIncluded={(value) => setIncluded(row.index, value)} onRemoveUnsupported={() => removeUnsupported(row.index)} onRemoveEmptySourceValues={() => removeEmptySourceValues(row.index)}
+      lookup={lookups[row.index]?.location === row.values.location && lookups[row.index]?.destination === preview.trip.values.destination ? (lookups[row.index] ?? null) : null}
+      onSelectLocation={(selected) => setLookups((old) => { const entry = old[row.index]; return entry ? { ...old, [row.index]: { ...entry, selected } } : old; })}
+      onRetryLocation={() => void locateOne(row.index, asText(row.values.location), asText(preview.trip.values.destination), lookupRun.current)} />
   ) : null;
   const remaining = included.reduce((sum, item) => sum + item.errors.length + rowErrors(localErrors, item.index).length, 0) + (preview?.trip.errors.length ?? 0) + localErrors.filter((e) => e.path.startsWith("trip.")).length;
 
@@ -157,18 +166,58 @@ export function ImportPage() {
       return;
     }
     setPreview(result.data);
+    setLookups({});
+    setLookupMessage(null);
     setLocalErrors([]);
     setOpenRows(new Set(result.data.items.filter((row) => row.errors.length).map((row) => row.index)));
     requestAnimationFrame(() => document.getElementById("import-preview-title")?.focus());
+    void locateAll(result.data);
+  }
+
+  async function locateOne(index: number, location: string, destination: string, run: number): Promise<boolean> {
+    if (!location || !destination) return true;
+    setLookups((old) => ({ ...old, [index]: { location, destination, status: "loading", candidates: [], selected: null } }));
+    const result = await api<ImportLocationResult>("POST", "/api/places/resolve", { location, destination });
+    if (run !== lookupRun.current) return false;
+    if (!result.ok) {
+      setLookups((old) => ({ ...old, [index]: { location, destination, status: "error", candidates: [], selected: null } }));
+      if (result.code === "place_lookup_unavailable") setLookupMessage(result.message);
+      return result.code !== "place_lookup_unavailable";
+    }
+    const candidates = result.data.candidates;
+    const best = candidates[0];
+    const selected = best && best.confidence >= 0.95 && ["amenity", "building"].includes(best.kind) ? 0 : null;
+    setLookups((old) => ({ ...old, [index]: { location, destination, status: "ready", candidates, selected } }));
+    return true;
+  }
+
+  async function locateAll(draft: ImportPreviewDTO) {
+    const run = ++lookupRun.current;
+    setLookupMessage(null);
+    const destination = typeof draft.trip.values.destination === "string" ? draft.trip.values.destination.trim() : "";
+    const targets = draft.items.filter((row) => row.included && row.values.type !== "flight" && typeof row.values.location === "string" && row.values.location.trim().length >= 2);
+    setLocating(targets.length > 0);
+    let next = 0;
+    let active = true;
+    const worker = async () => {
+      while (active && run === lookupRun.current && next < targets.length) {
+        const row = targets[next++]!;
+        active = await locateOne(row.index, String(row.values.location).trim(), destination, run);
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(3, targets.length) }, worker));
+    if (run === lookupRun.current) setLocating(false);
   }
 
   function editTrip(path: string, value: unknown) {
     setPreview((old) => old ? editPreviewTrip(old, path, value) : old);
+    if (path === "destination") { lookupRun.current++; setLookups({}); setLocating(false); }
     setLocalErrors((old) => old.filter((e) => !e.path.startsWith("trip.")));
   }
 
   function editItem(index: number, path: string, value: unknown) {
     setPreview((old) => old ? editPreviewItem(old, index, path, value) : old);
+    if (path === "location" || path === "type") setLookups((old) => { const next = { ...old }; delete next[index]; return next; });
     setLocalErrors((old) => old.filter((e) => !rowErrors([e], index).length));
   }
 
@@ -200,14 +249,27 @@ export function ImportPage() {
 
   function reviewCommit() {
     if (!preview || locked) return;
+    if (locating) {
+      setMessage("Place lookup is still running. Wait for it to finish, or skip the remaining lookups before reviewing creation.");
+      requestAnimationFrame(() => document.getElementById("import-preview-error")?.focus());
+      return;
+    }
     if (remaining) {
       openRowsWithErrors([...included.flatMap((row) => row.errors), ...localErrors]);
       setMessage("Correct trip errors and every included item, or explicitly skip an item with errors.");
       requestAnimationFrame(() => document.getElementById("import-preview-error")?.focus());
       return;
     }
+    const destination = preview.trip.values.destination;
+    const confirmedMapUrls = included.map((row) => {
+      const found = lookups[row.index];
+      const selected = found?.selected;
+      if (!found || found.location !== row.values.location || found.destination !== destination || selected === null || selected === undefined) return null;
+      const match = found.candidates[selected];
+      return match ? openStreetMapPointUrl(match.latitude, match.longitude) : null;
+    });
     const candidate = { expectedFormatVersion: 1, ownerProvidedBudget: preview.trip.values.budget ?? null,
-      trip: preview.trip.values, items: included.map((row) => row.values), previewSkipped: preview.items.length - included.length };
+      trip: preview.trip.values, items: included.map((row) => row.values), confirmedMapUrls, previewSkipped: preview.items.length - included.length };
     const parsed = importCommitSchema.safeParse(candidate);
     if (!parsed.success) {
       const errors = parsed.error.issues.map((issue) => ({ path: issuePath(issue.path, included), code: issue.code, message: issue.message }));
@@ -303,7 +365,7 @@ export function ImportPage() {
             <details className={styles.prompt}><summary>Review the conversion prompt</summary><pre>{CONVERSION_PROMPT}</pre></details>
             <Banner tone="info">Copying a prompt does not send anything from Field Notes. You decide what to share with your AI chat. {SENSITIVE}</Banner>
             <label className={styles.pasteLabel} htmlFor="import-response">Paste the JSON response</label>
-            <p className="note">Paste one JSON v1 object. A surrounding Markdown code fence is okay. No response is saved before you confirm the preview. You can set or correct the trip budget in the preview.</p>
+            <p className="note">Paste one JSON v1 object. A surrounding Markdown code fence is okay. No response is saved before you confirm the preview. You can set or correct the trip budget in the preview. If place lookup is configured, previewing sends each event&apos;s place name and trip destination to Geoapify for suggested map pins; notes, prices, and the raw JSON are not sent.</p>
             <textarea id="import-response" className={styles.paste} value={responseText} onChange={(e) => { inputRevision.current++; setResponseText(e.target.value); setPasteErrors([]); setMessage(null); }} rows={12} spellCheck={false} disabled={busy === "preview"} placeholder={'{ "formatVersion": 1, "trip": { ... }, "items": [ ... ] }'} />
             <div className={styles.actions}><Button variant="fill" onClick={validateResponse} disabled={busy === "preview"}>{busy === "preview" ? "Validating…" : "Validate and preview"}</Button>{busy === "preview" ? <span role="status">Checking the response…</span> : null}</div>
             {message ? <FormError id="import-paste-error">{message}</FormError> : null}
@@ -333,7 +395,13 @@ export function ImportPage() {
           <TripPreview values={preview.trip.values} errors={[...preview.trip.errors, ...localErrors.filter((e) => e.path.startsWith("trip."))]} warnings={preview.trip.warnings} aiBudget={preview.trip.aiBudget ?? null} busy={locked} onChange={editTrip} />
           <div className={styles.itemsHead}>
             <h2>Itinerary items</h2>
-            <p className="note">Flights are separate segments. Imported map links do not pin stops; you can choose a map link after creation.</p>
+            <p className="note">Flights are separate segments. Field Notes looks up place names for map pins; check the suggested locations before creating the trip. Only each place and the trip destination go to Geoapify.</p>
+            {lookupMessage ? <Banner tone="warn" role="status">{lookupMessage}</Banner> : null}
+            <div className={styles.actions}>
+              <Button variant="quiet" onClick={() => void locateAll(preview)} disabled={locked}>Refresh map suggestions</Button>
+              {locating ? <><span className="note" role="status">Finding map locations…</span><Button variant="quiet" onClick={() => { lookupRun.current++; setLocating(false); setLookups((old) => Object.fromEntries(Object.entries(old).map(([index, lookup]) => [index, lookup.status === "loading" ? { ...lookup, status: "error" as const } : lookup]))); }} disabled={locked}>Skip remaining lookups</Button></> : null}
+              <span className="note">Locations: <a href="https://www.geoapify.com/" target="_blank" rel="noopener noreferrer">Geoapify</a> · <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap contributors</a></span>
+            </div>
             {included.length ? (
               <div className={styles.actions}>
                 <Button variant="quiet" onClick={() => setOpenRows(new Set(included.map((row) => row.index)))}>Expand all</Button>
@@ -374,6 +442,7 @@ export function ImportPage() {
         <Modal title="Create this trip?" onClose={() => setConfirming(null)} triggerSelector="[data-import-create]" subtitle="This is the first time the trip and its included items will be saved.">
           <p><strong>{confirming.trip.title}</strong> · {confirming.items.length} {confirming.items.length === 1 ? "item" : "items"}</p>
           <p className="note">Every imported item will be marked as an unverified AI draft. No item will be marked Booked.</p>
+          <p className="note">{confirming.confirmedMapUrls?.filter(Boolean).length ?? 0} suggested map pins will be saved. Clear venue matches may have been preselected; check unfamiliar matches in the preview before continuing.</p>
           <ModalActions><Button variant="quiet" onClick={() => setConfirming(null)}>Keep reviewing</Button><Button variant="fill" onClick={beginCommit}>Create trip</Button></ModalActions>
         </Modal>
       ) : null}

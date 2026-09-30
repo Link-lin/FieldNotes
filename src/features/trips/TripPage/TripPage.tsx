@@ -332,6 +332,7 @@ export function TripPage({ data, initialDay, initialEvent, initialView, mapsKey 
         <ItemForm
           tripId={trip.id}
           tripTitle={trip.title}
+          tripDestination={trip.destination}
           tripZone={trip.timeZone}
           tripDates={trip}
           defaultCurrency={defaultCurrency}

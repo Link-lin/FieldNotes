@@ -35,13 +35,13 @@ function sameMoney(a: { amount: string; currency: string } | null, b: { amount: 
   return a.currency === b.currency && trimAmount(a.amount) === trimAmount(b.amount);
 }
 
-function asItemInput(item: PlanItemDraftDTO): ItemInput {
+function asItemInput(item: PlanItemDraftDTO, confirmedMapUrl: string | null): ItemInput {
   const base = {
     title: item.title,
     location: item.location,
     notes: item.notes,
     links: item.links,
-    mapUrl: null,
+    mapUrl: confirmedMapUrl,
     bookingStatus: item.bookingStatus,
     bookingDueDate: item.bookingDueDate,
     plannedPrice: item.plannedPrice ? { ...item.plannedPrice, label: "estimate" as const } : null,
@@ -94,7 +94,7 @@ export async function commitImport(
   }
 
   const items: ItemInput[] = input.items.map((draft, index) => {
-    const parsed = itemInputSchema.safeParse(asItemInput(draft));
+    const parsed = itemInputSchema.safeParse(asItemInput(draft, input.confirmedMapUrls?.[index] ?? null));
     if (!parsed.success) throw invalid(toFieldErrors(parsed.error).map((e) => ({ ...e, path: itemPath(index, e.path) })));
     if (parsed.data.bookingStatus === "booked") {
       throw invalid([{ path: `items[${index}].bookingStatus`, code: "invalid", message: "AI drafts cannot mark an item booked." }]);

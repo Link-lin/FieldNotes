@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import type { FieldError, ItemType, PlanItemDTO } from "@/shared/dto";
-import { coordinatesFromMapUrl, parseCoordinateText, providerLabel } from "@/shared/map-links";
+import type { ImportLocationCandidate, ImportLocationResult } from "@/shared/import";
+import { coordinatesFromMapUrl, openStreetMapPointUrl, parseCoordinateText, providerLabel } from "@/shared/map-links";
 import { Button } from "@/components/ui/Button/Button";
 import { CheckField, Field, FieldGrid, FormError } from "@/components/ui/Field/Field";
 import { Modal, ModalActions } from "@/components/ui/Modal/Modal";
@@ -18,6 +19,7 @@ import styles from "./ItemForm.module.css";
 type Props = {
   tripId: string;
   tripTitle: string;
+  tripDestination: string;
   tripZone: string;
   /** The trip's dates, to warn when an event falls outside them (I6). */
   tripDates?: { startDate: string; endDate: string };
@@ -36,7 +38,7 @@ type Props = {
 };
 
 /** Add to itinerary / Edit event (TRIP-9). The server repeats every check. */
-export function ItemForm({ tripId, tripTitle, tripZone, tripDates, defaultCurrency, recentCurrencies = [], defaultDate, item, triggerSelector, onClose, onSaved, surface = "modal", onDirtyChange, onBusyChange, panelHeading, mapPreview }: Props) {
+export function ItemForm({ tripId, tripTitle, tripDestination, tripZone, tripDates, defaultCurrency, recentCurrencies = [], defaultDate, item, triggerSelector, onClose, onSaved, surface = "modal", onDirtyChange, onBusyChange, panelHeading, mapPreview }: Props) {
   const f = item?.flightDetails;
   const ep = (e?: { airportCode: string | null; localDateTime: string | null; timeZone: string | null; timeDisambiguation: "earlier" | "later" | null }): Endpoint => ({
     code: e?.airportCode ?? "",
@@ -73,6 +75,12 @@ export function ItemForm({ tripId, tripTitle, tripZone, tripDates, defaultCurren
   const [needTypeConfirm, setNeedTypeConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
   const [confirmPrice, setConfirmPrice] = useState(false);
+  const [findingPlace, setFindingPlace] = useState(false);
+  const [placeMatches, setPlaceMatches] = useState<ImportLocationCandidate[]>([]);
+  const [placeQuery, setPlaceQuery] = useState("");
+  const [chosenPlace, setChosenPlace] = useState(0);
+  const [placeMessage, setPlaceMessage] = useState<string | null>(null);
+  const [lookupMapUrl, setLookupMapUrl] = useState<string | null>(null);
   const up = (patch: Partial<typeof v>) => {
     setV((o) => ({ ...o, ...patch }));
     onDirtyChange?.(true);
@@ -152,10 +160,10 @@ export function ItemForm({ tripId, tripTitle, tripZone, tripDates, defaultCurren
   const mapText = v.mapUrl.trim();
   const pin = mapText ? (parseCoordinateText(mapText) ?? coordinatesFromMapUrl(mapText)) : null;
   const mapHint = !mapText
-    ? "Paste a Google Maps, Apple Maps or OpenStreetMap link, or coordinates like 35.0116, 135.7681. In Google Maps, right-click the place and click the numbers at the top of the menu to copy them."
+    ? "Use Find place on map above, or paste a Google Maps, Apple Maps or OpenStreetMap link. Coordinates also work."
     : pin
       ? `Pins the stop at ${pin[0].toFixed(5)}, ${pin[1].toFixed(5)}.`
-      : "This link has no coordinates the app can read, so the event won't be on the day map. Pasting coordinates works too.";
+      : "This link has no coordinates the app can read, so the event won't be on the day map. Try Find place on map above.";
   const importedLinks = v.links.filter((l) => providerLabel(l.url) && l.url.startsWith("https://") && l.url !== v.mapUrl);
   const choiceField = (id: string, value: Choice, onChange: (c: Choice) => void, path: string) => (
     <Field label="This time happens twice that day (clocks go back). Which one?" htmlFor={id} wide {...fe(path)}>
@@ -167,6 +175,20 @@ export function ItemForm({ tripId, tripTitle, tripZone, tripDates, defaultCurren
     </Field>
   );
   const optional = (words = "optional") => <span className="muted">{words}</span>;
+  async function findPlace() {
+    const location = v.location.trim();
+    if (!location) return;
+    setFindingPlace(true);
+    setPlaceMessage(null);
+    setPlaceMatches([]);
+    const result = await api<ImportLocationResult>("POST", "/api/places/resolve", { location, destination: tripDestination });
+    setFindingPlace(false);
+    if (!result.ok) { setPlaceMessage(result.message); return; }
+    setPlaceQuery(location);
+    setPlaceMatches(result.data.candidates);
+    setChosenPlace(0);
+    if (!result.data.candidates.length) setPlaceMessage("No matching place found. Try a more specific place name.");
+  }
   // I6: saving outside the trip is allowed (parking the night before), but say so while typing.
   const eventDay = isFlight ? (v.dep.dt ? v.dep.dt.slice(0, 10) : v.plannedDate) : v.noDate ? "" : v.date;
   const outsideTrip = !!tripDates && !!eventDay && (eventDay < tripDates.startDate || eventDay > tripDates.endDate);
@@ -331,8 +353,25 @@ export function ItemForm({ tripId, tripTitle, tripZone, tripDates, defaultCurren
           {surface === "panel" ? <h3 className={styles.sectionTitle}>Place &amp; map</h3> : null}
         <FieldGrid>
           <Field label={<>Place {optional()}</>} htmlFor="item-location" wide>
-            <input id="item-location" value={v.location} maxLength={500} placeholder="Fushimi Inari Taisha, Kyoto" onChange={(e) => up({ location: e.target.value })} />
+            <input id="item-location" value={v.location} maxLength={500} placeholder="Fushimi Inari Taisha, Kyoto" onChange={(e) => { up({ location: e.target.value, ...(lookupMapUrl && v.mapUrl === lookupMapUrl ? { mapUrl: "" } : {}) }); setLookupMapUrl(null); setPlaceMatches([]); setPlaceMessage(null); }} />
           </Field>
+          {!isFlight && v.location.trim() ? (
+            <div className={styles.placeFinder}>
+              <Button variant="quiet" onClick={findPlace} disabled={findingPlace || busy}>{findingPlace ? "Finding place…" : "Find place on map"}</Button>
+              <span className="note">Sends this place and the trip destination to Geoapify. You choose the match before saving.</span>
+              {placeMessage ? <span className="note" role="status">{placeMessage}</span> : null}
+              {placeMatches.length && placeQuery === v.location.trim() ? (
+                <div className={styles.placeChoices}>
+                  <label htmlFor="item-place-match">Matching places</label>
+                  <select id="item-place-match" value={chosenPlace} onChange={(e) => setChosenPlace(Number(e.target.value))}>
+                    {placeMatches.map((match, index) => <option key={`${match.latitude}-${match.longitude}-${index}`} value={index}>{match.label}</option>)}
+                  </select>
+                  <Button variant="outline" onClick={() => { const match = placeMatches[chosenPlace]; if (match) { const url = openStreetMapPointUrl(match.latitude, match.longitude); setLookupMapUrl(url); up({ mapUrl: url }); } }}>Use this location</Button>
+                  <span className="note"><a href="https://www.geoapify.com/" target="_blank" rel="noopener noreferrer">Powered by Geoapify</a> · <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap contributors</a></span>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
           <Field label={<>Map link or coordinates {optional()}</>} htmlFor="item-map" wide hint={mapHint} hintId="item-map-hint" {...fe("mapUrl")}>
             <input
               id="item-map"
@@ -340,8 +379,8 @@ export function ItemForm({ tripId, tripTitle, tripZone, tripDates, defaultCurren
               autoComplete="off"
               spellCheck={false}
               value={v.mapUrl}
-              placeholder="https://www.google.com/maps/… or 35.0116, 135.7681"
-              onChange={(e) => up({ mapUrl: e.target.value })}
+              placeholder="Choose a place above or paste a map link"
+              onChange={(e) => { setLookupMapUrl(null); up({ mapUrl: e.target.value }); }}
               aria-describedby="item-map-hint"
               {...aria("mapUrl")}
             />
@@ -386,7 +425,7 @@ export function ItemForm({ tripId, tripTitle, tripZone, tripDates, defaultCurren
       title={item ? "Edit event" : "Add to itinerary"}
       onClose={onClose}
       triggerSelector={triggerSelector}
-      subtitle={<>{tripTitle}. A map link with coordinates, or coordinates on their own, puts the event on the day map.</>}
+      subtitle={<>{tripTitle}. Find a place on the map, use a map link, or paste coordinates to pin this event.</>}
     >
       {form}
     </Modal>

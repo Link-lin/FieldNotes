@@ -12,9 +12,9 @@ This document describes the system as built. Requirement IDs such as TRIP-10 ref
 
 Travel Planner is one TypeScript web application with a server-side data-access layer (DAL) and one managed PostgreSQL database. Users sign in with Google through Auth.js, and sessions are stored in the database. All trip reads and writes run on the server. The browser never connects to PostgreSQL.
 
-Built: sign-in, the dashboard and globe, trips, the trip page with events, costs and day map, the event side panel, account deletion, owner-only AI import into a new trip, read-only viewer invitations, pasted-coordinate pins and pilot counts. Not built: importing into an existing trip (TRIP-7, proposed; see [Open questions](#open-questions)) and ATLAS-4's click-the-globe point picker (owners set a point through catalog search only); no health-check route or structured request logging yet (see [Observability](#observability)).
+Built: sign-in, the dashboard and globe, trips, the trip page with events, costs and day map, the event side panel, account deletion, owner-only AI import into a new trip with optional owner-reviewed place lookup, read-only viewer invitations, pasted-coordinate pins and pilot counts. Not built: importing into an existing trip (TRIP-7, proposed; see [Open questions](#open-questions)) and ATLAS-4's click-the-globe point picker (owners set a point through catalog search only); no health-check route or structured request logging yet (see [Observability](#observability)).
 
-Out of scope, per the PRD's MVP scope: in-app AI, weather, live flight status, email or push reminders, booking and payment, currency conversion, paid-spend accounting, packing lists, attachments, offline use, collaborative editing, and any app-owned street basemap, tiles, routing engine or geocoding of item locations. The dataset is personal: a modest number of trips, at most 250 items each, and a few invited viewers.
+Out of scope, per the PRD's MVP scope: in-app AI, weather, live flight status, email or push reminders, booking and payment, currency conversion, paid-spend accounting, packing lists, attachments, offline use, collaborative editing, and any app-owned street basemap, tiles, routing engine or background geocoding outside the owner-reviewed import preview. The dataset is personal: a modest number of trips, at most 250 items each, and a few invited viewers.
 
 The main product risk is the pasted AI response: it is untrusted, validated against a strict contract, previewed, committed atomically only after confirmation, and never stored or logged.
 
@@ -35,6 +35,7 @@ All dependencies are pinned exactly.
 
 - **Google sign-in** (OAuth/OIDC) for identity only. The app requests no Gmail, Calendar, Drive or travel scopes and keeps no Google API tokens.
 - **Google Maps Embed API** (optional key) for an opened event's map and the opt-in day road route. Neither loads until the user opens it.
+- **Geoapify forward geocoding** (optional server-only key) resolves non-flight place names during AI import preview. Only the place and destination are sent; candidates are shown before the owner confirms a pin. The provider permits its coordinates on the custom outline map with Geoapify and OpenStreetMap attribution. Failure leaves the import usable without pins.
 - **External map links** open in a new tab on click; the server never fetches or resolves them.
 - **Bundled data** (places, airports, geometry, city labels), so the dashboard and default trip page make no third-party request.
 - **External AI chat**, run by the user outside the app; the app never calls an AI provider.
@@ -275,6 +276,7 @@ Responses never include SQL, stack traces, session or invitation tokens, or othe
 |---|---|---|
 | `GET /api/trips` | Dashboard data. | Signed-in user. Owned trips (while allowlisted) plus accepted shared trips, each with `role`. |
 | `GET /api/atlas/places?q=...` | Catalog search: 2–160-character query, at most ten results. | Allowlisted owner. No trip data; no external geocoder. |
+| `POST /api/places/resolve` | `{ "location": "...", "destination": "..." }`; at most three labeled coordinate candidates. | Allowlisted owner. Sends only those two fields to Geoapify when configured; no database write, bounded timeout, and no logging of query or result. |
 | `POST /api/trips` | Title, destination, inclusive dates, IANA zone, optional budget. | Allowlisted owner. Creates an empty trip; an exact, unique catalog match sets the globe point. |
 | `GET /api/trips/{tripId}` | Trip, items and totals. | Owner or accepted viewer. |
 | `POST /api/trips/{tripId}/time-zone-preview` | `{ "timeZone": "...", "expectedVersion": 4 }`. | Owner. Read-only impact list (see [Time zones](#time-zones)). |
@@ -289,7 +291,7 @@ Responses never include SQL, stack traces, session or invitation tokens, or othe
 | `POST /api/trips/{tripId}/items/{itemId}/restore` | Undo a deletion. | Owner. Clears `deleted_at` on the same row and bumps the trip version. 410 after 10 minutes; 409 if the cap is full; 409 `restore_time_invalid` if the local time no longer exists or is now ambiguous in the trip zone. |
 | `GET /api/import/schema` | The JSON v1 schema. | Allowlisted owner. Serves `docs/design/json-v1.schema.json` unchanged. |
 | `POST /api/import/preview` | `{ "responseText": "...", "ownerProvidedBudget": MoneyDTO \| null }`. | Allowlisted owner. See [JSON v1 contract](#json-v1-contract). Writes only a pilot count. |
-| `POST /api/import/commit` | Normalized trip and included items, `ownerProvidedBudget`, `Idempotency-Key` UUID header, `expectedFormatVersion: 1`, optional `previewSkipped` (0–250). | Allowlisted owner. See [Import](#import). `trip.budget` must equal `ownerProvidedBudget`. `previewSkipped` feeds only the pilot count and is not hashed. |
+| `POST /api/import/commit` | Normalized trip and included items, optional owner-selected `confirmedMapUrls` parallel to items, `ownerProvidedBudget`, `Idempotency-Key` UUID header, `expectedFormatVersion: 1`, optional `previewSkipped` (0–250). | Allowlisted owner. See [Import](#import). `trip.budget` must equal `ownerProvidedBudget`. Map choices are validated and included in the idempotency hash; `previewSkipped` feeds only the pilot count and is not hashed. |
 | `POST /api/trips/{tripId}/invitations` | `{ "email": "..." }`. | Owner. Creates or reissues the entry, rotating token and expiry. Own email is 422; an accepted viewer is 409 until revoked. No email is sent. |
 | `GET /api/trips/{tripId}/invitations` | Viewer and invitation entries. | Owner. Never returns a token, hash or link. |
 | `DELETE /api/trips/{tripId}/invitations/{invitationId}` | Revoke. | Owner. Effective on the next request. |
@@ -405,7 +407,7 @@ type PlanItemDraftDTO = {
   bookingStatus: "not_required" | "needs_booking";
   bookingDueDate: string | null;
   plannedPrice: MoneyDTO | null; // no label; commit assigns estimate and source ai
-  // No mapUrl: import never sets one (MAP-2).
+  // No mapUrl in external JSON v1; owner-selected lookup pins travel separately in the commit.
   localDate: string | null; localTime: string | null; timeZone: string | null;
   durationMinutes: number | null;
   timeDisambiguation: TimeChoiceDTO | null;
@@ -603,7 +605,7 @@ Product rules are TRIP-1 to TRIP-10, MAP-1 to MAP-9 and BUDGET-6 to BUDGET-7; la
 
 #### Map links and pins
 
-- **Setting coordinates (MAP-2).** Only the server sets item coordinates, and only when an owner request carries a `mapUrl` that differs from the stored value and parses. A re-sent unchanged value never re-pins. Changing `map_url` to an unparseable value or clearing it clears the coordinates. Import never sets `map_url` or coordinates; the item editor's **Use as map link** copies one of the item's `links` into `mapUrl` as an owner edit.
+- **Setting coordinates (MAP-2).** Only the server sets item coordinates, and only when an owner request carries a `mapUrl` that differs from the stored value and parses. A re-sent unchanged value never re-pins. Changing `map_url` to an unparseable value or clearing it clears the coordinates. External JSON v1 cannot set `mapUrl`. The owner may select a Geoapify lookup suggestion in the preview; the confirmed commit then carries its OpenStreetMap coordinate link beside the normalized item. In the event editor, **Find place on map** uses the same owner-only lookup and **Use this location** fills the map-link field before save. The item editor's **Use as map link** still copies one of the item's `links` into `mapUrl` as an owner edit.
 - **Cleaning.** On save the server strips tracking parameters (`utm_*`, `g_ep`, `g_st`, `entry`, `authuser`, `shorturl`, `ved`, `ei`, `sca_esv`, `fbclid`, `gclid`) and rejects non-https links and links with user information. A link over 2,048 characters after normalization is a field error.
 - **Pasted coordinates.** The map-link field also accepts decimal latitude and longitude separated by a comma and/or spaces, optionally in parentheses (`35.0116, 135.7681`, `(35.0116 135.7681)`); degrees-minutes-seconds are not accepted. `mapLinkFromInput` turns them into `https://www.google.com/maps/search/?api=1&query=lat,lon` before cleaning and parsing, so the stored value is always a link. Out-of-range values are left as text and rejected as an invalid link. The form hint says live whether the value will pin.
 - **Parsing.** `src/shared/map-links.ts` serves both server and form preview. It reads `@lat,lon`, `!3dlat!4dlon`, `mlat=&mlon=`, `#map=z/lat/lon` and `ll|q|query|destination=lat,lon`, decodes once, range-checks and never performs I/O. Only Google Maps, Apple Maps and OpenStreetMap hosts are parsed. Amap and Baidu links (GCJ-02/BD-09) and shortened links (`maps.app.goo.gl`) give no coordinates and are never resolved.
@@ -636,13 +638,13 @@ Import creates a new trip only; appending to an existing trip is TRIP-7 (propose
 
 1. **Create from an AI plan** leads with a paste path for a plan already discussed in an external chat such as ChatGPT or Gemini: a copyable conversion prompt asks that chat to produce JSON v1 and to ask there for any missing trip details, so the page needs no destination or dates first. An optional trip-brief form (which may include a budget) builds a new-planning prompt instead. Both paths share the parser and day-by-day preview. Prompts are copied only on a button press. The page warns against sharing booking codes, passport or payment details.
 2. The pasted text stays in the tab's memory and goes to `POST /api/import/preview` with the owner's budget or `null`. It never reaches `localStorage`, `sessionStorage`, the database, analytics or logs.
-3. The preview shows dates, zone, day sections, flight segments, prices labeled as estimates, budget warnings and the skipped count, and keeps the paste for repair. Booking state can be only `Needs booking` or `Not required`. Editing the budget updates the owner-controlled value sent at commit.
-4. **Create trip** sends the accepted values, `ownerProvidedBudget` and a new UUID `Idempotency-Key`. Only the key is saved, in tab-scoped `sessionStorage`; preview edits are locked until the result is known. The confirmation warns that a new trip will be created, since identical imports under different keys are not detected. Zero items is valid; if every item was skipped, the owner confirms an empty trip.
+3. The preview shows dates, zone, day sections, flight segments, prices labeled as estimates, budget warnings and the skipped count, and keeps the paste for repair. Booking state can be only `Needs booking` or `Not required`. Editing the budget updates the owner-controlled value sent at commit. With `GEOAPIFY_API_KEY`, the browser progressively asks the owner-only `/api/places/resolve` route for up to three matches per non-flight place. The route sends just the place and trip destination to Geoapify, with a bounded timeout and no result storage. Clear venue matches are preselected; ambiguous or missing ones are not. The owner can change or remove every suggestion. Changing the destination or place invalidates stale results; **Refresh map suggestions** repeats the lookup. If the key or provider is unavailable, the preview remains usable without pins.
+4. **Create trip** sends the accepted values, owner-selected `confirmedMapUrls` (parallel to the included items), `ownerProvidedBudget` and a new UUID `Idempotency-Key`. The external JSON v1 contract is unchanged. Only the key is saved, in tab-scoped `sessionStorage`; preview edits are locked until the result is known. The confirmation warns that a new trip and the selected pins will be created, since identical imports under different keys are not detected. Zero items is valid; if every item was skipped, the owner confirms an empty trip.
 5. Imported items show **AI draft, unverified**; the owner edits fields without regenerating the plan.
 
 **Retry.** After a lost response, retry the in-memory payload with the same key. After a reload, the owner re-pastes and repeats the edits; the saved key returns the existing trip for an identical canonical payload. A different payload gets `409`, and the UI offers a new attempt with a new key, which may create a second trip. The key is cleared on success or start-over. A transaction that fails leaves nothing.
 
-**Commit.** The server accepts the normalized draft, not the raw response, and validates it again. It forces `source = 'ai'` and estimate prices, rejects `booked`, infers no map link or coordinates, and may set the trip's globe point only from an exact, unique catalog match. The payload hash is SHA-256 of a canonical serialization of the normalized fields (stable key order, item order kept); the serialization itself is never stored. In one transaction it inserts the `import_receipts` row, then the trip and items, then sets the receipt's `trip_id`. On a unique conflict for `(owner_user_id, idempotency_key)`, the losing transaction rolls back and reads the winner under a row lock: same hash and a live trip returns that trip; a different hash is `409`; a null `trip_id` is `410` whatever the hash. Trip deletion locks and clears the receipt in its own transaction, so a retry and a deletion serialize on that row, and a delayed retry cannot resurrect a deleted trip.
+**Commit.** The server accepts the normalized draft, not the raw response, and validates it again. It forces `source = 'ai'` and estimate prices, rejects `booked`, accepts only owner-selected parseable coordinate links for non-flight items with a place, and may set the trip's globe point only from an exact, unique catalog match. The payload hash is SHA-256 of a canonical serialization of the normalized fields (stable key order, item order kept); the serialization itself is never stored. In one transaction it inserts the `import_receipts` row, then the trip and items, then sets the receipt's `trip_id`. On a unique conflict for `(owner_user_id, idempotency_key)`, the losing transaction rolls back and reads the winner under a row lock: same hash and a live trip returns that trip; a different hash is `409`; a null `trip_id` is `410` whatever the hash. Trip deletion locks and clears the receipt in its own transaction, so a retry and a deletion serialize on that row, and a delayed retry cannot resurrect a deleted trip.
 
 ```text
 Pasted response
@@ -718,7 +720,7 @@ The default is a public HTTPS sign-in shell. No unauthenticated page, metadata, 
 
 ### Secrets and configuration
 
-Server-only variables: `AUTH_SECRET`, `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, `DATABASE_URL`, `MIGRATION_DATABASE_URL` (optional, schema-owner, migrations only), `TRIP_OWNER_EMAILS`, `APP_ORIGIN` and optional `AUTH_URL`. `GOOGLE_MAPS_EMBED_API_KEY` is optional and is a browser key (it appears in the embed address); restrict it in Google Cloud to the Maps Embed API and the site's address. The server passes it to the trip page. No secret uses a `NEXT_PUBLIC_` prefix. Use separate development and production OAuth credentials and callback URIs, and rotate anything exposed.
+Server-only variables: `AUTH_SECRET`, `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, `DATABASE_URL`, `MIGRATION_DATABASE_URL` (optional, schema-owner, migrations only), `TRIP_OWNER_EMAILS`, `APP_ORIGIN`, optional `AUTH_URL`, and optional `GEOAPIFY_API_KEY`. The lookup key stays on the server; only the owner's bounded location query goes to Geoapify. `GOOGLE_MAPS_EMBED_API_KEY` is optional and is a browser key (it appears in the embed address); restrict it in Google Cloud to the Maps Embed API and the site's address. The server passes it to the trip page. No secret uses a `NEXT_PUBLIC_` prefix. Use separate development and production OAuth credentials and callback URIs, and rotate anything exposed.
 
 The database connection uses TLS. The runtime role has CRUD on app tables and cannot alter the schema; no superuser or service-role key is in app code. No Supabase Data API key reaches the browser; if the provider's Data API is enabled it must have no permissive anon policy, or it should be disabled. Choose the Supabase pooler that fits the app host and check driver compatibility before deployment ([connection options](https://supabase.com/docs/guides/database/connecting-to-postgres), [pooling guidance](https://supabase.com/docs/guides/database/connecting-to-postgres/pooling-and-limits)).
 
@@ -742,10 +744,11 @@ The database connection uses TLS. The runtime role has CRUD on app tables and ca
 | Database fails during import commit | The transaction rolls back trip and items together; the client keeps the preview and key for retry. |
 | Save fails or conflicts | Nothing is marked saved before commit. The form keeps its values and offers retry, or reload and reapply on `409`. |
 | Maps Embed API unavailable or unconfigured | The event panel shows the event without a map; the Road route switch is hidden. |
+| Geoapify unavailable or unconfigured | Import preview and commit remain usable; unmatched places remain off the outline map and the owner can retry lookup. |
 | Globe asset fails | Only the globe is affected; the list and filters work. |
 | Unsafe URL or notes | Unsafe schemes rejected; text rendered escaped. |
 
-Import retries, invitation races, lost redirects and lost links are covered in [Import](#import) and [Sharing and invitations](#sharing-and-invitations). Google OAuth and the database are the only runtime dependencies; there is no AI, geocoding, email, weather or flight-status dependency.
+Import retries, invitation races, lost redirects and lost links are covered in [Import](#import) and [Sharing and invitations](#sharing-and-invitations). Google OAuth and the database are required runtime dependencies; Geoapify lookup is optional. There is no in-app AI, email, weather or flight-status dependency.
 
 ### Performance
 
@@ -830,7 +833,7 @@ Vitest runs `unit` and `db` projects (`npm run test:unit`, `npm run test:db`, or
 | Commit response lost | Same key and payload returns the trip; 410 after deletion | [Import](#import) |
 | Item deleted, then the tab closed | Deleted on the server; restorable for 10 minutes | [Trip page and day map](#trip-page-and-day-map) |
 | Restore too late, cap full, or time now invalid | 410 or 409; item stays deleted | [Endpoint summary](#endpoint-summary) |
-| Look-alike host, Amap or Baidu, shortened link, imported link in `links`, imported flight placeholder | No pin until the owner sets a parseable map link or books the flight | [Map links and pins](#map-links-and-pins) |
+| Look-alike host, Amap or Baidu, shortened link, imported link in `links`, imported flight placeholder | No pin until the owner selects an import lookup match, sets a parseable map link, or books the flight | [Map links and pins](#map-links-and-pins) |
 | Signed-out deep link | Sign-in shell only; redirect after sign-in if authorized | [Sign-in, account and sharing screens](#sign-in-account-and-sharing-screens) |
 | Notes save fails, then the owner leaves | **Stay** or **Leave without saving** | [Event view](#event-view) |
 

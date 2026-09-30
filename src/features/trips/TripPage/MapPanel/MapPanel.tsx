@@ -54,6 +54,7 @@ export function MapPanel({ day, stops, onPin, mapsKey }: { day: string; stops: S
             ? "The road route is provided by Google. Stop-list distances remain straight-line estimates."
             : `Zoom with + and −, the wheel or a pinch, and drag to move. Coastlines, borders and cities are approximate; pins come from saved map links.${all ? " Choose a day to see its road route." : mapsKey ? " Opening Road route sends this day's pinned coordinates to Google." : ""}`}</p>
         ) : null}
+        {stops.length ? <p className="note">Imported place suggestions: <a href="https://www.geoapify.com/" target="_blank" rel="noopener noreferrer">Powered by Geoapify</a> · <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap contributors</a>.</p> : null}
       </div>
     </aside>
   );

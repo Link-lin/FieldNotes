@@ -233,8 +233,8 @@ export function DayMap({ stops, onPin }: { stops: Stop[]; onPin: (id: string) =>
   if (!stops.length) {
     return (
       <div className={styles.empty}>
-        <b>No places pinned yet</b>
-        <span>A saved map link with coordinates, or pasted coordinates, will place an event here.</span>
+        <b>No places on this map yet</b>
+        <span>The trip owner can find a place by name while importing or editing an event, then confirm its map location.</span>
       </div>
     );
   }

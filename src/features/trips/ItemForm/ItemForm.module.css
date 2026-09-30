@@ -13,3 +13,6 @@
 .sectionTitle { margin: 0; font: 500 11px var(--mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-3); }
 .wide { grid-column: 1 / -1; }
 .linkButtons { margin-top: 6px; }
+.placeFinder { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.placeChoices { width: 100%; display: grid; justify-items: start; gap: var(--space-2); padding: var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-md); }
+.placeChoices select { width: min(100%, 42rem); min-width: 0; }

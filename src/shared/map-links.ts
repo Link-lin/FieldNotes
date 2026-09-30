@@ -131,6 +131,11 @@ export function googleSearchUrl(query: string): string {
   return "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(query);
 }
 
+/** A geocoder-confirmed point saved as an ordinary, parseable owner map link. */
+export function openStreetMapPointUrl(latitude: number, longitude: number): string {
+  return `https://www.openstreetmap.org/?mlat=${latitude.toFixed(5)}&mlon=${longitude.toFixed(5)}`;
+}
+
 /** What the event side panel's embedded Google map shows (MAP-8). */
 export type EmbedTarget = { mode: "place"; q: string } | { mode: "directions"; origin: string; destination: string };
 
