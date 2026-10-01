@@ -31,6 +31,13 @@ describe("saving a map link", () => {
 });
 
 describe("coordinates (MAP-2)", () => {
+  it("prefers an explicit venue marker over the Google map camera", () => {
+    expect(coordinatesFromMapUrl("https://www.google.com/maps/place/Hotel/@21.29,-157.85,17z/data=!3d21.28!4d-157.83")).toEqual([21.28, -157.83]);
+    expect(coordinatesFromMapUrl("https://www.google.com/maps/@21.29,-157.85,17z?query=21.28,-157.83")).toEqual([21.28, -157.83]);
+  });
+  it("does not mistake a search-near hint for the chosen place", () => {
+    expect(coordinatesFromMapUrl("https://www.google.com/maps?q=hotel&sll=21.29,-157.85")).toBeNull();
+  });
   it("reads documented Google, Apple and OpenStreetMap formats", () => {
     expect(coordinatesFromMapUrl("https://www.google.com/maps/place/X/@35.6951,139.7010,17z")).toEqual([35.6951, 139.701]);
     expect(coordinatesFromMapUrl("https://www.google.com/maps/place/X/data=!3d34.9671!4d135.7727")).toEqual([34.9671, 135.7727]);

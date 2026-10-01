@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FieldError, ItemType, PlanItemDTO } from "@/shared/dto";
 import type { ImportLocationCandidate, ImportLocationResult } from "@/shared/import";
 import { coordinatesFromMapUrl, openStreetMapPointUrl, parseCoordinateText, providerLabel } from "@/shared/map-links";
@@ -78,7 +78,9 @@ export function ItemForm({ tripId, tripTitle, tripDestination, tripZone, tripDat
   const [findingPlace, setFindingPlace] = useState(false);
   const [placeMatches, setPlaceMatches] = useState<ImportLocationCandidate[]>([]);
   const [placeQuery, setPlaceQuery] = useState("");
-  const [chosenPlace, setChosenPlace] = useState(0);
+  const [chosenPlace, setChosenPlace] = useState<number | null>(null);
+  const placeRequest = useRef(0);
+  useEffect(() => () => { placeRequest.current++; }, []);
   const [placeMessage, setPlaceMessage] = useState<string | null>(null);
   const [lookupMapUrl, setLookupMapUrl] = useState<string | null>(null);
   const up = (patch: Partial<typeof v>) => {
@@ -178,15 +180,17 @@ export function ItemForm({ tripId, tripTitle, tripDestination, tripZone, tripDat
   async function findPlace() {
     const location = v.location.trim();
     if (!location) return;
+    const request = ++placeRequest.current;
     setFindingPlace(true);
     setPlaceMessage(null);
     setPlaceMatches([]);
     const result = await api<ImportLocationResult>("POST", "/api/places/resolve", { location, destination: tripDestination });
+    if (request !== placeRequest.current) return;
     setFindingPlace(false);
     if (!result.ok) { setPlaceMessage(result.message); return; }
     setPlaceQuery(location);
     setPlaceMatches(result.data.candidates);
-    setChosenPlace(0);
+    setChosenPlace(result.data.suggestedIndex ?? null);
     if (!result.data.candidates.length) setPlaceMessage("No matching place found. Try a more specific place name.");
   }
   // I6: saving outside the trip is allowed (parking the night before), but say so while typing.
@@ -353,7 +357,7 @@ export function ItemForm({ tripId, tripTitle, tripDestination, tripZone, tripDat
           {surface === "panel" ? <h3 className={styles.sectionTitle}>Place &amp; map</h3> : null}
         <FieldGrid>
           <Field label={<>Place {optional()}</>} htmlFor="item-location" wide>
-            <input id="item-location" value={v.location} maxLength={500} placeholder="Fushimi Inari Taisha, Kyoto" onChange={(e) => { up({ location: e.target.value, ...(lookupMapUrl && v.mapUrl === lookupMapUrl ? { mapUrl: "" } : {}) }); setLookupMapUrl(null); setPlaceMatches([]); setPlaceMessage(null); }} />
+            <input id="item-location" value={v.location} maxLength={500} placeholder="Fushimi Inari Taisha, Kyoto" onChange={(e) => { placeRequest.current++; setFindingPlace(false); up({ location: e.target.value, ...(lookupMapUrl && v.mapUrl === lookupMapUrl ? { mapUrl: "" } : {}) }); setLookupMapUrl(null); setPlaceMatches([]); setPlaceMessage(null); }} />
           </Field>
           {!isFlight && v.location.trim() ? (
             <div className={styles.placeFinder}>
@@ -363,10 +367,12 @@ export function ItemForm({ tripId, tripTitle, tripDestination, tripZone, tripDat
               {placeMatches.length && placeQuery === v.location.trim() ? (
                 <div className={styles.placeChoices}>
                   <label htmlFor="item-place-match">Matching places</label>
-                  <select id="item-place-match" value={chosenPlace} onChange={(e) => setChosenPlace(Number(e.target.value))}>
+                  <select id="item-place-match" value={chosenPlace ?? ""} onChange={(e) => setChosenPlace(e.target.value === "" ? null : Number(e.target.value))}>
+                    <option value="">Choose a place</option>
                     {placeMatches.map((match, index) => <option key={`${match.latitude}-${match.longitude}-${index}`} value={index}>{match.label}</option>)}
                   </select>
-                  <Button variant="outline" onClick={() => { const match = placeMatches[chosenPlace]; if (match) { const url = openStreetMapPointUrl(match.latitude, match.longitude); setLookupMapUrl(url); up({ mapUrl: url }); } }}>Use this location</Button>
+                  <Button variant="outline" disabled={chosenPlace === null} onClick={() => { const match = chosenPlace === null ? null : placeMatches[chosenPlace]; if (match) { const url = openStreetMapPointUrl(match.latitude, match.longitude); setLookupMapUrl(url); up({ mapUrl: url }); } }}>Use this location</Button>
+                  {chosenPlace !== null && placeMatches[chosenPlace] ? <a href={openStreetMapPointUrl(placeMatches[chosenPlace]!.latitude, placeMatches[chosenPlace]!.longitude)} target="_blank" rel="noopener noreferrer">View this match on a map ↗</a> : null}
                   <span className="note"><a href="https://www.geoapify.com/" target="_blank" rel="noopener noreferrer">Powered by Geoapify</a> · <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap contributors</a></span>
                 </div>
               ) : null}

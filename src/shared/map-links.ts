@@ -93,11 +93,12 @@ export function coordinatesFromMapUrl(value: string): [number, number] | null {
   }
   const num = "(-?\\d{1,3}(?:\\.\\d+)?)";
   const patterns = [
-    new RegExp(`@${num},${num}`),
     new RegExp(`!3d${num}!4d${num}`),
     new RegExp(`[?&]mlat=${num}&mlon=${num}`),
     new RegExp(`#map=\\d+(?:\\.\\d+)?/${num}/${num}`),
-    new RegExp(`[?&](?:ll|q|query|destination|sll)=${num},${num}`),
+    new RegExp(`[?&](?:ll|q|query|destination)=${num},${num}`),
+    // Google camera coordinates are only a fallback when no explicit marker exists.
+    new RegExp(`@${num},${num}`),
   ];
   for (const p of patterns) {
     const m = p.exec(text);

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { FieldError } from "@/shared/dto";
 import { openStreetMapPointUrl } from "@/shared/map-links";
-import { importCommitSchema, importMoneySchema, tripDraftSchema, type ImportCommitInput, type ImportLocationCandidate, type ImportLocationResult, type ImportPreviewDTO } from "@/shared/import";
+import { importCommitSchema, importMoneySchema, tripDraftSchema, type ImportCommitInput, type ImportLocationResult, type ImportPreviewDTO } from "@/shared/import";
 import { Banner } from "@/components/ui/Banner/Banner";
 import { Button } from "@/components/ui/Button/Button";
 import { FormError } from "@/components/ui/Field/Field";
@@ -19,13 +19,13 @@ import { TripBrief as TripBriefForm } from "./TripBrief/TripBrief";
 import { TripPreview } from "./TripPreview/TripPreview";
 import { groupPreviewItems } from "./preview-groups";
 import { editPreviewItem, editPreviewTrip, hasRemovableEmptySourceValues, removePreviewEmptySourceValues, removePreviewUnknownFields } from "./preview-validation";
+import { finishLookup, lookupMatches, needsLookup, settleLookups, type PlaceLookup } from "./place-lookup";
 import styles from "./ImportPage.module.css";
 
 const KEY = "field-notes-import-idempotency-key";
 const SENSITIVE = "Do not include passport details, payment-card data or booking-confirmation codes. Your AI chat has its own data policies.";
 const CONVERSION_PROMPT = buildConversionPrompt();
 const asText = (value: unknown): string => value == null ? "" : typeof value === "string" || typeof value === "number" ? String(value) : JSON.stringify(value);
-type PlaceLookup = { location: string; destination: string; status: "loading" | "ready" | "error"; candidates: ImportLocationCandidate[]; selected: number | null };
 
 function issuePath(path: PropertyKey[], included: ImportPreviewDTO["items"]): string {
   if (path[0] === "items" && typeof path[1] === "number") {
@@ -75,10 +75,12 @@ export function ImportPage() {
   const [lookupMessage, setLookupMessage] = useState<string | null>(null);
   const [locating, setLocating] = useState(false);
   const lookupRun = useRef(0);
+  const lookupRequests = useRef<Record<number, number>>({});
   const inputRevision = useRef(0);
   const prompt = useMemo(() => buildImportPrompt(brief), [brief]);
   const locked = busy === "commit" || pending !== null;
   const included = preview?.items.filter((item) => item.included) ?? [];
+  const lookupBusy = locating || included.some((row) => lookupMatches(lookups[row.index], row.values.location, preview?.trip.values.destination) && lookups[row.index]?.status === "loading");
   const previewItems = preview?.items;
   const previewZone = typeof preview?.trip.values.timeZone === "string" ? preview.trip.values.timeZone : null;
   const groupedItems = useMemo(() => previewItems ? groupPreviewItems(previewItems, previewZone) : [], [previewItems, previewZone]);
@@ -87,19 +89,23 @@ export function ImportPage() {
       open={openRows.has(row.index)} onOpenChange={(open) => setRowOpen(row.index, open)}
       canRemoveEmptySourceValues={hasRemovableEmptySourceValues(row, preview.trip.values)} onChange={(path, value) => editItem(row.index, path, value)}
       onIncluded={(value) => setIncluded(row.index, value)} onRemoveUnsupported={() => removeUnsupported(row.index)} onRemoveEmptySourceValues={() => removeEmptySourceValues(row.index)}
-      lookup={lookups[row.index]?.location === row.values.location && lookups[row.index]?.destination === preview.trip.values.destination ? (lookups[row.index] ?? null) : null}
-      onSelectLocation={(selected) => setLookups((old) => { const entry = old[row.index]; return entry ? { ...old, [row.index]: { ...entry, selected } } : old; })}
+      lookup={lookupMatches(lookups[row.index], row.values.location, preview.trip.values.destination) ? (lookups[row.index] ?? null) : null}
+      onSelectLocation={(selected) => {
+        lookupRequests.current[row.index] = (lookupRequests.current[row.index] ?? 0) + 1;
+        setLookups((old) => { const entry = old[row.index]; return entry ? { ...old, [row.index]: { ...entry, selected, reviewed: true } } : old; });
+      }}
       onRetryLocation={() => void locateOne(row.index, asText(row.values.location), asText(preview.trip.values.destination), lookupRun.current)} />
   ) : null;
   const remaining = included.reduce((sum, item) => sum + item.errors.length + rowErrors(localErrors, item.index).length, 0) + (preview?.trip.errors.length ?? 0) + localErrors.filter((e) => e.path.startsWith("trip.")).length;
 
   useEffect(() => {
+    const run = lookupRun;
     const frame = requestAnimationFrame(() => {
       const browserZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
       setBrief((old) => old.timeZone === "UTC" ? { ...old, timeZone: browserZone } : old);
       setExistingKey(!!sessionStorage.getItem(KEY));
     });
-    return () => cancelAnimationFrame(frame);
+    return () => { cancelAnimationFrame(frame); run.current++; };
   }, []);
 
   async function copy(text: string, label: string) {
@@ -149,6 +155,8 @@ export function ImportPage() {
       return;
     }
     if (!validateBudget()) return;
+    lookupRun.current++;
+    setLocating(false);
     setBusy("preview");
     setMessage(null);
     setPasteErrors([]);
@@ -171,38 +179,43 @@ export function ImportPage() {
     setLocalErrors([]);
     setOpenRows(new Set(result.data.items.filter((row) => row.errors.length).map((row) => row.index)));
     requestAnimationFrame(() => document.getElementById("import-preview-title")?.focus());
-    void locateAll(result.data);
+    void locateAll(result.data, false);
   }
 
-  async function locateOne(index: number, location: string, destination: string, run: number): Promise<boolean> {
+  async function locateOne(index: number, rawLocation: string, rawDestination: string, run: number): Promise<boolean> {
+    const location = rawLocation.trim(), destination = rawDestination.trim();
     if (!location || !destination) return true;
-    setLookups((old) => ({ ...old, [index]: { location, destination, status: "loading", candidates: [], selected: null } }));
+    const requestId = (lookupRequests.current[index] ?? 0) + 1;
+    lookupRequests.current[index] = requestId;
+    setLookups((old) => ({ ...old, [index]: { location, destination, requestId, reviewed: false, status: "loading", candidates: [], selected: null } }));
     const result = await api<ImportLocationResult>("POST", "/api/places/resolve", { location, destination });
     if (run !== lookupRun.current) return false;
-    if (!result.ok) {
-      setLookups((old) => ({ ...old, [index]: { location, destination, status: "error", candidates: [], selected: null } }));
-      if (result.code === "place_lookup_unavailable") setLookupMessage(result.message);
-      return result.code !== "place_lookup_unavailable";
-    }
-    const candidates = result.data.candidates;
-    const best = candidates[0];
-    const selected = best && best.confidence >= 0.95 && ["amenity", "building"].includes(best.kind) ? 0 : null;
-    setLookups((old) => ({ ...old, [index]: { location, destination, status: "ready", candidates, selected } }));
-    return true;
+    if (lookupRequests.current[index] !== requestId) return true;
+    setLookups((old) => {
+      const entry = finishLookup(old[index], requestId, result.ok ? result.data : null);
+      return entry ? { ...old, [index]: entry } : old;
+    });
+    if (!result.ok && result.code === "place_lookup_unavailable") setLookupMessage(result.message);
+    return result.ok || result.code !== "place_lookup_unavailable";
   }
 
-  async function locateAll(draft: ImportPreviewDTO) {
+  async function locateAll(draft: ImportPreviewDTO, preserveReviewed = true) {
     const run = ++lookupRun.current;
+    setLookups(settleLookups);
     setLookupMessage(null);
     const destination = typeof draft.trip.values.destination === "string" ? draft.trip.values.destination.trim() : "";
-    const targets = draft.items.filter((row) => row.included && row.values.type !== "flight" && typeof row.values.location === "string" && row.values.location.trim().length >= 2);
+    const targets = draft.items.filter((row) => row.included && row.values.type !== "flight" && typeof row.values.location === "string" && row.values.location.trim().length >= 2
+      && (!preserveReviewed || needsLookup(lookups[row.index], row.values.location, destination)))
+      .map((row) => ({ row, revision: lookupRequests.current[row.index] ?? 0 }));
     setLocating(targets.length > 0);
     let next = 0;
     let active = true;
     const worker = async () => {
       while (active && run === lookupRun.current && next < targets.length) {
-        const row = targets[next++]!;
-        active = await locateOne(row.index, String(row.values.location).trim(), destination, run);
+        const { row, revision } = targets[next++]!;
+        if (revision !== (lookupRequests.current[row.index] ?? 0)) continue;
+        const keepGoing = await locateOne(row.index, String(row.values.location), destination, run);
+        if (!keepGoing) active = false;
       }
     };
     await Promise.all(Array.from({ length: Math.min(3, targets.length) }, worker));
@@ -217,7 +230,10 @@ export function ImportPage() {
 
   function editItem(index: number, path: string, value: unknown) {
     setPreview((old) => old ? editPreviewItem(old, index, path, value) : old);
-    if (path === "location" || path === "type") setLookups((old) => { const next = { ...old }; delete next[index]; return next; });
+    if (path === "location" || path === "type") {
+      lookupRequests.current[index] = (lookupRequests.current[index] ?? 0) + 1;
+      setLookups((old) => { const next = { ...old }; delete next[index]; return next; });
+    }
     setLocalErrors((old) => old.filter((e) => !rowErrors([e], index).length));
   }
 
@@ -249,7 +265,7 @@ export function ImportPage() {
 
   function reviewCommit() {
     if (!preview || locked) return;
-    if (locating) {
+    if (lookupBusy) {
       setMessage("Place lookup is still running. Wait for it to finish, or skip the remaining lookups before reviewing creation.");
       requestAnimationFrame(() => document.getElementById("import-preview-error")?.focus());
       return;
@@ -264,7 +280,7 @@ export function ImportPage() {
     const confirmedMapUrls = included.map((row) => {
       const found = lookups[row.index];
       const selected = found?.selected;
-      if (!found || found.location !== row.values.location || found.destination !== destination || selected === null || selected === undefined) return null;
+      if (!found || !lookupMatches(found, row.values.location, destination) || selected === null || selected === undefined) return null;
       const match = found.candidates[selected];
       return match ? openStreetMapPointUrl(match.latitude, match.longitude) : null;
     });
@@ -389,7 +405,7 @@ export function ImportPage() {
           <div className={styles.step}><span>2</span><h2 id="import-preview-title" tabIndex={-1}>Review your trip</h2></div>
           <p className="note">Nothing has been saved. All AI suggestions and prices are unverified. Each included item can be edited or skipped.</p>
           <div className={styles.actions}>
-            <Button variant="quiet" onClick={() => { setPreview(null); setLocalErrors([]); setMessage(null); }} disabled={locked}>← Back to paste</Button>
+            <Button variant="quiet" onClick={() => { lookupRun.current++; setLocating(false); setPreview(null); setLocalErrors([]); setMessage(null); }} disabled={locked}>← Back to paste</Button>
             <span className="mono muted">{included.length} included · {preview.items.length - included.length} skipped</span>
           </div>
           <TripPreview values={preview.trip.values} errors={[...preview.trip.errors, ...localErrors.filter((e) => e.path.startsWith("trip."))]} warnings={preview.trip.warnings} aiBudget={preview.trip.aiBudget ?? null} busy={locked} onChange={editTrip} />
@@ -399,7 +415,7 @@ export function ImportPage() {
             {lookupMessage ? <Banner tone="warn" role="status">{lookupMessage}</Banner> : null}
             <div className={styles.actions}>
               <Button variant="quiet" onClick={() => void locateAll(preview)} disabled={locked}>Refresh map suggestions</Button>
-              {locating ? <><span className="note" role="status">Finding map locations…</span><Button variant="quiet" onClick={() => { lookupRun.current++; setLocating(false); setLookups((old) => Object.fromEntries(Object.entries(old).map(([index, lookup]) => [index, lookup.status === "loading" ? { ...lookup, status: "error" as const } : lookup]))); }} disabled={locked}>Skip remaining lookups</Button></> : null}
+              {lookupBusy ? <><span className="note" role="status">Finding map locations…</span><Button variant="quiet" onClick={() => { lookupRun.current++; setLocating(false); setLookups(settleLookups); }} disabled={locked}>Skip remaining lookups</Button></> : null}
               <span className="note">Locations: <a href="https://www.geoapify.com/" target="_blank" rel="noopener noreferrer">Geoapify</a> · <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap contributors</a></span>
             </div>
             {included.length ? (

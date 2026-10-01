@@ -144,7 +144,7 @@ export const importLocationRequestSchema = z.object({
   destination: z.string().trim().min(2).max(160),
 }).strict();
 export type ImportLocationCandidate = { label: string; latitude: number; longitude: number; confidence: number; kind: string };
-export type ImportLocationResult = { candidates: ImportLocationCandidate[] };
+export type ImportLocationResult = { candidates: ImportLocationCandidate[]; suggestedIndex: number | null };
 export type ImportPreviewDTO = {
   trip: {
     values: Partial<Record<keyof TripDraftDTO, unknown>>;
