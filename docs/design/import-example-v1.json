@@ -24,7 +24,6 @@
       "type": "lodging",
       "title": "Choose accommodation",
       "bookingStatus": "Needs booking",
-      "location": "Tokyo",
       "localDate": "2027-04-14",
       "plannedPrice": {
         "amount": "540.00",
@@ -33,9 +32,10 @@
     },
     {
       "type": "activity",
-      "title": "Explore a neighborhood",
+      "title": "Visit Tokyo Tower",
       "bookingStatus": "Not required",
       "localDate": "2027-04-15",
+      "location": "Tokyo Tower, Minato City, Tokyo, Japan",
       "notes": "Illustrative suggestion; confirm current details before going."
     }
   ]

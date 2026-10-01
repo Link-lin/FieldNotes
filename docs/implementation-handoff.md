@@ -1,6 +1,6 @@
 # Field Notes: implementation handoff
 
-Last updated 29 Sep 2026. Read this first, then [AGENTS.md](../AGENTS.md). Keep this file to about one page: replace sections rather than adding to them; history is in git.
+Last updated 30 Sep 2026. Read this first, then [AGENTS.md](../AGENTS.md). Keep this file to about one page: replace sections rather than adding to them; history is in git.
 
 ## Where things stand
 
@@ -18,7 +18,7 @@ Last updated 29 Sep 2026. Read this first, then [AGENTS.md](../AGENTS.md). Keep 
   - The Whole trip map's shared marker for the Duke's return visit (Hawaii days 1 and 3): its number list, the stop list it opens, keyboard use and closing.
   - The timeline without "Time not set" and "No date" lines, and the slim cards for unscheduled flights (OGG → KOA, and the undated backup hop with no airports).
   - The trip page at about 1,100, 1,400 and 2,000 px: the **Up next** card (Hawaii before the trip, Kauaʻi during it; re-run the seed first), the figures bar beside the view switch (and wrapping below it), the narrower map column, the one-row map controls, and a long day's stop list scrolling inside the map card.
-- **The AI import pilot has not run.** It needs real travel plans and external AI tools, so don't describe it as done. The new Geoapify lookup path still needs a real key and an end-to-end browser check; without `GEOAPIFY_API_KEY`, imports still work without automatic pins.
+- **The AI import pilot has not run.** It needs real travel plans and external AI tools, so don't describe it as done. A configured Geoapify key returned live candidates through the event editor on 30 Sep; a full new-trip import and map check remain. A hotel address returned a restaurant at that address first, so candidate review matters. Existing trips are not retroactively pinned. Without `GEOAPIFY_API_KEY`, imports still work without automatic pins.
 
 ## Run it
 
@@ -31,7 +31,7 @@ Last updated 29 Sep 2026. Read this first, then [AGENTS.md](../AGENTS.md). Keep 
 ## Next steps
 
 1. Do the hand checks above. For phone widths, use the browser's device mode (in Chrome, ⌥⌘I, then ⇧⌘M).
-2. Configure `GEOAPIFY_API_KEY`, then import a real plan and review automatic pin suggestions, ambiguous matches, retry, and the resulting outline map. Run the AI import pilot with real plans and read `npm run pilot:report` weekly: clean previews, skipped items, edits per imported item, and due-date use. Decide on TRIP-7 afterwards.
+2. With `GEOAPIFY_API_KEY` configured, import a real plan and review automatic pin suggestions, ambiguous matches, retry, and the resulting outline map. The shared prompt now asks for specific known venues and omits unresolved locations; check whether external AI tools follow it. Run the AI import pilot with real plans and read `npm run pilot:report` weekly: clean previews, skipped items, edits per imported item, and due-date use. Decide on TRIP-7 afterwards.
 3. Remaining product-review item:
    - **I10:** pins and stop-list entries open the event view, and an open desktop panel keeps its own address (the trip page still accepts legacy `?event=` links, and phones have an event page).
 4. Candidate features: calendar (.ics) export, printable day sheets, duplicating a trip as a template, and day notes.
