@@ -1,7 +1,9 @@
 # Travel Planner — Product Requirements Document
 
-**Status:** Draft v1.1, implementation baseline  
-Last revised 28 Sep 2026. Change history is in git.  
+**Status:** MVP implementation baseline (v1.2)
+
+Last revised 1 Oct 2026. Change history is in git.
+
 **Product:** Private multi-trip dashboard with editable itineraries imported from external AI plans
 
 This document states what the product must do and why. Layout, visual style, motion and component behaviour are specified in [`trip-page-v1.md`](docs/design/trip-page-v1.md) and [`atlas-v1.md`](docs/design/atlas-v1.md).
@@ -55,7 +57,7 @@ Validate these assumptions with real trips before adding native AI, live data, o
 
 - Booking flights, hotels, restaurants, or activities.
 - Public trip pages, anonymous share links, or custom permission systems.
-- An app-owned street basemap, map-tile service, routing engine, turn-by-turn navigation, background geocoding outside the owner-reviewed import preview, review search, or rating aggregation. The optional Google Maps Embed road view (MAP-9) is the only street-map exception. The dashboard globe shows trip destinations only; itinerary stops appear only on the trip page map (MAP-1 to MAP-9).
+- An app-owned street basemap, map-tile service, routing engine, turn-by-turn navigation, background geocoding outside an owner-triggered import preview or event edit, review search, or rating aggregation. The optional Google Maps Embed road view (MAP-9) is the only street-map exception. The dashboard globe shows trip destinations only; itinerary stops appear only on the trip page map (MAP-1 to MAP-9).
 - AI claims of current prices, availability, opening hours, or confirmed booking details.
 - Payment processing, receipt reconciliation, or general-purpose accounting.
 
@@ -63,7 +65,7 @@ Validate these assumptions with real trips before adding native AI, live data, o
 
 These summaries show how the requirements fit together. The rules are in the functional requirements.
 
-**Create a trip from an AI plan.** The owner chooses **Create from an AI plan**. If the trip was already planned in an AI chat, they copy a conversion prompt into it; the AI returns JSON v1 and asks there for any missing trip details. Starting from an idea, an optional brief (title, destination, dates, time zone, interests, pace, constraints, budget) makes a planning prompt instead. Neither path asks for items one by one. The owner pastes the response, reviews a day-by-day preview, fixes or skips items, and confirms. Accepted items are tagged as unverified AI drafts (IMPORT-1 to IMPORT-7, IMPORT-9).
+**Create a trip from an AI plan.** The owner chooses **Create from an AI plan**. If the trip was already planned in an AI chat, they copy a conversion prompt into it; the AI returns JSON v1 and asks there for any missing trip details. Starting from an idea, an optional brief (title, destination, dates, time zone, interests, pace, constraints, budget) makes a planning prompt instead. Neither path asks for items one by one. The owner pastes the response, reviews a day-by-day preview, fixes or skips items, reviews any suggested map matches, and confirms. Accepted items are tagged as unverified AI drafts (IMPORT-1 to IMPORT-7, IMPORT-9).
 
 **Repair an import.** Invalid JSON or an unsupported version shows the errors, with **Copy errors only** or **Copy response and errors for repair** for a retry in the external AI (IMPORT-5, IMPORT-10). A correctable item error is fixed in the preview form or the item is skipped (IMPORT-6). The owner never edits raw JSON, and a failed attempt creates nothing (IMPORT-8).
 
@@ -107,7 +109,7 @@ These summaries show how the requirements fit together. The rules are in the fun
 - **ATLAS-4:** The owner can set or correct one trip destination point by searching the bundled catalog or selecting a point on the globe. Saving a point requires an explicit action and updates only that trip. The owner can clear a point. Viewers cannot change it.
 - **ATLAS-5:** Automatic points are labeled **Approximate destination** until the owner corrects them. A changed destination rematches only an automatic point; an owner-set point is preserved with a prompt to check it. A missing point is not treated as a missing trip.
 - **ATLAS-6:** The list remains usable without WebGL, on small screens, with reduced motion, and while globe assets are loading or fail. Globe selection has a keyboard-operable list equivalent and visible focus; color alone never communicates status.
-- **ATLAS-7:** Globe assets and place lookup do not send private trip titles, destinations, coordinates, or session data to an external map or geocoding service. The globe uses bundled map and place data in the MVP.
+- **ATLAS-7:** The dashboard globe uses bundled map and place data and sends no trip or session data to a map service. An owner-triggered item place lookup is a separate MAP-2/IMPORT-6 action: it may send only the entered place name and trip destination to the configured geocoder, never the trip title, notes, prices, links, saved coordinates, raw imported response, or session data.
 
 ### External AI response import
 
@@ -158,7 +160,7 @@ These summaries show how the requirements fit together. The rules are in the fun
 ### Map links and day map
 
 - **MAP-1:** An item may have a place name (`location`) and one optional map link of at most 2,048 characters. Any https link without user information (`user@`) is accepted. The provider label comes from an exact hostname match (for example `www.google.com` with a `/maps` path, `maps.app.goo.gl`, `maps.apple.com`, `www.openstreetmap.org`, `*.amap.com`, `map.baidu.com`); every other link is labeled by its host. Known tracking parameters are removed on save. Links open in a new tab only on click. The app never fetches, resolves, or previews them.
-- **MAP-2:** A stop's coordinates come from a Google Maps, Apple Maps or OpenStreetMap link the owner saves that contains decimal coordinates; decimal coordinates the owner pastes into the map-link field; an owner-selected place lookup result in the AI import preview or event editor; or, for an owner-entered or **Booked** flight, the arrival airport in a bundled airport list. Place lookup uses a provider whose results may appear on the app's outline map. Amap and Baidu links are labeled but never pinned, because they use different coordinate systems. The app never treats AI-provided text or links as verified coordinates and does not resolve shortened links. Without a configured lookup provider, imported place names remain unpinned. Coordinates are read only when the saved map link changes.
+- **MAP-2:** A stop's coordinates come from a Google Maps, Apple Maps or OpenStreetMap link the owner saves that contains decimal coordinates; decimal coordinates the owner pastes into the map-link field; an owner-selected place lookup result in the AI import preview or event editor; or, for an owner-entered or **Booked** flight, the arrival airport in a bundled airport list. Lookup starts only after an owner previews an import, refreshes suggestions, or chooses **Find place on map** in the event editor. Its candidates may appear on the app's outline map only after the owner accepts one. Amap and Baidu links are labeled but never pinned, because they use different coordinate systems. The app never treats AI-provided text or links as verified coordinates and does not resolve shortened links. Without a configured lookup provider, imported place names remain unpinned and event editing remains usable without lookup. Coordinates are read only when the saved map link changes.
 - **MAP-3:** The trip page shows an outline map of pinned stops for the selected day or the whole trip: numbered pins in timeline order, and straight lines between consecutive non-flight stops of the same day, over bundled coastlines, country borders and city labels drawn in the pins' projection. The outline makes no tile or map-service request. Users can zoom, pan and reset the view by mouse, touch or on-screen buttons, without the map trapping page scrolling. Pins at nearly the same place share one marker listing their numbers.
 - **MAP-4:** The map is labeled as an outline map without streets. Its coastlines and borders are approximate at local zoom. Distances are described as straight-line, never as travel distance or time. Flight legs are excluded from distances and route lines.
 - **MAP-5:** Every pin has a text equivalent. The timeline and the stop list carry the same numbers and highlight together with the pin. Pins are keyboard-operable and lead to the matching event. An item with no coordinates is marked **Not on the map yet**. Meaning never depends on color alone.

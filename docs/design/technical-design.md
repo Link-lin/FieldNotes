@@ -1,8 +1,9 @@
 # Travel Planner — Technical Design
 
 **Status:** Implementation baseline, pending deployment configuration  
-**Product requirements:** [`PRD.md`](../../PRD.md), draft v1.1  
-Current as of 28 Sep 2026. Design-phase history: [archive/technical-design-design-phase.md](archive/technical-design-design-phase.md).
+**Product requirements:** [`PRD.md`](../../PRD.md), MVP baseline v1.2
+
+Current as of 1 Oct 2026. Design-phase history: [archive/technical-design-design-phase.md](archive/technical-design-design-phase.md).
 
 This document describes the system as built. Requirement IDs such as TRIP-10 refer to the PRD, which this document does not restate. Setup and commands are in the README; build status is in [`implementation-handoff.md`](../implementation-handoff.md). Layout and visual detail are in [Atlas v1](atlas-v1.md) and [Trip page v1](trip-page-v1.md).
 
@@ -14,7 +15,7 @@ Travel Planner is one TypeScript web application with a server-side data-access 
 
 Built: sign-in, the dashboard and globe, trips, the trip page with events, costs and day map, the event side panel, account deletion, owner-only AI import into a new trip with optional owner-reviewed place lookup, read-only viewer invitations, pasted-coordinate pins and pilot counts. Not built: importing into an existing trip (TRIP-7, proposed; see [Open questions](#open-questions)) and ATLAS-4's click-the-globe point picker (owners set a point through catalog search only); no health-check route or structured request logging yet (see [Observability](#observability)).
 
-Out of scope, per the PRD's MVP scope: in-app AI, weather, live flight status, email or push reminders, booking and payment, currency conversion, paid-spend accounting, packing lists, attachments, offline use, collaborative editing, and any app-owned street basemap, tiles, routing engine or background geocoding outside the owner-reviewed import preview. The dataset is personal: a modest number of trips, at most 250 items each, and a few invited viewers.
+Out of scope, per the PRD's MVP scope: in-app AI, weather, live flight status, email or push reminders, booking and payment, currency conversion, paid-spend accounting, packing lists, attachments, offline use, collaborative editing, and any app-owned street basemap, tiles, routing engine or background geocoding outside an owner-triggered import preview or event edit. The dataset is personal: a modest number of trips, at most 250 items each, and a few invited viewers.
 
 The main product risk is the pasted AI response: it is untrusted, validated against a strict contract, previewed, committed atomically only after confirmation, and never stored or logged.
 
@@ -114,12 +115,12 @@ sequenceDiagram
 | Routes and pages | `src/app`: `sign-in/page.tsx`, `invite/page.tsx` (public invitation landing), `(private)/page.tsx` (dashboard), `(private)/import/page.tsx`, `(private)/trips/[tripId]/page.tsx`, `(private)/trips/[tripId]/items/[itemId]/page.tsx` (authorized event page), `(private)/layout.tsx`. Pages fetch data and render one screen component. |
 | API | `src/app/api/**/route.ts`, each a few lines on `server/core/http/route.ts`. |
 | Auth | `src/server/auth/`: `auth.ts` (Auth.js with the Kysely adapter), `session.ts`, `actor.ts`, `sign-in-gate.ts`, and `access.ts`, the per-trip authorization boundary. |
-| Domain and data | `src/server/modules/<feature>/`: `*.service.ts` (rules and access checks), `*.repository.ts` (SQL only), `*.mapper.ts` (rows to DTOs). Features: `trips` (with `budget.repository.ts` and `time-zone.service.ts`), `items` (with `items.rules.ts`), `dashboard`, `account`, `places` (bundled catalog and airports), `import` (with `import.rules.ts`), `invitations` (with `invitations.rules.ts` for token, status and staging-cookie helpers), and `usage` (`usage.rules.ts` for count names and report maths, `usage.service.ts` for best-effort `countUsage`). |
+| Domain and data | `src/server/modules/<feature>/`: `*.service.ts` (rules and access checks), `*.repository.ts` (SQL only), `*.mapper.ts` (rows to DTOs). Features: `trips` (with `budget.repository.ts` and `time-zone.service.ts`), `items` (with `items.rules.ts`), `dashboard`, `account`, `places` (bundled catalog and airports plus `geocode.service.ts` for the bounded provider call and `geocode.rules.ts` for pure query/matching rules), `import` (with `import.rules.ts`), `invitations` (with `invitations.rules.ts` for token, status and staging-cookie helpers), and `usage` (`usage.rules.ts` for count names and report maths, `usage.service.ts` for best-effort `countUsage`). |
 | Database | `src/server/core/db/client.ts` and `schema.ts`, `db/migrations/`, `db/migrate.ts` (migration provider), `scripts/migrate.ts` (`npm run db:migrate`), `scripts/dev.ts`, `scripts/dev-db.ts`, `scripts/pilot-report.ts`, `scripts/seed-hawaii.ts` and `scripts/demo-trips.ts`. |
 | Shared | `src/shared`: zod schemas, DTO types, time, money, currency codes and names (`currencies.ts`), the FLIGHT-2 booking check (`booking.ts`), map links (`map-links.ts`, including pasted coordinates and embed URLs) and redirect helpers (`safe-path.ts`), used by browser and server. `src/lib/client-value.ts` holds browser-only values; `src/lib/use-dialog.ts` holds shared dialog behavior. |
 | Bundled data | `src/data/places.json` (Natural Earth 10m populated places v5.1.2 plus `world-atlas` 50m country centroids), `src/data/airports.json` (OurAirports large and medium airports with IATA codes), `src/data/map-cities.json` (day-map city labels). Built by `npm run data:build`; sources and licenses in `src/data/SOURCES.md`. |
 | UI building blocks | `src/components/ui/<Name>/` (Button, Tag, Field, Card, Banner, Modal, Toast, Menu, Section, TaskList, ProgressBar, Logo, Icon) and `src/components/layout/` (AppShell, AppHeader with AccountMenu, PageMessage). |
-| Screens | `src/features/<feature>/<Screen>/`: `dashboard/Dashboard` (Hero, TripList, Globe), `trips/TripPage` (TripHeader, TripViewNav, TripTiles, DayTabs, DaySection, Timeline, MapPanel with DayMap, EventPanel with EventMap and NotesEditor, FlightCard, CostsSection, BookingList, GlobeLocation), `trips/EventPage` (reuses EventPanel as a page), `trips/BookingTask` (one booking-list row), `trips/TripForm`, `trips/ItemForm`, `trips/TripPage/ShareDialog` (InviteLink, ViewerList), `import/ImportPage`, `invitations/InvitePage`, `currency`, `auth/SignInCard`. |
+| Screens | `src/features/<feature>/<Screen>/`: `dashboard/Dashboard` (Hero, TripList, Globe), `trips/TripPage` (TripHeader, TripViewNav, TripTiles, DayTabs, DaySection, Timeline, MapPanel with DayMap, EventPanel with EventMap and NotesEditor, FlightCard, CostsSection, BookingList, GlobeLocation), `trips/EventPage` (reuses EventPanel as a page), `trips/BookingTask` (one booking-list row), `trips/TripForm`, `trips/ItemForm`, `trips/TripPage/ShareDialog` (InviteLink, ViewerList), `import/ImportPage` (with `place-lookup.ts` for client request generations and reviewed-choice state, and `DraftItemEditor/MapSuggestion` for candidate review), `invitations/InvitePage`, `currency`, `auth/SignInCard`. |
 | Styles | `src/styles` (tokens, base, utilities, motion) plus one `.module.css` per component. |
 | Tests | `tests/unit` (pure logic) and `tests/db` (DAL, route handlers, sign-in gate and the test-trip seed against embedded PostgreSQL). |
 | Configuration | `.env.example` lists variable names only; the README covers Google OAuth setup. |
@@ -746,7 +747,7 @@ The database connection uses TLS. The runtime role has CRUD on app tables and ca
 | Database fails during import commit | The transaction rolls back trip and items together; the client keeps the preview and key for retry. |
 | Save fails or conflicts | Nothing is marked saved before commit. The form keeps its values and offers retry, or reload and reapply on `409`. |
 | Maps Embed API unavailable or unconfigured | The event panel shows the event without a map; the Road route switch is hidden. |
-| Geoapify unavailable or unconfigured | Import preview and commit remain usable; unmatched places remain off the outline map and the owner can retry lookup. |
+| Geoapify unavailable or unconfigured | Import preview and commit remain usable; unmatched places remain off the outline map and the owner can retry. The event editor keeps manual place and map-link fields usable. |
 | Globe asset fails | Only the globe is affected; the list and filters work. |
 | Unsafe URL or notes | Unsafe schemes rejected; text rendered escaped. |
 
@@ -849,13 +850,13 @@ Vitest runs `unit` and `db` projects (`npm run test:unit`, `npm run test:db`, or
 | ACCESS-8 to ACCESS-11 | [Sign-in, account and sharing screens](#sign-in-account-and-sharing-screens) | Browser checks |
 | DASH-1 to DASH-7 | [Dashboard](#dashboard), [Time zones](#time-zones), [Deletion and retention](#deletion-and-retention) | Dashboard, cascade and edit tests; responsive browser check |
 | ATLAS-1 to ATLAS-7 | [Dashboard](#dashboard), `trips` atlas columns, [Atlas v1](atlas-v1.md). ATLAS-4's click-the-globe picker is not built. | Catalog and globe-motion tests, browser checks |
-| IMPORT-1 to IMPORT-10 | [JSON v1 contract](#json-v1-contract), [Import](#import), `import_receipts` | Import unit and route tests; log review |
+| IMPORT-1 to IMPORT-10 | [JSON v1 contract](#json-v1-contract), [Import](#import), `import_receipts` | Import, place-lookup and route tests; 36-item committed browser import plus separate production-build preview |
 | PLAN-1 to PLAN-5 | `plan_items`, [Time zones](#time-zones), [Map links and pins](#map-links-and-pins) | Time and CRUD tests |
 | FLIGHT-1 to FLIGHT-3 | `plan_items`, [Time zones](#time-zones), [Trip and event forms](#trip-and-event-forms) | Flight and DST tests |
 | BOOK-1 to BOOK-4 | [Booking status and due state](#booking-status-and-due-state) | Due-state and booking route tests |
 | BUDGET-1 to BUDGET-7 | [Money](#money) | Money tests |
 | TRIP-1 to TRIP-10 | [Trip page and day map](#trip-page-and-day-map), [Event view](#event-view) | Browser checks, notes route tests |
-| MAP-1 to MAP-9 | [Map links and pins](#map-links-and-pins), [Day map](#day-map), [Event view](#event-view) | Map-link, day-map and road-run tests; third-party request check |
+| MAP-1 to MAP-9 | [Map links and pins](#map-links-and-pins), [Day map](#day-map), [Event view](#event-view) | Map-link, place-lookup, day-map and road-run tests; saved 13-pin trip and road-route browser check |
 | Security, privacy and reliability | Security and privacy; [Failure behavior](#failure-behavior) | Integration and failure tests |
 | Out-of-scope items | [Purpose and scope](#purpose-and-scope) | Scope review before PRs |
 
@@ -867,7 +868,7 @@ Vitest runs `unit` and `db` projects (`npm run test:unit`, `npm run test:db`, or
 2. Which managed PostgreSQL plan, and what backup retention applies after deletion? Confirm and document before launch.
 3. Is TRIP-7 (import into an existing trip) approved? If so, the proposal is: add `targetTripId` to `POST /api/import/preview` and a `POST /api/trips/{tripId}/import/commit` route with `expectedVersion` and `Idempotency-Key` that appends items with `source = 'ai'` under the owner check and the 250-item cap (trip row lock). Trip-block errors become warnings, a different `timeZone` warns before commit, and out-of-range items get the DASH-6 warning. The import flow gains an "Append preview" state with the same no-write-before-confirm rule.
 4. Is the paper-and-ink visual direction, including the forest accent, approved ([Trip page v1](trip-page-v1.md))?
-5. Does the pilot confirm that external AI tools produce valid JSON v1 without raw-JSON editing, that invitees accept Google sign-in, and that an in-app due list is enough without reminders?
+5. Does a broader pilot across multiple trips and external AI tools confirm the single successful 36-item import result, that invitees accept Google sign-in, and that an in-app due list is enough without reminders?
 
 Before launch: production OAuth credentials and callback URLs, the migration role, TLS, final CSP origins, the no-store check, a privacy and backup note, and a production smoke test.
 
@@ -875,6 +876,7 @@ Before launch: production OAuth credentials and callback URLs, the migration rol
 
 - A missed authorization check exposes private itineraries. The central DAL helpers and owner/viewer regression tests are release-critical.
 - The strict JSON format may make import brittle; the pilot measures this.
+- Geocoder coverage and labels vary. Conservative name/region rules and explicit owner review reduce wrong pins but can leave a valid place unpinned; the broader pilot measures both failure modes.
 - Time-zone and DST mistakes misplace items; conversion is centralized and tested.
 - A public sign-in shell is reachable even though data is protected; VPN ingress costs viewers convenience.
 - The allowlist needs a configuration change when an owner's identity changes or a second owner is added.
