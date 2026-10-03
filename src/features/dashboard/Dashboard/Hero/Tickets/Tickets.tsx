@@ -1,8 +1,6 @@
 import Link from "next/link";
 import type { TripSummaryDTO } from "@/shared/dto";
-import { ProgressBar } from "@/components/ui/ProgressBar/ProgressBar";
 import { cx } from "@/lib/cx";
-import { fmtShort } from "@/lib/format";
 import styles from "./Tickets.module.css";
 
 /** "Travelling now" and "Next departure" shortcuts, when there are such trips. */
@@ -13,20 +11,17 @@ export function Tickets({ trips }: { trips: TripSummaryDTO[] }) {
   return (
     <div className={styles.tickets}>
       {current ? (
-        <Link className={cx(styles.ticket, styles.now)} href={`/trips/${current.id}`} data-trip-link={current.id}>
-          <span className={cx("mono", styles.kind)}><i />Travelling now</span>
+        <Link className={styles.ticket} href={`/trips/${current.id}`} data-trip-link={current.id}>
+          <span className={cx("mono", styles.kind)}>Travelling now</span>
+          <span className={styles.when}>Day {current.dayIndex} of {current.dayCount}</span>
           <span className={styles.title}>{current.title}</span>
-          <span className={styles.dest}>{current.destination}</span>
-          <ProgressBar value={(current.dayIndex ?? 1) / current.dayCount} />
-          <span className={cx("mono", styles.foot)}>Day {current.dayIndex} of {current.dayCount}</span>
         </Link>
       ) : null}
       {next ? (
         <Link className={styles.ticket} href={`/trips/${next.id}`} data-trip-link={next.id}>
-          <span className={cx("mono", styles.kind)}><i />Next departure</span>
+          <span className={cx("mono", styles.kind)}>Next departure</span>
+          <span className={styles.when}>{next.daysToStart} {next.daysToStart === 1 ? "day" : "days"} to go</span>
           <span className={styles.title}>{next.title}</span>
-          <span className={styles.dest}>{next.destination} · {fmtShort(next.startDate)}</span>
-          <span className={cx("mono", styles.foot)}><b>{next.daysToStart}</b> {next.daysToStart === 1 ? "day" : "days"} to go</span>
         </Link>
       ) : null}
     </div>

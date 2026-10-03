@@ -161,7 +161,7 @@ export function Dashboard({ data, focus, initialFilter }: { data: DashboardDTO; 
   }
 
   return (
-    <div className={styles.dash} data-one-screen style={splitStyle}>
+    <div className={styles.dash} data-one-screen data-has-trips={data.trips.length > 0 || undefined} style={splitStyle}>
       <div className={styles.split} data-resizing={resizing || undefined} ref={splitRef} onClickCapture={onOpen}>
         <div className={styles.left} id="dashboard-trip-pane" data-dash-scroll ref={leftRef}>
           <Hero className={styles.hero} data={data} onCreate={() => setCreating(true)} />

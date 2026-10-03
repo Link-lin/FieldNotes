@@ -44,7 +44,7 @@ export function TripList({ trips, bookingTasks, filter, onFilter, selectedId, on
   return (
     <section className={cx(styles.col, className)} aria-labelledby="list-title">
       <div className={styles.head}>
-        <h2 id="list-title" tabIndex={-1}>On your itinerary</h2>
+        <h2 id="list-title" tabIndex={-1} className={trips.length ? "visually-hidden" : undefined}>On your itinerary</h2>
         <TripFilters trips={trips} value={filter} onChange={onFilter} />
       </div>
       <div className={styles.body}>

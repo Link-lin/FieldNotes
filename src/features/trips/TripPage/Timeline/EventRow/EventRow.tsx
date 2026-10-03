@@ -1,12 +1,12 @@
 "use client";
 
 import type { PlanItemDTO } from "@/shared/dto";
-import { googleSearchUrl, providerLabel } from "@/shared/map-links";
+import { googleSearchUrl } from "@/shared/map-links";
 import { ButtonLink } from "@/components/ui/Button/Button";
 import { CopyIcon, DotsIcon, EditIcon, PinIcon, TrashIcon } from "@/components/ui/Icon/icons";
 import { Menu, MenuItem } from "@/components/ui/Menu/Menu";
 import { Tag } from "@/components/ui/Tag/Tag";
-import { priceText, TYPE_LABEL } from "@/lib/format";
+import { priceText } from "@/lib/format";
 import { StopNumber } from "../../StopNumber/StopNumber";
 import { eventTimeText, hasTime } from "../../trip-days";
 import { FlightCard } from "../../FlightCard/FlightCard";
@@ -27,7 +27,7 @@ type Props = {
 };
 
 /**
- * One timeline row: number, time, title (or flight card), notes, place links, tags, and the
+ * One timeline summary: number, time, title (or flight card), place, map link, status, and the
  * owner's three-dot menu (TRIP-8). data-hl links it with its pin and stop-list line. The whole
  * row opens the event's side panel (TRIP-10) through one stretched button; links and the menu
  * sit above it and keep working.
@@ -58,30 +58,25 @@ export function EventRow({ item, num, owner, tripZone, menuOpen, onMenu, onOpen,
       {/* Untimed rows sit under Unscheduled or Undated, which already say there is no time. */}
       {hasTime(item) ? <span className={styles.time}>{eventTimeText(item, tripZone)}</span> : null}
       {f ? <FlightCard item={item} className={styles.flight} /> : <span className={styles.title}>{item.title}</span>}
-      {item.notes ? <p className={styles.notes}>{item.notes}</p> : null}
-      {item.location || item.mapUrl || item.links.length ? (
+      {item.location || item.mapUrl ? (
         <span className={styles.links}>
-          {item.location ? <span className={styles.place}><PinIcon />{item.location}</span> : null}
+          {item.location ? <span className={styles.place}><PinIcon /><span className={styles.placeName} title={item.location}>{item.location}</span></span> : null}
           {item.mapUrl ? (
             <ButtonLink variant="quiet" external href={item.mapUrl}>Open in {item.mapProvider ?? "map"} ↗</ButtonLink>
           ) : item.location ? (
             <ButtonLink variant="quiet" external href={googleSearchUrl(item.location)}>Open in Google Maps ↗</ButtonLink>
           ) : null}
-          {item.links.map((l, i) => (
-            <ButtonLink key={i} variant="quiet" external href={l.url}>{l.label} · {providerLabel(l.url)} ↗</ButtonLink>
-          ))}
         </span>
       ) : null}
       {!num && !f && item.localDate ? <span className={styles.nopin}>Not on the map yet</span> : null}
-      {f ? null : (
+      {!f && (item.plannedPrice || item.bookingStatus !== "not_required" || item.source === "ai") ? (
         <span className={styles.tags}>
-          <Tag tone="soft">{TYPE_LABEL[item.type]}</Tag>
           {item.plannedPrice ? <Tag tone="price">{priceText(item.plannedPrice)}</Tag> : null}
           {item.bookingStatus === "needs_booking" ? <Tag tone="need">Needs booking</Tag> : null}
           {item.bookingStatus === "booked" ? <Tag tone="booked">Booked</Tag> : null}
           {item.source === "ai" ? <Tag tone="soft">AI draft, unverified</Tag> : null}
         </span>
-      )}
+      ) : null}
     </li>
   );
 }

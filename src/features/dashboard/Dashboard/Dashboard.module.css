@@ -23,6 +23,9 @@
   .hero { order: -1; grid-column: 1; }
   .trips, .foot { order: 1; grid-column: 1; }
   .globe { grid-column: 1; grid-row: auto; order: 0; position: relative; height: clamp(320px, 88vw, 460px); min-height: 0; margin-right: calc(-1 * var(--gutter)); }
+  .dash[data-has-trips] .trips { order: 0; }
+  .dash[data-has-trips] .globe { order: 1; }
+  .dash[data-has-trips] .foot { order: 2; }
   .divider { display: none; }
 }
 

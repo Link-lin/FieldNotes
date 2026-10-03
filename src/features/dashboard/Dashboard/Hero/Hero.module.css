@@ -1,9 +1,9 @@
-.hero { padding: var(--space-6) var(--space-8) var(--space-2) 0; display: grid; gap: 22px; align-content: start; }
+.hero { padding: var(--space-6) var(--space-8) var(--space-2) 0; display: grid; gap: var(--space-5); align-content: start; }
 .eyebrow { color: var(--ink-3); letter-spacing: 0.2em; }
 .title {}
 .lede { color: var(--ink-2); max-width: 46ch; font-size: 16px; }
-.stats { color: var(--ink-3); }
-.stats b { color: var(--vermilion-ink); font-weight: 500; }
+.hero[data-has-trips] { gap: var(--space-3); }
+.hero[data-has-trips] .title { font-size: clamp(32px, 3vw, 40px); }
 
 @media (max-width: 900px) { .hero { padding-right: 0; } }
 @media (min-width: 901px) and (min-height: 620px) {
