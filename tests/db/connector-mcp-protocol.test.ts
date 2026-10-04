@@ -190,7 +190,12 @@ describe("the tool list", () => {
       expect(tool.description.length).toBeGreaterThan(40);
       expect(tool.inputSchema).toMatchObject({ type: "object", additionalProperties: false });
       expect(tool.annotations).toMatchObject({ openWorldHint: false });
-      expect(typeof tool.annotations.readOnlyHint).toBe("boolean");
+      for (const hint of ["readOnlyHint", "destructiveHint", "idempotentHint"]) expect(typeof tool.annotations[hint], `${tool.name} ${hint}`).toBe("boolean");
+      // ChatGPT reads what each tool needs from securitySchemes, at the top level and mirrored in _meta.
+      const needs = tool.annotations.readOnlyHint ? ["trips:read"] : ["trips:read", "trips:write"];
+      expect(tool.securitySchemes).toEqual([{ type: "oauth2", scopes: needs }]);
+      expect(tool._meta.securitySchemes).toEqual(tool.securitySchemes);
+      if (tool.annotations.readOnlyHint) expect(tool.annotations.destructiveHint).toBe(false);
       // No conditional keywords or references a chat provider might not handle.
       expect(JSON.stringify(tool.inputSchema)).not.toMatch(/"\$ref"|"allOf"|"oneOf"|"anyOf"/);
     }

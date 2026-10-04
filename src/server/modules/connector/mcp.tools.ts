@@ -32,7 +32,8 @@ type Tool = {
   title: string;
   description: string;
   inputSchema: Json;
-  annotations: { readOnlyHint: boolean; destructiveHint?: boolean; idempotentHint?: boolean; openWorldHint: false };
+  /** Every hint is declared (ChatGPT requires all three of readOnly, destructive and openWorld) so a chat can ask before it changes anything. */
+  annotations: { readOnlyHint: boolean; destructiveHint: boolean; idempotentHint: boolean; openWorldHint: false };
   /** `write` tools need the person to have allowed changes. */
   access: "read" | "write";
   /** Listed only to accounts on the owner allowlist. */
@@ -148,7 +149,7 @@ const TOOLS: Tool[] = [
     title: "List trips",
     description: "Lists the trips this person can see in Field Notes: id, title, destination, dates, time zone, status (upcoming, ongoing or past) and their role (owner, editor or viewer). Start here to find a trip's id.",
     inputSchema: object({}, []),
-    annotations: { readOnlyHint: true, openWorldHint: false },
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     access: "read",
     async run(ctx, args) {
       const a = parse(noArgs, args);
@@ -162,7 +163,7 @@ const TOOLS: Tool[] = [
     description:
       "Returns one trip: its details, today's date in its time zone, budget, planned totals per currency, and every item (flights, lodging, transport, meals, activities, other) in itinerary order, each with the id that get_item, update_item and delete_item need. bookingStatus 'Booked' means a person confirmed it. addedBy tells whether an item came from a person or an AI. Long notes are shortened (notesTruncated): use get_item for the full text.",
     inputSchema: object({ tripId: TRIP_ID }, ["tripId"]),
-    annotations: { readOnlyHint: true, openWorldHint: false },
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     access: "read",
     async run(ctx, args) {
       const a = parse(tripArgs, args);
@@ -175,7 +176,7 @@ const TOOLS: Tool[] = [
     title: "Get an item",
     description: "Returns one itinerary item in full, including its complete notes and links.",
     inputSchema: object({ tripId: TRIP_ID, itemId: ITEM_ID }, ["tripId", "itemId"]),
-    annotations: { readOnlyHint: true, openWorldHint: false },
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     access: "read",
     async run(ctx, args) {
       const a = parse(itemArgs, args);
@@ -259,6 +260,9 @@ const TOOLS: Tool[] = [
   },
 ];
 
+/** What each tool needs, in the form ChatGPT reads (top-level `securitySchemes`, mirrored in `_meta` for clients that only read that). */
+const securitySchemes = (t: Tool) => [{ type: "oauth2", scopes: t.access === "write" ? ["trips:read", "trips:write"] : ["trips:read"] }];
+
 /** The tools this connection may use: read tools always, write tools with the write scope, and `create_trip` only for an allowlisted owner. */
 export function listTools(ctx: Pick<ToolContext, "scope" | "actor">) {
   return TOOLS.filter((t) => (t.access === "read" || hasWrite(ctx.scope)) && (!t.ownerAccountOnly || ctx.actor.isOwner)).map((t) => ({
@@ -267,6 +271,8 @@ export function listTools(ctx: Pick<ToolContext, "scope" | "actor">) {
     description: t.description,
     inputSchema: t.inputSchema,
     annotations: { title: t.title, ...t.annotations },
+    securitySchemes: securitySchemes(t),
+    _meta: { securitySchemes: securitySchemes(t) },
   }));
 }
 
