@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import { KyselyAdapter } from "@auth/kysely-adapter";
@@ -6,6 +7,7 @@ import type { Database as AuthDatabase } from "@auth/kysely-adapter";
 import { getDb } from "@/server/core/db/client";
 import { appOrigin } from "@/server/core/env";
 import { allowSignIn } from "@/server/auth/sign-in-gate";
+import { stagedHash } from "@/server/modules/invitations/invitations.rules";
 
 /**
  * Google sign-in with database sessions (ACCESS-1). New accounts are limited to the
@@ -29,11 +31,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth(() => {
     pages: { signIn: "/sign-in", error: "/sign-in" },
     callbacks: {
       async signIn({ account, profile }) {
+        // An invitation link's staging cookie travels with the sign-in callback; read it for the gate.
+        let staged: Buffer | null = null;
+        try {
+          staged = stagedHash(appOrigin(), (await headers()).get("cookie"));
+        } catch {
+          // Outside a request there is no cookie to read.
+        }
         return allowSignIn(db, {
           provider: account?.provider,
           providerAccountId: account?.providerAccountId,
           email: profile?.email,
           emailVerified: profile?.email_verified,
+          stagedHash: staged,
         });
       },
       session({ session, user }) {

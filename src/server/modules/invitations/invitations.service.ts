@@ -13,6 +13,7 @@ import { invitationEmail } from "./invitations.email";
 import { invitationDto } from "./invitations.mapper";
 import {
   insertInvitation,
+  insertLinkInvitation,
   invitationByHash,
   invitationForEmail,
   invitationForUpdate,
@@ -72,7 +73,7 @@ export async function createInvitation(db: Kysely<DB>, actor: Actor, tripId: str
     const row = existing ? await reissueInvitation(tx, existing.id, role, hash, expiresAt, now) : await insertInvitation(tx, tripId, email, role, hash, expiresAt);
     return { row, url: `${appOrigin()}/invite#${token}`, expiresAt, tripTitle: trip.title };
   });
-  const delivery = await emailInvitation(db, actor, created.row.invitee_email_normalized, created.row.role, created.tripTitle, created.url, created.expiresAt);
+  const delivery = await emailInvitation(db, actor, created.row.invitee_email_normalized ?? email, created.row.role, created.tripTitle, created.url, created.expiresAt);
   return {
     invitationId: created.row.id,
     invitationUrl: created.url,
@@ -80,6 +81,43 @@ export async function createInvitation(db: Kysely<DB>, actor: Actor, tripId: str
     invitation: invitationDto(created.row, now),
     delivery,
   };
+}
+
+/**
+ * ACCESS-3: invite someone by link, for a person the owner will message themselves (a WeChat contact, say). The
+ * entry carries a label the owner chose instead of an address, and whoever opens the single-use link first, signed
+ * in with Google or WeChat, joins with the chosen role; no email is sent. Like an email invitation it expires in
+ * seven days, and the raw token is returned once while only its hash is stored.
+ */
+export async function createLinkInvitation(db: Kysely<DB>, actor: Actor, tripId: string, label: string, now = new Date(), role: Role = "viewer"): Promise<InvitationLinkDTO> {
+  return db.transaction().execute(async (tx) => {
+    await requireTripOwner(tx, actor, tripId, true);
+    const token = newInvitationToken();
+    const expiresAt = new Date(now.getTime() + INVITATION_TTL_MS);
+    const row = await insertLinkInvitation(tx, tripId, label, role, hashInvitationToken(token), expiresAt);
+    return { invitationId: row.id, invitationUrl: `${appOrigin()}/invite#${token}`, expiresAt: expiresAt.toISOString(), invitation: invitationDto(row, now), delivery: "off" };
+  });
+}
+
+/**
+ * ACCESS-3/11: a new link for an entry made by link, which has no address to send it to: it replaces the old
+ * link, keeps the label and role, and starts the seven days again. An entry that has been accepted keeps its
+ * access (change the role or revoke instead); an email entry is renewed by sending it again.
+ */
+export async function renewInvitation(db: Kysely<DB>, actor: Actor, tripId: string, invitationId: string, now = new Date()): Promise<InvitationLinkDTO> {
+  return db.transaction().execute(async (tx) => {
+    await requireTripOwner(tx, actor, tripId, true);
+    const row = isUuid(invitationId) ? await invitationForUpdate(tx, tripId, invitationId) : undefined;
+    if (!row) throw invitationNotFound();
+    if (row.invitee_email_normalized !== null) throw new HttpError(409, "invitation_by_email", "This invitation was made for an email address. Send it to that address again.");
+    if (row.status === "accepted") {
+      throw new HttpError(409, "invitation_accepted", "This person already has access. Change their role in the list below, or revoke their access first to send a new link.");
+    }
+    const token = newInvitationToken();
+    const expiresAt = new Date(now.getTime() + INVITATION_TTL_MS);
+    const renewed = await reissueInvitation(tx, row.id, row.role, hashInvitationToken(token), expiresAt, now);
+    return { invitationId: renewed.id, invitationUrl: `${appOrigin()}/invite#${token}`, expiresAt: expiresAt.toISOString(), invitation: invitationDto(renewed, now), delivery: "off" };
+  });
 }
 
 /** Sends the invitation email, if email is set up. Never throws: a failure is reported, not raised. */
@@ -173,7 +211,8 @@ export async function acceptInvitation(db: Kysely<DB>, actor: Actor, hash: Buffe
       throw invalidInvitation();
     }
     if (invitationStatus(row, now) !== "pending") throw invalidInvitation();
-    if (actor.email === null || emailKey(row.invitee_email_normalized) !== emailKey(actor.email)) {
+    // An invitation by link has no address to match: the single-use link is what admits whoever opens it first.
+    if (row.invitee_email_normalized !== null && (actor.email === null || emailKey(row.invitee_email_normalized) !== emailKey(actor.email))) {
       throw new HttpError(403, "invitation_wrong_account", "This invitation is for a different Google account. Switch to the account it was sent to.");
     }
     await markAccepted(tx, row.id, actor.userId, now);

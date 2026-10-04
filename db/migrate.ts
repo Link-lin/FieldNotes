@@ -5,6 +5,7 @@ import * as m0003 from "./migrations/0003_usage_counts";
 import * as m0004 from "./migrations/0004_member_roles";
 import * as m0005 from "./migrations/0005_creator_may_leave";
 import * as m0006 from "./migrations/0006_accounts_without_email";
+import * as m0007 from "./migrations/0007_link_invitations";
 
 /** Migrations are listed explicitly so every runtime (tsx, tests) sees the same set. */
 const migrations: Record<string, Migration> = {
@@ -14,6 +15,7 @@ const migrations: Record<string, Migration> = {
   "0004_member_roles": m0004,
   "0005_creator_may_leave": m0005,
   "0006_accounts_without_email": m0006,
+  "0007_link_invitations": m0007,
 };
 
 const provider: MigrationProvider = { getMigrations: async () => migrations };

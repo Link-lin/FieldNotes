@@ -50,7 +50,7 @@ export function OwnedTripChoice({ trip, choice, onChange }: Props) {
           ) : (
             trip.people.map((p) => (
               <option key={p.id} value={p.id}>
-                Make {p.email} the owner ({ROLE_LABEL[p.role].toLowerCase()} now)
+                Make {p.name} the owner ({ROLE_LABEL[p.role].toLowerCase()} now)
               </option>
             ))
           )}

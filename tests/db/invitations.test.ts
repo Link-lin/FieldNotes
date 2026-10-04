@@ -64,7 +64,7 @@ describe("invitation service", () => {
     const link = await createInvitation(db(), owner, tripId, "viewer@example.com", NOW);
     expect(link.invitationUrl).toMatch(/^http:\/\/localhost:3000\/invite#[A-Za-z0-9_-]{43}$/);
     expect(link.expiresAt).toBe(later(7).toISOString());
-    expect(link.invitation).toEqual({ id: link.invitationId, email: "viewer@example.com", role: "viewer", status: "pending", expiresAt: link.expiresAt, acceptedAt: null, revokedAt: null });
+    expect(link.invitation).toEqual({ id: link.invitationId, email: "viewer@example.com", label: null, joinedAs: null, role: "viewer", status: "pending", expiresAt: link.expiresAt, acceptedAt: null, revokedAt: null });
     const rows = await db().selectFrom("trip_viewers").selectAll().execute();
     expect(rows).toHaveLength(1);
     expect(rows[0]!.invitation_token_hash).toEqual(sha(tokenOf(link.invitationUrl)));

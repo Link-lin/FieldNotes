@@ -65,7 +65,10 @@ export interface TripsTable {
 export interface TripViewersTable {
   id: Generated<string>;
   trip_id: string;
-  invitee_email_normalized: string;
+  /** The address an email invitation was made for; null for an invitation by link. */
+  invitee_email_normalized: string | null;
+  /** What the owner called someone invited by link; null for an email invitation. Exactly one of the two is set. */
+  label: string | null;
   viewer_user_id: string | null;
   /** What the person may do once accepted; viewer unless the owner chose otherwise. */
   role: Generated<"viewer" | "editor" | "owner">;

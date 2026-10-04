@@ -111,7 +111,7 @@ describe("what the account-deletion dialog offers", () => {
     const plans = await listOwnedTrips(db(), owner);
     expect(plans).toHaveLength(1);
     expect(plans[0]).toMatchObject({ id: t, title: tripInput.title, otherOwners: ["coowner@example.com"] });
-    expect(plans[0]!.people.map((p) => [p.email, p.role])).toEqual([
+    expect(plans[0]!.people.map((p) => [p.name, p.role])).toEqual([
       ["coowner@example.com", "owner"],
       ["editor@example.com", "editor"],
       ["viewer@example.com", "viewer"],
@@ -128,7 +128,7 @@ describe("what the account-deletion dialog offers", () => {
       .values({ trip_id: t, invitee_email_normalized: "sam.again@example.com", viewer_user_id: editor.userId, role: "viewer", status: "accepted", invitation_token_hash: Buffer.from("again"), expires_at: day(30), accepted_at: day(1) })
       .execute();
     const [plan] = await listOwnedTrips(db(), owner);
-    expect(plan!.people.map((p) => [p.email, p.role])).toEqual([
+    expect(plan!.people.map((p) => [p.name, p.role])).toEqual([
       ["viewer@example.com", "editor"],
       ["editor@example.com", "editor"],
     ]);
@@ -144,7 +144,7 @@ describe("what the account-deletion dialog offers", () => {
     expect(plans.map((p) => p.id)).toEqual([shared]);
     // Second made it and can still act as an owner, so it would stay with them.
     expect(plans[0]).toMatchObject({ otherOwners: ["Second"] });
-    expect(plans[0]!.people.map((p) => p.email)).toEqual(["editor@example.com"]);
+    expect(plans[0]!.people.map((p) => p.name)).toEqual(["editor@example.com"]);
     expect(await listOwnedTrips(db(), editor)).toEqual([]);
   });
 
@@ -155,7 +155,7 @@ describe("what the account-deletion dialog offers", () => {
     const alone = await newTrip(owner, "Alone");
     const plans = Object.fromEntries((await listOwnedTrips(db(), owner)).map((p) => [p.id, p]));
     expect(plans[t]).toMatchObject({ otherOwners: [] });
-    expect(plans[t]!.people.map((p) => p.email)).toEqual(["editor@example.com"]);
+    expect(plans[t]!.people.map((p) => p.name)).toEqual(["editor@example.com"]);
     expect(plans[alone]).toMatchObject({ otherOwners: [], people: [] });
   });
 });
@@ -408,7 +408,7 @@ describe("the account routes", () => {
     const res = await ownedRoute.GET(req("GET"));
     expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toContain("no-store");
-    expect(await res.json()).toMatchObject([{ id: t, otherOwners: [], people: [{ email: "editor@example.com", role: "editor" }] }]);
+    expect(await res.json()).toMatchObject([{ id: t, otherOwners: [], people: [{ name: "editor@example.com", role: "editor" }] }]);
     session.actor = second;
     expect(await (await ownedRoute.GET(req("GET"))).json()).toEqual([]);
   });

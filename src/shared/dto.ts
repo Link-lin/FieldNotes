@@ -120,7 +120,12 @@ export type InvitationStatus = "pending" | "accepted" | "expired" | "revoked";
 /** One viewer or invitation in the owner's Share dialog. Never carries the link or its hash. */
 export type InvitationDTO = {
   id: string;
-  email: string;
+  /** The address an email invitation was made for; null for an invitation by link. */
+  email: string | null;
+  /** What the owner called someone invited by link (only owners see it); null for an email invitation. */
+  label: string | null;
+  /** For an accepted invitation by link: the name the person signed in with, so the owner can check who joined. */
+  joinedAs: string | null;
   /** What this person may do once they accept (or do now, if already accepted). */
   role: Role;
   status: InvitationStatus;
@@ -146,5 +151,5 @@ export type OwnedTripDTO = {
   startDate: string;
   endDate: string;
   otherOwners: string[];
-  people: Array<{ id: string; email: string; role: Role }>;
+  people: Array<{ id: string; name: string; role: Role }>;
 };

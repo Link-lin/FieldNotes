@@ -25,7 +25,7 @@ async function plans(db: Conn, actor: Actor, lock: boolean): Promise<Plan[]> {
   const allowlist = ownerEmails();
   return trips.map((trip) => {
     const people = successionOrder(accepted.filter((p) => p.tripId === trip.id));
-    const owners = people.filter((p) => p.role === "owner").map((p) => p.email);
+    const owners = people.filter((p) => p.role === "owner").map((p) => p.name);
     // The creator keeps the trip too while they can still act as its owner: someone else, with an account, on the allowlist.
     const creatorStays = trip.owner_user_id !== null && trip.owner_user_id !== actor.userId && trip.creator_email !== null && allowlist.has(emailKey(trip.creator_email));
     return { trip, people, otherOwners: creatorStays ? [trip.creator_name?.trim() || trip.creator_email!, ...owners] : owners };

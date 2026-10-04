@@ -11,6 +11,6 @@ export function ownedTripDto({ trip, people, otherOwners }: { trip: OwnedTripRow
     startDate: trip.start_date,
     endDate: trip.end_date,
     otherOwners,
-    people: people.map((p) => ({ id: p.id, email: p.email, role: p.role })),
+    people: people.map((p) => ({ id: p.id, name: p.name, role: p.role })),
   };
 }

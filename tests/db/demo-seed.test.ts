@@ -82,9 +82,11 @@ describe("test trips seed", () => {
   it("adds sharing entries in every state, a shared trip, a past trip over budget and an empty trip", async () => {
     const ids = await seed();
     const invitations = await listInvitations(testDb(), owner, ids[HAWAII_TITLE]!, NOW);
-    expect(invitations.map((i) => i.status).sort()).toEqual(["accepted", "expired", "pending", "revoked"]);
-    // Every role appears in the sharing list: an accepted editor, a pending owner, an expired editor, a revoked viewer.
-    expect(invitations.map((i) => `${i.status}:${i.role}`).sort()).toEqual(["accepted:editor", "expired:editor", "pending:owner", "revoked:viewer"]);
+    expect(invitations.map((i) => i.status).sort()).toEqual(["accepted", "expired", "pending", "pending", "revoked"]);
+    // Every role appears in the sharing list: an accepted editor, a pending owner, an expired editor, a revoked viewer
+    // and a pending invitation by link (no address, only a label).
+    expect(invitations.map((i) => `${i.status}:${i.role}`).sort()).toEqual(["accepted:editor", "expired:editor", "pending:owner", "pending:viewer", "revoked:viewer"]);
+    expect(invitations.filter((i) => i.email === null)).toEqual([expect.objectContaining({ label: "Mei, on WeChat (test)", status: "pending" })]);
 
     const dash = await getDashboard(testDb(), owner, NOW);
     const byTitle = Object.fromEntries(dash.trips.map((t) => [t.title, t]));
@@ -118,8 +120,8 @@ describe("test trips seed", () => {
     // asks who takes over (Sam is next in line), and Kauaʻi and Seoul have nobody else on them, so they would be deleted.
     const plans = Object.fromEntries((await listOwnedTrips(testDb(), owner)).map((p) => [p.title, p]));
     expect(Object.keys(plans).sort()).toEqual([HAWAII_TITLE, KAUAI_TITLE, LISBON_TITLE, SEOUL_TITLE].sort());
-    expect(plans[LISBON_TITLE]).toMatchObject({ otherOwners: [TEST_FRIEND.email], people: [{ email: TEST_FRIEND.email, role: "owner" }] });
-    expect(plans[HAWAII_TITLE]).toMatchObject({ otherOwners: [], people: [{ email: TEST_FRIEND.email, role: "editor" }] });
+    expect(plans[LISBON_TITLE]).toMatchObject({ otherOwners: [TEST_FRIEND.email], people: [{ name: TEST_FRIEND.email, role: "owner" }] });
+    expect(plans[HAWAII_TITLE]).toMatchObject({ otherOwners: [], people: [{ name: TEST_FRIEND.email, role: "editor" }] });
     expect(plans[KAUAI_TITLE]).toMatchObject({ otherOwners: [], people: [] });
     expect(plans[SEOUL_TITLE]).toMatchObject({ otherOwners: [], people: [] });
   });

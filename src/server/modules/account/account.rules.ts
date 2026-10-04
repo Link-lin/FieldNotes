@@ -1,8 +1,11 @@
 import "server-only";
 import type { Role } from "@/shared/dto";
 
-/** One accepted person on a trip, as the account-deletion choice sees them. `id` is their grant's id. */
-export type Person = { id: string; userId: string; email: string; role: Role; acceptedAt: Date };
+/**
+ * One accepted person on a trip, as the account-deletion choice sees them. `id` is their grant's id; `name` is
+ * the address they were invited at, or the label the owner gave their link.
+ */
+export type Person = { id: string; userId: string; name: string; role: Role; acceptedAt: Date };
 
 const RANK: Record<Role, number> = { owner: 0, editor: 1, viewer: 2 };
 

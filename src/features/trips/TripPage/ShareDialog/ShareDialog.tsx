@@ -5,7 +5,7 @@ import type { InvitationDelivery, InvitationDTO, InvitationLinkDTO, Role, TripDe
 import { ROLE_HELP, ROLE_LABEL, ROLES } from "@/shared/roles";
 import { Banner } from "@/components/ui/Banner/Banner";
 import { Button } from "@/components/ui/Button/Button";
-import { Field, FormError } from "@/components/ui/Field/Field";
+import { CheckField, Field, FormError } from "@/components/ui/Field/Field";
 import { Modal, ModalActions } from "@/components/ui/Modal/Modal";
 import { api } from "@/lib/api";
 import { InviteLink } from "./InviteLink/InviteLink";
@@ -13,7 +13,10 @@ import { ViewerList, type IssueResult } from "./ViewerList/ViewerList";
 import styles from "./ShareDialog.module.css";
 
 type Props = { trip: TripDetailDTO["trip"]; /** Whether the server can email invitations (SMTP is set up). */ canEmail: boolean; onClose: () => void };
-type Shown = { email: string; role: Role; url: string; expiresAt: string; delivery: InvitationDelivery; copied: boolean };
+/** A link shown once. `name` is the address, or the label of an entry made by link. */
+type Shown = { id: string; name: string; byLink: boolean; role: Role; url: string; expiresAt: string; delivery: InvitationDelivery; copied: boolean };
+/** What an owner can ask for: a new entry by email or by link, or a new link for an entry made by link. */
+type Issue = { kind: "email"; email: string; role: Role } | { kind: "link"; label: string; role: Role } | { kind: "renew"; entry: InvitationDTO };
 
 /** Insert or replace entries by ID, keeping list order. */
 function upsert(list: InvitationDTO[], add: InvitationDTO[]): InvitationDTO[] {
@@ -24,19 +27,22 @@ function upsert(list: InvitationDTO[], add: InvitationDTO[]): InvitationDTO[] {
 
 /**
  * ACCESS-3/5/8/11: the Share dialog for owners. It states what each role can see and do before anything is
- * created, invites one email at a time with a role (emailing the link when the server can, and otherwise
- * handing the owner a message to send), shows each new link once (only its hash is stored, so it can't be
- * shown again), and lists the people with their roles, Revoke and a new link.
+ * created, invites one person at a time with a role, by email (emailing the link when the server can, and
+ * otherwise handing the owner a message to send) or by link (a message the owner sends themselves, for someone
+ * without a Google address), shows each new link once (only its hash is stored, so it can't be shown again),
+ * and lists the people with their roles, Revoke and a new link.
  */
 export function ShareDialog({ trip, canEmail, onClose }: Props) {
   const [entries, setEntries] = useState<InvitationDTO[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [mode, setMode] = useState<"email" | "link">("email");
   const [email, setEmail] = useState("");
+  const [label, setLabel] = useState("");
   const [role, setRole] = useState<Role>("viewer");
-  const [emailError, setEmailError] = useState<string | null>(null);
+  const [fieldError, setFieldError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
-  // Every link created while the dialog is open, newest first. A newer link for the same email
+  // Every link created while the dialog is open, newest first. A newer link for the same entry
   // replaces the older one, which no longer works anyway.
   const [links, setLinks] = useState<Shown[]>([]);
   const [confirmClose, setConfirmClose] = useState(false);
@@ -66,41 +72,60 @@ export function ShareDialog({ trip, canEmail, onClose }: Props) {
   }, [trip.id, loads]);
 
   /** Create an invitation, or a new link for an existing entry, and show the link once. */
-  async function issue(address: string, chosen: Role): Promise<IssueResult> {
-    const r = await api<InvitationLinkDTO>("POST", `/api/trips/${trip.id}/invitations`, { email: address, role: chosen });
+  async function issue(what: Issue): Promise<IssueResult> {
+    const r =
+      what.kind === "email"
+        ? await api<InvitationLinkDTO>("POST", `/api/trips/${trip.id}/invitations`, { email: what.email, role: what.role })
+        : what.kind === "link"
+          ? await api<InvitationLinkDTO>("POST", `/api/trips/${trip.id}/invitations`, { label: what.label, role: what.role })
+          : await api<InvitationLinkDTO>("POST", `/api/trips/${trip.id}/invitations/${what.entry.id}/link`);
     if (!r.ok) {
-      const field = r.fields.find((f) => f.path === "email");
-      return { ok: false, message: field?.message ?? r.message, onEmail: Boolean(field) };
+      const field = r.fields.find((f) => f.path === "email" || f.path === "label");
+      return { ok: false, message: field?.message ?? r.message, onField: Boolean(field) };
     }
     const entry = r.data.invitation;
     issuedDuringLoad.current.set(entry.id, entry);
     setEntries((list) => upsert(list ?? [], [entry]));
     // A link that was emailed is already with its recipient, so closing needn't warn that it wasn't copied.
-    const link: Shown = { email: entry.email, role: entry.role, url: r.data.invitationUrl, expiresAt: r.data.expiresAt, delivery: r.data.delivery, copied: r.data.delivery === "sent" };
-    setLinks((all) => [link, ...all.filter((l) => l.email !== entry.email)]);
+    const link: Shown = {
+      id: entry.id,
+      name: entry.email ?? entry.label ?? "",
+      byLink: entry.email === null,
+      role: entry.role,
+      url: r.data.invitationUrl,
+      expiresAt: r.data.expiresAt,
+      delivery: r.data.delivery,
+      copied: r.data.delivery === "sent",
+    };
+    setLinks((all) => [link, ...all.filter((l) => l.id !== entry.id)]);
     setConfirmClose(false);
     return { ok: true };
   }
 
+  /** A new link for an existing entry: sent to its address, or for an entry made by link, shown to copy. */
+  const renew = (entry: InvitationDTO) => issue(entry.email !== null ? { kind: "email", email: entry.email, role: entry.role } : { kind: "renew", entry });
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setEmailError(null);
+    setFieldError(null);
     setFormError(null);
-    if (!email.trim()) {
-      setEmailError("Enter the email address of the person you want to invite.");
-      document.getElementById("share-email")?.focus();
+    const fieldId = mode === "email" ? "share-email" : "share-label";
+    if (mode === "email" ? !email.trim() : !label.trim()) {
+      setFieldError(mode === "email" ? "Enter the email address of the person you want to invite." : "Give the person a name or note, like Mei on WeChat.");
+      document.getElementById(fieldId)?.focus();
       return;
     }
     setCreating(true);
-    const r = await issue(email, role);
+    const r = await issue(mode === "email" ? { kind: "email", email, role } : { kind: "link", label, role });
     setCreating(false);
     if (r.ok) {
-      setEmail("");
+      if (mode === "email") setEmail("");
+      else setLabel("");
       return;
     }
-    if (r.onEmail) {
-      setEmailError(r.message);
-      document.getElementById("share-email")?.focus();
+    if (r.onField) {
+      setFieldError(r.message);
+      document.getElementById(fieldId)?.focus();
     } else setFormError(r.message);
   }
 
@@ -129,33 +154,63 @@ export function ShareDialog({ trip, canEmail, onClose }: Props) {
       </Banner>
 
       <form className={styles.invite} onSubmit={onSubmit} noValidate>
-        <Field label="Invite by email" htmlFor="share-email" hint="Gmail addresses match even if the dots, a +tag or googlemail.com differ." hintId="share-email-hint" error={emailError} errorId="share-email-error" className={styles.email}>
-          <input
-            id="share-email"
-            type="email"
-            autoComplete="off"
-            spellCheck={false}
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="sam@example.com"
-            aria-invalid={emailError ? true : undefined}
-            aria-describedby={emailError ? "share-email-error" : "share-email-hint"}
-          />
-        </Field>
+        <fieldset className={styles.mode}>
+          <legend className="visually-hidden">How they will join</legend>
+          <CheckField type="radio" name="share-mode" checked={mode === "email"} onChange={() => { setMode("email"); setFieldError(null); }} label="By email" />
+          <CheckField type="radio" name="share-mode" checked={mode === "link"} onChange={() => { setMode("link"); setFieldError(null); }} label="By link (for example, a WeChat contact)" />
+        </fieldset>
+        {mode === "email" ? (
+          <Field label="Invite by email" htmlFor="share-email" hint="Gmail addresses match even if the dots, a +tag or googlemail.com differ." hintId="share-email-hint" error={fieldError} errorId="share-email-error" className={styles.email}>
+            <input
+              id="share-email"
+              type="email"
+              autoComplete="off"
+              spellCheck={false}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="sam@example.com"
+              aria-invalid={fieldError ? true : undefined}
+              aria-describedby={fieldError ? "share-email-error" : "share-email-hint"}
+            />
+          </Field>
+        ) : (
+          <Field label="Name or note" htmlFor="share-label" hint="Only you see this. For example: Mei, on WeChat." hintId="share-label-hint" error={fieldError} errorId="share-label-error" className={styles.email}>
+            <input
+              id="share-label"
+              type="text"
+              autoComplete="off"
+              maxLength={80}
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              placeholder="Mei, on WeChat"
+              aria-invalid={fieldError ? true : undefined}
+              aria-describedby={fieldError ? "share-label-error" : "share-label-hint"}
+            />
+          </Field>
+        )}
         <Field label="Can" htmlFor="share-role" hint={ROLE_HELP[role]} hintId="share-role-hint" className={styles.roleField}>
           <select id="share-role" value={role} onChange={(e) => setRole(e.target.value as Role)} aria-describedby="share-role-hint">
             {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
           </select>
         </Field>
-        <Button variant="fill" type="submit" disabled={creating}>{creating ? (canEmail ? "Sending…" : "Creating…") : canEmail ? "Send invitation" : "Create invitation"}</Button>
+        <Button variant="fill" type="submit" disabled={creating}>
+          {mode === "link" ? (creating ? "Creating…" : "Create link") : creating ? (canEmail ? "Sending…" : "Creating…") : canEmail ? "Send invitation" : "Create invitation"}
+        </Button>
       </form>
+      {mode === "link" ? (
+        <p className="note">
+          Whoever opens the link first joins as {ROLE_LABEL[role].toLowerCase()}, whoever they are, so send it only to the person you mean. It works once and
+          expires in seven days. You can revoke it afterwards.
+        </p>
+      ) : null}
       {formError ? <FormError>{formError}</FormError> : null}
 
       {links.map((l) => (
         <InviteLink
           key={l.url}
           tripTitle={trip.title}
-          email={l.email}
+          name={l.name}
+          byLink={l.byLink}
           role={l.role}
           url={l.url}
           expiresAt={l.expiresAt}
@@ -184,15 +239,14 @@ export function ShareDialog({ trip, canEmail, onClose }: Props) {
           <ViewerList
             entries={entries}
             canEmail={canEmail}
-            onNewLink={issue}
+            onNewLink={renew}
             onRoleChanged={(entry) => {
               setEntries((list) => upsert(list ?? [], [entry]));
-              setLinks((all) => all.map((l) => (l.email === entry.email ? { ...l, role: entry.role } : l)));
+              setLinks((all) => all.map((l) => (l.id === entry.id ? { ...l, role: entry.role } : l)));
             }}
             onRevoked={(id) => {
               // A revoked entry's link no longer works; stop showing it.
-              const entry = entries.find((e) => e.id === id);
-              if (entry) setLinks((all) => all.filter((l) => l.email !== entry.email));
+              setLinks((all) => all.filter((l) => l.id !== id));
               reload();
             }}
             tripId={trip.id}
@@ -203,7 +257,7 @@ export function ShareDialog({ trip, canEmail, onClose }: Props) {
       {confirmClose && uncopied.length ? (
         <Banner tone="warn" role="alert" className={styles.closeWarning}>
           <span>
-            You haven&apos;t copied the link for {uncopied.map((l) => l.email).join(", ")}. It can&apos;t be shown again; you would need to create a new
+            You haven&apos;t copied the link for {uncopied.map((l) => l.name).join(", ")}. It can&apos;t be shown again; you would need to create a new
             link.
           </span>
           <span className={styles.closeActions}>

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { onePerAccount, successionOrder, type Person } from "@/server/modules/account/account.rules";
 
-const person = (id: string, userId: string, role: Person["role"], joined: number): Person => ({ id, userId, email: `${userId}@example.com`, role, acceptedAt: new Date(Date.UTC(2026, 0, 1 + joined)) });
+const person = (id: string, userId: string, role: Person["role"], joined: number): Person => ({ id, userId, name: `${userId}@example.com`, role, acceptedAt: new Date(Date.UTC(2026, 0, 1 + joined)) });
 
 describe("the order ownership passes in", () => {
   it("puts owners first, then editors, then viewers", () => {

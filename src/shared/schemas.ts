@@ -187,14 +187,22 @@ export const accountDeleteSchema = z
     });
   });
 
-/** ACCESS-3: invite one email address as a viewer. Stored trimmed and lowercased. */
+/**
+ * ACCESS-3: invite one person with a role (viewer unless chosen otherwise), either by email address (stored trimmed
+ * and lowercased) or by link, with a label the owner picks for them (shown only to owners). Exactly one of the two.
+ */
 const memberRole = z.enum(["viewer", "editor", "owner"], { message: "Choose viewer, editor or owner." });
 export const invitationCreateSchema = z
   .object({
-    email: z.string().trim().toLowerCase().max(254, { message: "That email address is too long." }).pipe(z.email({ message: "Enter an email address, like sam@example.com." })),
+    email: z.string().trim().toLowerCase().max(254, { message: "That email address is too long." }).pipe(z.email({ message: "Enter an email address, like sam@example.com." })).optional(),
+    label: z.string().trim().min(1, { message: "Give the person a name or note, like Mei on WeChat." }).max(80, { message: "Keep it to 80 characters or fewer." }).optional(),
     role: memberRole.default("viewer"),
   })
-  .strict();
+  .strict()
+  .superRefine((value, ctx) => {
+    if (value.email === undefined && value.label === undefined) ctx.addIssue({ code: "custom", path: ["email"], message: "Enter the email address of the person you want to invite." });
+    if (value.email !== undefined && value.label !== undefined) ctx.addIssue({ code: "custom", path: ["label"], message: "Invite by email or by link, not both." });
+  });
 
 /** ACCESS-5: an owner changes what a person the trip is shared with may do. */
 export const invitationRoleSchema = z.object({ role: memberRole }).strict();

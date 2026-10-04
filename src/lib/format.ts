@@ -33,6 +33,15 @@ export function dateRangeLabel(t: { startDate: string; endDate: string }): strin
 
 export const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
+/**
+ * Up to two initials for an avatar: the first letter or digit of each word, so punctuation, an emoji or half of
+ * a surrogate pair never shows alone. A WeChat nickname is often a name in Chinese, with symbols or emoji.
+ */
+export function initials(name: string): string {
+  const letters = name.split(/\s+/).map((word) => word.match(/[\p{L}\p{N}]/u)?.[0] ?? "").join("");
+  return Array.from(letters).slice(0, 2).join("").toUpperCase() || "?";
+}
+
 /** Relative wording in the trip's own time zone (the server computes the day counts). */
 export function relativeLabel(t: TripSummaryDTO): string {
   if (t.status === "upcoming") return t.daysToStart === 1 ? "tomorrow" : `in ${t.daysToStart} days`;

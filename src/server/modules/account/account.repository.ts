@@ -78,7 +78,7 @@ export async function acceptedPeople(db: Conn, tripIds: string[], exceptUserId: 
   if (!tripIds.length) return [];
   const rows = await db
     .selectFrom("trip_viewers")
-    .select(["id", "trip_id", "invitee_email_normalized", "viewer_user_id", "role", "accepted_at"])
+    .select(["id", "trip_id", "invitee_email_normalized", "label", "viewer_user_id", "role", "accepted_at"])
     .where("trip_id", "in", tripIds)
     .where("status", "=", "accepted")
     .where("viewer_user_id", "<>", exceptUserId)
@@ -86,5 +86,5 @@ export async function acceptedPeople(db: Conn, tripIds: string[], exceptUserId: 
     .orderBy("id")
     .execute();
   // Accepted rows always carry a user and an acceptance time (a table check), which the column types can't say.
-  return rows.map((r) => ({ id: r.id, tripId: r.trip_id, userId: r.viewer_user_id!, email: r.invitee_email_normalized, role: r.role as Role, acceptedAt: r.accepted_at! }));
+  return rows.map((r) => ({ id: r.id, tripId: r.trip_id, userId: r.viewer_user_id!, name: r.invitee_email_normalized ?? r.label ?? "Someone", role: r.role as Role, acceptedAt: r.accepted_at! }));
 }

@@ -7,8 +7,17 @@ import { emailKey } from "@/shared/email";
 type Conn = Kysely<DB> | Transaction<DB>;
 export type InvitationRow = Selectable<TripViewersTable>;
 
-export async function tripInvitations(db: Conn, tripId: string): Promise<InvitationRow[]> {
-  return db.selectFrom("trip_viewers").selectAll().where("trip_id", "=", tripId).orderBy("created_at").orderBy("id").execute();
+/** The trip's entries, oldest first, with the name of the account that accepted each (for a link entry, to show who joined). */
+export async function tripInvitations(db: Conn, tripId: string): Promise<Array<InvitationRow & { joined_name: string | null }>> {
+  return db
+    .selectFrom("trip_viewers")
+    .leftJoin("User", "User.id", "trip_viewers.viewer_user_id")
+    .selectAll("trip_viewers")
+    .select("User.name as joined_name")
+    .where("trip_viewers.trip_id", "=", tripId)
+    .orderBy("trip_viewers.created_at")
+    .orderBy("trip_viewers.id")
+    .execute();
 }
 
 /**
@@ -18,7 +27,9 @@ export async function tripInvitations(db: Conn, tripId: string): Promise<Invitat
  */
 export async function invitationForEmail(tx: Transaction<DB>, tripId: string, email: string): Promise<InvitationRow | undefined> {
   const key = emailKey(email);
-  const rows = (await tx.selectFrom("trip_viewers").selectAll().where("trip_id", "=", tripId).orderBy("created_at").orderBy("id").forUpdate().execute()).filter((r) => emailKey(r.invitee_email_normalized) === key);
+  const rows = (await tx.selectFrom("trip_viewers").selectAll().where("trip_id", "=", tripId).orderBy("created_at").orderBy("id").forUpdate().execute()).filter(
+    (r) => r.invitee_email_normalized !== null && emailKey(r.invitee_email_normalized) === key,
+  );
   return rows.find((r) => r.status === "accepted") ?? rows[0];
 }
 
@@ -26,6 +37,15 @@ export async function insertInvitation(tx: Transaction<DB>, tripId: string, emai
   return tx
     .insertInto("trip_viewers")
     .values({ trip_id: tripId, invitee_email_normalized: email, role, status: "pending", invitation_token_hash: hash, expires_at: expiresAt })
+    .returningAll()
+    .executeTakeFirstOrThrow();
+}
+
+/** An invitation by link: a label instead of an address, for someone the owner will message themselves. */
+export async function insertLinkInvitation(tx: Transaction<DB>, tripId: string, label: string, role: Role, hash: Buffer, expiresAt: Date): Promise<InvitationRow> {
+  return tx
+    .insertInto("trip_viewers")
+    .values({ trip_id: tripId, label, role, status: "pending", invitation_token_hash: hash, expires_at: expiresAt })
     .returningAll()
     .executeTakeFirstOrThrow();
 }

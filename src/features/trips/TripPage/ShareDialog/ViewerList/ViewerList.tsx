@@ -11,14 +11,14 @@ import { instantDate } from "@/lib/format";
 import styles from "./ViewerList.module.css";
 
 /** The outcome of asking for a new link; the parent shows the link itself. */
-export type IssueResult = { ok: true } | { ok: false; message: string; onEmail: boolean };
+export type IssueResult = { ok: true } | { ok: false; message: string; onField: boolean };
 
 type Props = {
   tripId: string;
   entries: InvitationDTO[];
   /** With email set up, a new link is emailed ("Send new link"); without it the owner copies it. */
   canEmail: boolean;
-  onNewLink: (email: string, role: Role) => Promise<IssueResult>;
+  onNewLink: (entry: InvitationDTO) => Promise<IssueResult>;
   onRoleChanged: (entry: InvitationDTO) => void;
   onRevoked: (id: string) => void;
 };
@@ -29,7 +29,11 @@ const LABEL: Record<InvitationStatus, string> = { pending: "Invited", accepted: 
 function detail(e: InvitationDTO): string {
   if (e.status === "pending") return e.expiresAt ? `Link expires ${instantDate(e.expiresAt)}` : "";
   if (e.status === "expired") return e.expiresAt ? `Link expired ${instantDate(e.expiresAt)}` : "";
-  if (e.status === "accepted") return e.acceptedAt ? `Joined ${instantDate(e.acceptedAt)}` : "";
+  if (e.status === "accepted") {
+    const when = e.acceptedAt ? `Joined ${instantDate(e.acceptedAt)}` : "Joined";
+    // For an entry made by link, say who joined, so the owner can check it was the person they meant.
+    return e.label !== null ? `${when} as ${e.joinedAs ?? "someone"}` : when;
+  }
   return e.revokedAt ? `Access revoked ${instantDate(e.revokedAt)}` : "Access revoked";
 }
 
@@ -69,7 +73,7 @@ export function ViewerList({ tripId, entries, canEmail, onNewLink, onRoleChanged
   async function newLink(e: InvitationDTO) {
     setBusy(e.id);
     setError(null);
-    const r = await onNewLink(e.email, e.role);
+    const r = await onNewLink(e);
     setBusy(null);
     if (!r.ok) setError({ id: e.id, message: r.message });
   }
@@ -115,21 +119,24 @@ export function ViewerList({ tripId, entries, canEmail, onNewLink, onRoleChanged
   return (
     <ul className={styles.list}>
       {entries.map((e) => {
+        const who = e.email ?? e.label ?? "Someone";
+        const emailed = canEmail && e.email !== null;
         const canRevoke = e.status === "pending" || e.status === "accepted";
         const canRenew = e.status !== "accepted";
         const disabled = busy === e.id;
         return (
           <li key={e.id} className={styles.row} data-entry={e.id} data-status={e.status}>
             <div className={styles.who}>
-              <span className={styles.email}>{e.email}</span>
+              <span className={styles.email}>{who}</span>
               <span className={styles.meta}>
+                {e.email === null ? <Tag tone="plain">Link</Tag> : null}
                 <Tag tone={e.status === "accepted" ? "soft" : "plain"}>{LABEL[e.status]}</Tag>
                 <span>{detail(e)}</span>
               </span>
             </div>
             {e.status !== "revoked" ? (
               <Field
-                label={<span className="visually-hidden">Role for {e.email}</span>}
+                label={<span className="visually-hidden">Role for {who}</span>}
                 htmlFor={`role-${e.id}`}
                 className={styles.role}
               >
@@ -141,13 +148,13 @@ export function ViewerList({ tripId, entries, canEmail, onNewLink, onRoleChanged
               <span className={styles.was}>Was {ROLE_LABEL[e.role].toLowerCase()}</span>
             )}
             {promoting === e.id ? (
-              <div className={styles.actions} role="group" aria-label={`Make ${e.email} an owner`}>
-                <span className={styles.ask}>{ROLE_HELP.owner} Make {e.email} an owner?</span>
+              <div className={styles.actions} role="group" aria-label={`Make ${who} an owner`}>
+                <span className={styles.ask}>{ROLE_HELP.owner} Make {who} an owner?</span>
                 <Button variant="dangerFill" data-confirm-promote={e.id} disabled={disabled} onClick={() => void setRole(e, "owner")}>Make owner</Button>
                 <Button variant="quiet" disabled={disabled} onClick={() => setPromoting(null)}>Cancel</Button>
               </div>
             ) : confirming === e.id ? (
-              <div className={styles.actions} role="group" aria-label={`Revoke access for ${e.email}`}>
+              <div className={styles.actions} role="group" aria-label={`Revoke access for ${who}`}>
                 <span className={styles.ask}>Revoke their access?</span>
                 <Button variant="dangerFill" data-confirm-revoke={e.id} disabled={disabled} onClick={() => void revoke(e)}>Revoke access</Button>
                 <Button variant="quiet" disabled={disabled} onClick={() => setConfirming(null)}>Keep</Button>
@@ -155,10 +162,10 @@ export function ViewerList({ tripId, entries, canEmail, onNewLink, onRoleChanged
             ) : (
               <div className={styles.actions}>
                 {canRenew ? (
-                  <Button variant="quiet" disabled={disabled} onClick={() => void newLink(e)} aria-label={`${canEmail ? "Send new link to" : "Create new link for"} ${e.email}`}>{canEmail ? "Send new link" : "Create new link"}</Button>
+                  <Button variant="quiet" disabled={disabled} onClick={() => void newLink(e)} aria-label={`${emailed ? "Send new link to" : "Create new link for"} ${who}`}>{emailed ? "Send new link" : "Create new link"}</Button>
                 ) : null}
                 {canRevoke ? (
-                  <Button variant="danger" disabled={disabled} onClick={() => void revoke(e)} aria-label={`Revoke ${e.email}`}>Revoke</Button>
+                  <Button variant="danger" disabled={disabled} onClick={() => void revoke(e)} aria-label={`Revoke ${who}`}>Revoke</Button>
                 ) : null}
               </div>
             )}

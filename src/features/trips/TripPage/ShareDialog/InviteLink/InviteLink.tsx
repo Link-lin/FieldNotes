@@ -10,7 +10,8 @@ import type { InvitationDelivery, Role } from "@/shared/dto";
 import { instantDate } from "@/lib/format";
 import styles from "./InviteLink.module.css";
 
-type Props = { tripTitle: string; email: string; role: Role; url: string; expiresAt: string };
+/** `name` is the address an email invitation was made for, or the label of an invitation by link. */
+type Props = { tripTitle: string; name: string; byLink: boolean; role: Role; url: string; expiresAt: string };
 type LinkProps = Props & {
   /** Whether the server emailed the invitation. When it didn't (off or failed), the owner sends the message. */
   delivery: InvitationDelivery;
@@ -18,22 +19,19 @@ type LinkProps = Props & {
   onCopied: () => void;
 };
 
-export function inviteMessage({ tripTitle, email, role, url, expiresAt }: Props): string {
-  return [
-    `I've shared my trip "${tripTitle}" with you on Field Notes. ${ROLE_YOU_CAN[role]}`,
-    "",
-    `Open this link and sign in with Google as ${email}:`,
-    url,
-    "",
-    `The link works for one Google account and expires on ${instantDate(expiresAt)}.`,
-  ].join("\n");
+export function inviteMessage({ tripTitle, name, byLink, role, url, expiresAt }: Props): string {
+  const intro = `I've shared my trip "${tripTitle}" with you on Field Notes. ${ROLE_YOU_CAN[role]}`;
+  // An invitation by link has no address to match: the link itself admits whoever opens it first.
+  return byLink
+    ? [intro, "", "Open this link and sign in with Google:", url, "", `The link works once, for whoever opens it first, and expires on ${instantDate(expiresAt)}.`].join("\n")
+    : [intro, "", `Open this link and sign in with Google as ${name}:`, url, "", `The link works for one Google account and expires on ${instantDate(expiresAt)}.`].join("\n");
 }
 
 /**
  * ACCESS-3/11: the new link, shown once in the dialog that created it. Only its hash is stored, so it
  * can't be shown again; losing it means creating a new link. When the server emailed the invitation, the
- * dialog says so and keeps the message to copy tucked away; when email is off or failed, copying the
- * message is how the owner delivers the invitation.
+ * dialog says so and keeps the message to copy tucked away; when email is off or failed, or the invitation
+ * is by link, copying the message is how the owner delivers the invitation.
  */
 export function InviteLink({ onCopied, delivery, ...props }: LinkProps) {
   const message = inviteMessage(props);
@@ -85,7 +83,7 @@ export function InviteLink({ onCopied, delivery, ...props }: LinkProps) {
 
   return (
     <div ref={box} className={styles.box} role="group" aria-labelledby={`${id}-title`} tabIndex={sent ? -1 : undefined} data-invite-link data-delivery={delivery}>
-      <p id={`${id}-title`} className={styles.title}>{sent ? "Invitation emailed to" : "Invitation for"} {props.email} as {role}</p>
+      <p id={`${id}-title`} className={styles.title}>{props.byLink ? "Link for" : sent ? "Invitation emailed to" : "Invitation for"} {props.name} as {role}</p>
       {delivery === "failed" ? (
         <Banner tone="warn" role="alert">The email couldn&apos;t be sent, but the invitation is saved. Copy the message below and send it yourself.</Banner>
       ) : null}
@@ -103,8 +101,12 @@ export function InviteLink({ onCopied, delivery, ...props }: LinkProps) {
       ) : (
         <>
           <p className="note">
-            {delivery === "off" ? "This server isn't set up to send email, so copy this message and send it yourself. " : ""}This is the only time the
-            link is shown. It expires on {expires}.
+            {props.byLink
+              ? `Send this message to ${props.name} yourself. The link works once: whoever opens it first joins as ${role}. `
+              : delivery === "off"
+                ? "This server isn't set up to send email, so copy this message and send it yourself. "
+                : ""}
+            This is the only time the link is shown. It expires on {expires}.
           </p>
           {copyMessage}
         </>

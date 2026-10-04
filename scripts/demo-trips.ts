@@ -67,7 +67,9 @@ type Role = "viewer" | "editor" | "owner";
 type Viewer =
   | { kind: "accepted-friend"; role?: Role }
   | { kind: "accepted-you"; role?: Role }
-  | { kind: "pending" | "expired" | "revoked"; email: string; role?: Role };
+  | { kind: "pending" | "expired" | "revoked"; email: string; role?: Role }
+  /** An invitation by link, with the label its owner gave it and no address. */
+  | { kind: "link"; label: string; role?: Role };
 
 export type TripSpec = {
   owner: "you" | "friend";
@@ -107,6 +109,7 @@ export function demoTrips(today: string): TripSpec[] {
       { kind: "pending", email: "jordan.test@example.com", role: "owner" },
       { kind: "expired", email: "casey.test@example.com", role: "editor" },
       { kind: "revoked", email: "morgan.test@example.com" },
+      { kind: "link", label: "Mei, on WeChat (test)" },
     ],
     items: [
       // Before the trip: shows in an "Outside trip dates" tab; overdue booking task.
@@ -742,6 +745,8 @@ export async function seedDemoTrips(db: Kysely<DB>, you: { id: string; email: st
         if (v.kind === "accepted-friend" || v.kind === "accepted-you") {
           const who = v.kind === "accepted-friend" ? friend : you;
           await tx.insertInto("trip_viewers").values({ ...base, role: v.role ?? "viewer", invitee_email_normalized: who.email.trim().toLowerCase(), viewer_user_id: who.id, status: "accepted", invitation_token_hash: hash(), expires_at: days(3), accepted_at: days(-4) }).execute();
+        } else if (v.kind === "link") {
+          await tx.insertInto("trip_viewers").values({ ...base, role: v.role ?? "viewer", label: v.label, status: "pending", invitation_token_hash: hash(), expires_at: days(5) }).execute();
         } else if (v.kind === "pending") {
           await tx.insertInto("trip_viewers").values({ ...base, role: v.role ?? "viewer", invitee_email_normalized: v.email, status: "pending", invitation_token_hash: hash(), expires_at: days(5) }).execute();
         } else if (v.kind === "expired") {

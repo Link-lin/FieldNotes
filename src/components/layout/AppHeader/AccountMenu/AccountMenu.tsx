@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { Menu, MenuHeader, MenuItem } from "@/components/ui/Menu/Menu";
 import { TrashIcon } from "@/components/ui/Icon/icons";
-import { plural } from "@/lib/format";
+import { initials, plural } from "@/lib/format";
 import { DeleteAccountDialog } from "./DeleteAccountDialog/DeleteAccountDialog";
 import styles from "./AccountMenu.module.css";
 
@@ -14,7 +14,6 @@ export function AccountMenu({ name, email, ownedCount, sharedCount, signOut }: P
   const [open, setOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const avatar = useRef<HTMLButtonElement | null>(null);
-  const initials = name.split(/\s+/).map((p) => p[0]).join("").slice(0, 2).toUpperCase() || "?";
 
   return (
     <>
@@ -32,7 +31,7 @@ export function AccountMenu({ name, email, ownedCount, sharedCount, signOut }: P
             aria-label="Account menu"
             {...props}
           >
-            {initials}
+            {initials(name)}
           </button>
         )}
       >
