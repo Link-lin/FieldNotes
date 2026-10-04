@@ -15,6 +15,9 @@ export const USAGE_NAMES = [
   "manual_item_created",
   "due_date_set", // a book-by date added or changed
   "item_booked", // an item marked Booked
+  "connector_connected", // a person approved an AI app
+  "connector_trip_created", // a connected chat created a trip
+  "connector_items_created", // a connected chat added items (a created trip's items included)
 ] as const;
 
 export type UsageName = (typeof USAGE_NAMES)[number];

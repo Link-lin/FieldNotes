@@ -153,3 +153,16 @@ export type OwnedTripDTO = {
   otherOwners: string[];
   people: Array<{ id: string; name: string; role: Role }>;
 };
+
+/** CONNECT-5: one live AI connection of the signed-in person, for the account menu. */
+export type ConnectionDTO = {
+  id: string;
+  /** What the app calls itself (untrusted text). */
+  appName: string;
+  /** Where it sends the person back to, as host and port. */
+  returnHost: string;
+  /** Whether the person let it make changes; otherwise it only reads. */
+  canChange: boolean;
+  connectedAt: string;
+  lastUsedAt: string | null;
+};

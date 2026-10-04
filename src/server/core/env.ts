@@ -40,3 +40,8 @@ export function mapsEmbedKey(): string | null {
   const key = process.env.GOOGLE_MAPS_EMBED_API_KEY?.trim();
   return key ? key : null;
 }
+
+/** The AI connector (technical design: AI connector) is on unless AI_CONNECTOR=off. */
+export function connectorEnabled(): boolean {
+  return process.env.AI_CONNECTOR?.trim().toLowerCase() !== "off";
+}

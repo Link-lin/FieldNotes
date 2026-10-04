@@ -96,6 +96,49 @@ export interface UsageCountsTable {
   count: number; // bigint, parsed to a number by the client
 }
 
+/** An app that registered itself for the AI connector. Its id is its client_id; it is a public client. */
+export interface OAuthClientsTable {
+  id: Generated<string>;
+  name: string;
+  redirect_uris: string[];
+  created_at: Stamp;
+}
+
+export type ConnectorScope = "trips:read" | "trips:read trips:write";
+
+/** One person's approval of one app. Live while not revoked and not expired. */
+export interface OAuthGrantsTable {
+  id: Generated<string>;
+  user_id: string;
+  client_id: string;
+  scope: ConnectorScope;
+  /** The MCP address the approval is for; a token is accepted only there. */
+  resource: string;
+  created_at: Stamp;
+  last_used_at: Date | null;
+  expires_at: Date;
+  revoked_at: Date | null;
+}
+
+export interface OAuthCodesTable {
+  code_hash: Buffer;
+  grant_id: string;
+  redirect_uri: string;
+  code_challenge: string;
+  expires_at: Date;
+  used_at: Date | null;
+}
+
+export interface OAuthTokensTable {
+  token_hash: Buffer;
+  grant_id: string;
+  kind: "access" | "refresh";
+  scope: ConnectorScope;
+  expires_at: Date;
+  /** Refresh tokens only: when it was exchanged for a new pair. */
+  used_at: Date | null;
+}
+
 export type ItemType = "flight" | "lodging" | "transport" | "meal" | "activity" | "other";
 export type BookingStatus = "not_required" | "needs_booking" | "booked";
 export type Choice = "earlier" | "later";
@@ -150,6 +193,10 @@ export interface DB {
   import_receipts: ImportReceiptsTable;
   plan_items: PlanItemsTable;
   usage_counts: UsageCountsTable;
+  oauth_clients: OAuthClientsTable;
+  oauth_grants: OAuthGrantsTable;
+  oauth_codes: OAuthCodesTable;
+  oauth_tokens: OAuthTokensTable;
 }
 
 export type TripRow = Selectable<TripsTable>;
