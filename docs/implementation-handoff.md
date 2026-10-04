@@ -59,6 +59,7 @@ Last updated 4 Oct 2026. Read this first, then [AGENTS.md](../AGENTS.md). Keep t
 
 - **iCloud:** the folder is under iCloud-synced `~/Documents`. iCloud sometimes leaves untracked conflict copies (`name 2.ts`, `.git/index 2`). Don't commit them. Copies inside `.next` (such as `.next/types/routes.d 2.ts`) break `npm run typecheck`; the next `npm run build` replaces that folder and removes them.
 - **Scratch:** `.e2e/` holds browser-check bundles. It is gitignored and safe to delete.
+- **README images:** `docs/images/` (the tour GIF and screenshots) come from the demo trips (`npm run db:seed:hawaii`) in a production build, captured at 1440×900 at 2× in a throwaway headless Chrome and reduced to palette PNGs (about 1.4 MB in all). Retake them when the layout changes; keep the keys for Maps and place lookup blank so nothing leaves the machine.
 - **Git:** work on a branch and merge into `main`; the owner pushes to https://github.com/Link-lin/FieldNotes.git.
 - **Pinned versions:** vitest 3.2.7 (4.x failed to install) and kysely 0.28.x.
 - **Sandboxed runs:** the database tests start embedded PostgreSQL, which can't create shared memory inside some agent sandboxes; run `npm test` unsandboxed there.

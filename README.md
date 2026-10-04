@@ -10,7 +10,25 @@ Owners share a trip from its **Share** dialog: invite one email with a role (**v
 
 ## Demo
 
-To see every screen without entering anything, load the demo trips into a local copy (what they hold is described under [Test trips](#test-trips)):
+![A tour of Field Notes: the globe of trips, a day with its outline map, bookings, an AI plan preview and the AI connector](docs/images/tour.gif)
+
+These are the demo trips (made-up data) on a desktop and a phone.
+
+**Every trip on one globe.** The dashboard lists the trips you own or were invited to by date, with a globe of approximate destinations. The list works without the globe.
+
+![The dashboard: the trip list and a globe with the Hawaii trip selected](docs/images/dashboard.png)
+
+**A day at a time.** A trip's itinerary is by day, with an outline map of the day's stops, flights as boarding passes, prices marked as estimates or quotes, and a clear tag on anything an AI drafted.
+
+![A trip day: a flight, a rental car, a check-in and dinner on a timeline, with the day's stops on an outline map](docs/images/trip.png)
+
+| | |
+|---|---|
+| ![The bookings view: what is due now and what is coming up](docs/images/bookings.png)<br>**Bookings.** What still needs booking, with book-by dates. | ![The preview of an AI plan, with each item tagged as an unverified draft](docs/images/import.png)<br>**Create from an AI plan.** Review the response day by day, fix or skip items; nothing is saved until you confirm. |
+| ![The Share dialog, listing people with their roles](docs/images/share.png)<br>**Share by role.** Viewers read, editors change events, owners also manage the trip. | ![The AI connector dialog, with the connector address and a connected app](docs/images/connector.png)<br>**AI connector.** Add Field Notes to Claude or ChatGPT, and see or disconnect what is connected. |
+| ![The page where a person approves an AI app](docs/images/consent.png)<br>**You approve each app.** It reads your trips; changes are optional. | ![The dashboard and a day's timeline on a phone](docs/images/phone.png)<br>**On a phone.** The same trips, in one column. |
+
+To see every screen yourself without entering anything, load the demo trips into a local copy (what they hold is described under [Test trips](#test-trips)):
 
 ```sh
 npm install && cp .env.example .env.local   # fill in the values under Setup
@@ -61,13 +79,29 @@ Put the ID and secret in `.env.local` (or `.env` for Docker) and restart. WeChat
 
 Field Notes can act as a custom connector, so you can ask Claude or ChatGPT about your trips and have it add or change events. The chat runs on your own subscription with Claude or ChatGPT; Field Notes calls no AI itself.
 
-1. Claude and ChatGPT's servers must be able to reach your install, so `APP_ORIGIN` has to be a public https address (see [Self-hosting with Docker](#self-hosting-with-docker); to try it from your own machine, put a tunnel such as Cloudflare Tunnel or ngrok in front of it and set `APP_ORIGIN` to the tunnel's address).
-2. Open **Account menu** → **AI connector**. It shows the connector address, `<APP_ORIGIN>/mcp`, and the apps you have connected.
-3. In Claude open **Customize** → **Connectors** → **Add custom connector**; in ChatGPT turn on developer mode in settings and create a connector. Paste the address, sign in to Field Notes in the window that opens, and choose what to allow: **Read** your trips (always) and **Make changes** (optional).
+**What you need.** A public https address for your install. The connector is on by default and needs no key, no Google setting and no change to `.env`: set `APP_ORIGIN` to that address (see [Self-hosting with Docker](#self-hosting-with-docker)) and the connector address is `<APP_ORIGIN>/mcp`. Claude's and ChatGPT's servers call it, so a private or `localhost` address won't work. To try it from your own machine, put a tunnel such as Cloudflare Tunnel or ngrok in front of it and set `APP_ORIGIN` to the tunnel's address.
 
-The chat then has tools to list your trips, read one, add items, change or delete an item (deletions can be undone for ten minutes) and, if you are on the owner list, create a trip. It acts as you, so your role on each trip limits it: a viewer's chat can only read. Everything it adds is marked as an unverified AI draft with estimate prices; it cannot mark anything booked, set a book-by date, share a trip, change who has access or delete a trip. **Disconnect** in the dialog (or in the chat) ends an app's access on its next request. `AI_CONNECTOR=off` turns the whole feature off. What a connected chat reads goes to that chat's provider, under its privacy policy.
+**Connect an app.** **Account menu** → **AI connector** shows the address, with a copy button, and the apps you have connected. Then:
 
-Design and protocol details are in the technical design (**AI connector**).
+- **Claude** (claude.ai and the desktop app): **Customize** → **Connectors** → **Add custom connector**, and paste the address. The steps differ a little by plan; see [Claude's guide](https://claude.com/docs/connectors/custom/add-unlisted).
+- **ChatGPT:** **Settings** → **Security and login** → turn on **Developer mode** (Plus, Pro, Business, Enterprise or Education), create a developer-mode app for a remote MCP server with the address and **OAuth** sign-in, then pick it from the **Developer mode** tool in a chat. See [OpenAI's guide](https://developers.openai.com/api/docs/guides/developer-mode).
+- **Claude Code:** add the server, then run `/mcp` inside Claude Code to sign in.
+
+```bash
+claude mcp add --transport http field-notes https://notes.example.com/mcp
+```
+
+Each of them opens a Field Notes window: sign in and choose what to allow, **Read** your trips (always) and **Make changes** (optional). Approval is per app. **Disconnect** in the dialog (or in the app) ends it on the app's next request. If you change `APP_ORIGIN`, connect again.
+
+**If it won't connect.** Check the address from outside your network:
+
+```bash
+curl -i -X POST https://notes.example.com/mcp
+```
+
+A working install answers `401` with a `WWW-Authenticate: Bearer …` header that points at `resource_metadata`. Anything else usually means the address isn't public https, a firewall or CDN is blocking the app's servers (Anthropic publishes [its address range](https://platform.claude.com/docs/en/api/ip-addresses)), `APP_ORIGIN` isn't spelled exactly like the address you pasted (no trailing slash), or `AI_CONNECTOR=off` is set. A change is refused when you approved read-only, or when your role on that trip is viewer.
+
+**What the chat can do.** It has tools to list your trips, read one, add items, change or delete an item (deletions can be undone for ten minutes) and, if you are on the owner list, create a trip. It acts as you, so your role on each trip limits it: a viewer's chat can only read. Everything it adds is marked as an unverified AI draft with estimate prices; it cannot mark anything booked, set a book-by date, share a trip, change who has access or delete a trip. `AI_CONNECTOR=off` turns the whole feature off. What a connected chat reads goes to that chat's provider, under its privacy policy. Design and protocol details are in the technical design (**AI connector**).
 
 ## Self-hosting with Docker
 
