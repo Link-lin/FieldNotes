@@ -3,14 +3,15 @@ import type { Kysely } from "kysely";
 import type { DB, PlanItemRow } from "@/server/core/db/schema";
 import { conflict, HttpError, invalid } from "@/server/core/http/errors";
 import type { Actor } from "@/server/auth/actor";
-import { requireTripEditor } from "@/server/auth/access";
+import { requireTripEditor, requireTripRead } from "@/server/auth/access";
 import { bumpTripVersion } from "@/server/modules/trips/trips.repository";
 import type { PlanItemDTO } from "@/shared/dto";
-import type { ItemInput } from "@/shared/schemas";
+import { itemInputSchema, toFieldErrors, type ItemInput } from "@/shared/schemas";
 import { dateInZone, resolveLocal } from "@/shared/time";
 import { itemDto } from "./items.mapper";
 import * as repo from "./items.repository";
 import { canMarkBooked, scheduleErrors, toValues } from "./items.rules";
+import { applyAiPatch, priceChanged, type AiItemPatch } from "./items.ai";
 import { countUsage } from "@/server/modules/usage/usage.service";
 import type { UsageEvent } from "@/server/modules/usage/usage.rules";
 
@@ -193,5 +194,59 @@ export async function duplicateItem(db: Kysely<DB>, actor: Actor, tripId: string
     const row = await repo.copyItem(tx, src);
     await bumpTripVersion(tx, trip.id);
     return dto(row, trip.time_zone, now);
+  });
+}
+
+/** CONNECT-3: read one item in full (a connected chat's `get_item`). Any role that can read the trip. */
+export async function getItem(db: Kysely<DB>, actor: Actor, tripId: string, itemId: string, now = new Date()): Promise<PlanItemDTO> {
+  const { trip } = await requireTripRead(db, actor, tripId);
+  const row = await repo.liveItem(db, trip.id, itemId);
+  return dto(row, trip.time_zone, now);
+}
+
+/**
+ * CONNECT-3, CONNECT-4: a connected AI chat changes some fields of an item. The change merges onto the item as it
+ * stands under the trip lock and goes through the same schema and schedule checks as an edit in the app, so a field it
+ * does not name is never overwritten. `source` is kept; a new or changed price becomes an AI estimate; a place change
+ * clears the map pin. The edit counts nothing in the pilot totals, which measure people correcting AI output.
+ */
+export async function updateItemByAi(
+  db: Kysely<DB>,
+  actor: Actor,
+  tripId: string,
+  itemId: string,
+  patch: AiItemPatch,
+  now = new Date(),
+): Promise<{ item: PlanItemDTO; clearedPin: boolean }> {
+  return db.transaction().execute(async (tx) => {
+    const { trip } = await requireTripEditor(tx, actor, tripId, true);
+    await repo.purgeExpired(tx, trip.id);
+    const current = await repo.loadItemForUpdate(tx, trip.id, itemId);
+    const before = dto(current, trip.time_zone, now);
+    const applied = applyAiPatch(before, patch);
+    if ("errors" in applied) throw invalid(applied.errors);
+    const parsed = itemInputSchema.safeParse(applied.input);
+    if (!parsed.success) throw invalid(toFieldErrors(parsed.error));
+    const errs = scheduleErrors(parsed.data, trip.time_zone);
+    if (errs.length) throw invalid(errs);
+    const values = toValues(parsed.data, current);
+    if ("path" in values) throw invalid([values]);
+    if (priceChanged(before.plannedPrice, parsed.data.plannedPrice)) values.price_source = "ai";
+    const row = await repo.updateItemRow(tx, current.id, current.version, values);
+    if (!row) throw conflict();
+    await bumpTripVersion(tx, trip.id);
+    return { item: dto(row, trip.time_zone, now), clearedPin: applied.clearedPin };
+  });
+}
+
+/** CONNECT-3: a connected AI chat deletes an item; it can be restored for 10 minutes (TRIP-8). Not counted in the pilot. */
+export async function deleteItemByAi(db: Kysely<DB>, actor: Actor, tripId: string, itemId: string): Promise<{ title: string }> {
+  return db.transaction().execute(async (tx) => {
+    const { trip } = await requireTripEditor(tx, actor, tripId, true);
+    await repo.purgeExpired(tx, trip.id);
+    const current = await repo.loadItemForUpdate(tx, trip.id, itemId);
+    await repo.softDelete(tx, current.id);
+    await bumpTripVersion(tx, trip.id);
+    return { title: current.title };
   });
 }

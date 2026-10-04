@@ -28,6 +28,14 @@ export async function loadItemForUpdate(tx: Tx, tripId: string, itemId: string, 
   return row;
 }
 
+/** One undeleted item of the trip, without a lock; 404 when missing. */
+export async function liveItem(db: Conn, tripId: string, itemId: string): Promise<PlanItemRow> {
+  if (!isUuid(itemId)) throw notFound();
+  const row = await db.selectFrom("plan_items").selectAll().where("id", "=", itemId).where("trip_id", "=", tripId).where("deleted_at", "is", null).executeTakeFirst();
+  if (!row) throw notFound();
+  return row;
+}
+
 export async function liveItems(db: Conn, tripId: string): Promise<PlanItemRow[]> {
   return db.selectFrom("plan_items").selectAll().where("trip_id", "=", tripId).where("deleted_at", "is", null).execute();
 }

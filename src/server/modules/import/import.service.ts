@@ -2,18 +2,25 @@ import "server-only";
 import { createHash } from "node:crypto";
 import type { Kysely } from "kysely";
 import type { Actor } from "@/server/auth/actor";
-import { requireOwnerAccount } from "@/server/auth/access";
-import type { DB } from "@/server/core/db/schema";
+import { requireOwnerAccount, requireTripEditor } from "@/server/auth/access";
+import type { Tx } from "@/server/core/db/client";
+import type { DB, PlanItemRow } from "@/server/core/db/schema";
 import { HttpError, invalid } from "@/server/core/http/errors";
-import { insertItem } from "@/server/modules/items/items.repository";
+import { itemDto } from "@/server/modules/items/items.mapper";
+import { insertItem, liveCount, purgeExpired } from "@/server/modules/items/items.repository";
+import { ITEM_CAP } from "@/server/modules/items/items.service";
+import { checkAiItems } from "./import.rules";
+import { tripSummary } from "@/server/modules/trips/trips.mapper";
 import { scheduleErrors, toValues } from "@/server/modules/items/items.rules";
 import { matchDestination } from "@/server/modules/places/catalog";
-import { insertTrip } from "@/server/modules/trips/trips.repository";
+import { bumpTripVersion, insertTrip } from "@/server/modules/trips/trips.repository";
 import { countUsage } from "@/server/modules/usage/usage.service";
+import type { PlanItemDTO, TripSummaryDTO } from "@/shared/dto";
 import type { PlanItemDraftDTO, ImportCommitInput } from "@/shared/import";
 import { importCommitSchema } from "@/shared/import";
 import { trimAmount } from "@/shared/money";
 import { itemInputSchema, toFieldErrors, tripInputSchema, type ItemInput } from "@/shared/schemas";
+import { dateInZone } from "@/shared/time";
 
 const KEY_CONSTRAINT = "import_receipts_owner_user_id_idempotency_key_key";
 
@@ -75,6 +82,36 @@ function itemPath(index: number, path: string): string {
 }
 
 /**
+ * Normalized drafts as the schedule and field rules see them: the shared item schema, no `Booked`, and the checks that
+ * need the trip's time zone. Errors carry the path of the item they belong to. An import and an AI chat share it.
+ */
+function validatedItems(drafts: PlanItemDraftDTO[], tripZone: string, confirmedMapUrls?: Array<string | null>): ItemInput[] {
+  return drafts.map((draft, index) => {
+    const parsed = itemInputSchema.safeParse(asItemInput(draft, confirmedMapUrls?.[index] ?? null));
+    if (!parsed.success) throw invalid(toFieldErrors(parsed.error).map((e) => ({ ...e, path: itemPath(index, e.path) })));
+    if (parsed.data.bookingStatus === "booked") {
+      throw invalid([{ path: `items[${index}].bookingStatus`, code: "invalid", message: "AI drafts cannot mark an item booked." }]);
+    }
+    const schedule = scheduleErrors(parsed.data, tripZone);
+    if (schedule.length) throw invalid(schedule.map((e) => ({ ...e, path: itemPath(index, e.path) })));
+    return parsed.data;
+  });
+}
+
+/** Inserts validated items as AI drafts (IMPORT-7): `source = 'ai'`, and a price is an AI estimate (BUDGET-4). */
+async function insertAiItems(tx: Tx, tripId: string, items: ItemInput[]): Promise<PlanItemRow[]> {
+  const rows: PlanItemRow[] = [];
+  for (const [index, item] of items.entries()) {
+    const values = toValues(item, null);
+    if ("path" in values) throw invalid([{ ...values, path: itemPath(index, values.path) }]);
+    // Generic manual creation sets price_source=owner; the import must retain provenance.
+    if (item.plannedPrice) values.price_source = "ai";
+    rows.push(await insertItem(tx, tripId, "ai", values));
+  }
+  return rows;
+}
+
+/**
  * IMPORT-8: Revalidate a normalized preview and create the trip/items/receipt atomically.
  * The raw pasted response is never passed to this service or persisted.
  */
@@ -93,16 +130,7 @@ export async function commitImport(
     throw invalid([{ path: "trip.budget", code: "budget_mismatch", message: "Confirm the budget in the preview before creating this trip." }]);
   }
 
-  const items: ItemInput[] = input.items.map((draft, index) => {
-    const parsed = itemInputSchema.safeParse(asItemInput(draft, input.confirmedMapUrls?.[index] ?? null));
-    if (!parsed.success) throw invalid(toFieldErrors(parsed.error).map((e) => ({ ...e, path: itemPath(index, e.path) })));
-    if (parsed.data.bookingStatus === "booked") {
-      throw invalid([{ path: `items[${index}].bookingStatus`, code: "invalid", message: "AI drafts cannot mark an item booked." }]);
-    }
-    const schedule = scheduleErrors(parsed.data, tripResult.data.timeZone);
-    if (schedule.length) throw invalid(schedule.map((e) => ({ ...e, path: itemPath(index, e.path) })));
-    return parsed.data;
-  });
+  const items = validatedItems(input.items, tripResult.data.timeZone, input.confirmedMapUrls);
 
   // Canonical serialization is never stored; the receipt stores only its hash.
   const normalizeMoney = (money: { amount: string; currency: string } | null) =>
@@ -130,13 +158,7 @@ export async function commitImport(
         atlas_longitude: point ? String(point.longitude) : null,
         atlas_source: point ? "catalog" : null,
       });
-      for (const [index, item] of items.entries()) {
-        const values = toValues(item, null);
-        if ("path" in values) throw invalid([{ ...values, path: itemPath(index, values.path) }]);
-        // Generic manual creation sets price_source=owner; the import must retain provenance.
-        if (item.plannedPrice) values.price_source = "ai";
-        await insertItem(tx, trip.id, "ai", values);
-      }
+      await insertAiItems(tx, trip.id, items);
       await tx.updateTable("import_receipts")
         .set({ trip_id: trip.id, payload_hash: hash })
         .where("owner_user_id", "=", actor.userId)
@@ -168,4 +190,65 @@ export async function commitImport(
       return { tripId: receipt.trip_id, reused: true };
     });
   }
+}
+
+/**
+ * CONNECT-3, CONNECT-4: a connected AI chat adds items to a trip. They are checked as an import checks them, against
+ * the trip's own time zone, and saved as AI drafts. Any error refuses the whole call; nothing is partly saved.
+ */
+export async function appendAiItems(db: Kysely<DB>, actor: Actor, tripId: string, raw: unknown[], now = new Date()): Promise<PlanItemDTO[]> {
+  const { rows, zone } = await db.transaction().execute(async (tx) => {
+    const { trip } = await requireTripEditor(tx, actor, tripId, true);
+    await purgeExpired(tx, trip.id);
+    const checked = checkAiItems(raw, trip.time_zone);
+    if ("errors" in checked) throw invalid(checked.errors);
+    const items = validatedItems(checked.drafts, trip.time_zone);
+    const have = await liveCount(tx, trip.id);
+    if (have + items.length > ITEM_CAP) {
+      throw new HttpError(409, "item_cap", `A trip can have at most ${ITEM_CAP} events and this one has ${have}, so ${items.length} more won't fit.`);
+    }
+    const inserted = await insertAiItems(tx, trip.id, items);
+    await bumpTripVersion(tx, trip.id);
+    return { rows: inserted, zone: trip.time_zone };
+  });
+  await countUsage(db, [{ name: "connector_items_created", count: rows.length }]);
+  const today = dateInZone(zone, now.getTime());
+  return rows.map((row) => itemDto(row, zone, today));
+}
+
+/**
+ * CONNECT-3: a connected AI chat creates a trip, with its items, for an allowlisted owner (ACCESS-5). The trip block
+ * is the one JSON v1 has (a budget is the person's own, relayed by the chat); items are checked and tagged as an
+ * import's are. Atomic: a trip with an invalid item is not created.
+ */
+export async function createTripByAi(db: Kysely<DB>, actor: Actor, input: { trip: unknown; items: unknown[] }, now = new Date()): Promise<{ trip: TripSummaryDTO; items: PlanItemDTO[] }> {
+  requireOwnerAccount(actor);
+  const block = input.trip && typeof input.trip === "object" && !Array.isArray(input.trip) ? (input.trip as Record<string, unknown>) : null;
+  if (!block) throw invalid([{ path: "trip", code: "invalid", message: "Send the trip as an object with title, destination, startDate, endDate and timeZone." }]);
+  const tripResult = tripInputSchema.safeParse({ ...block, budget: block.budget ?? null });
+  if (!tripResult.success) throw invalid(toFieldErrors(tripResult.error).map((e) => ({ ...e, path: e.path ? `trip.${e.path}` : "trip" })));
+  const trip = tripResult.data;
+  if (input.items.length > ITEM_CAP) throw invalid([{ path: "items", code: "too_many_items", message: `A trip can have at most ${ITEM_CAP} items.` }]);
+  const checked = checkAiItems(input.items, trip.timeZone);
+  if ("errors" in checked) throw invalid(checked.errors);
+  const items = validatedItems(checked.drafts, trip.timeZone);
+  const point = matchDestination(trip.destination);
+  const { row, rows } = await db.transaction().execute(async (tx) => {
+    const created = await insertTrip(tx, actor.userId, {
+      title: trip.title,
+      destination: trip.destination,
+      start_date: trip.startDate,
+      end_date: trip.endDate,
+      time_zone: trip.timeZone,
+      budget_amount: trip.budget?.amount ?? null,
+      budget_currency: trip.budget?.currency ?? null,
+      atlas_latitude: point ? String(point.latitude) : null,
+      atlas_longitude: point ? String(point.longitude) : null,
+      atlas_source: point ? "catalog" : null,
+    });
+    return { row: created, rows: await insertAiItems(tx, created.id, items) };
+  });
+  await countUsage(db, [{ name: "connector_trip_created" }, { name: "connector_items_created", count: rows.length }]);
+  const today = dateInZone(row.time_zone, now.getTime());
+  return { trip: tripSummary(row, { role: "owner", primaryOwner: true }, now), items: rows.map((r) => itemDto(r, row.time_zone, today)) };
 }

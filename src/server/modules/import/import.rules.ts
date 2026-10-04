@@ -234,6 +234,35 @@ function itemSemanticErrors(item: PlanItemDraftDTO, tripZone: string, prefix: st
   return errors;
 }
 
+/**
+ * One source item through the whole pipeline: its structure, the normalized draft, then the rules that need the
+ * trip's time zone. The preview shows what it returns; an AI chat's items (CONNECT-4) are checked the same way.
+ */
+export function previewItem(raw: unknown, index: number, tripZone: string | null): ImportPreviewDTO["items"][number] {
+  const prefix = `items[${index}]`;
+  if (!object(raw)) {
+    const errors = [field(prefix, "invalid_item", "This item must be an object. Skip it or ask the AI to repair it.")];
+    return { index, values: {}, sourceErrors: errors, errors, included: true };
+  }
+  const sourceErrors = itemUnknowns(raw, prefix);
+  const sourceChecked = sourceItemSchema.safeParse(raw);
+  if (!sourceChecked.success) sourceErrors.push(...zodErrors(sourceChecked.error, prefix));
+  const values = normalizedItem(raw);
+  const errors = [...sourceErrors];
+  const checked = planItemDraftSchema.safeParse(values);
+  if (!checked.success) errors.push(...zodErrors(checked.error, prefix));
+  else if (tripZone) errors.push(...itemSemanticErrors(checked.data, tripZone, prefix));
+  return { index, values, sourceErrors: uniqueErrors(sourceErrors), errors: uniqueErrors(errors), included: true };
+}
+
+/** Items an AI chat sends, checked as an import checks them: the normalized drafts, or every error with its path. */
+export function checkAiItems(raw: unknown[], tripZone: string): { drafts: PlanItemDraftDTO[] } | { errors: FieldError[] } {
+  const previews = raw.map((item, index) => previewItem(item, index, tripZone));
+  const errors = previews.flatMap((p) => p.errors);
+  if (errors.length) return { errors };
+  return { drafts: previews.map((p) => planItemDraftSchema.parse(p.values)) };
+}
+
 /** Pure, no-write import preview. The caller keeps the pasted response only in tab memory. */
 export function previewImport(responseText: string, ownerProvidedBudget: MoneyDTO | null): PreviewImportResult {
   const parsedBudget = ownerProvidedBudget === null ? null : importMoneySchema.safeParse(ownerProvidedBudget);
@@ -257,22 +286,7 @@ export function previewImport(responseText: string, ownerProvidedBudget: MoneyDT
   const tripParsed = tripDraftSchema.safeParse(tripValues);
   const tripErrors = tripParsed.success ? [] : zodErrors(tripParsed.error, "trip");
   const tripZone = tripParsed.success ? tripParsed.data.timeZone : null;
-  const items: ImportPreviewDTO["items"] = value.items.map((raw, index) => {
-    const prefix = `items[${index}]`;
-    if (!object(raw)) {
-      const errors = [field(prefix, "invalid_item", "This item must be an object. Skip it or ask the AI to repair it.")];
-      return { index, values: {}, sourceErrors: errors, errors, included: true };
-    }
-    const sourceErrors = itemUnknowns(raw, prefix);
-    const sourceChecked = sourceItemSchema.safeParse(raw);
-    if (!sourceChecked.success) sourceErrors.push(...zodErrors(sourceChecked.error, prefix));
-    const values = normalizedItem(raw);
-    const errors = [...sourceErrors];
-    const checked = planItemDraftSchema.safeParse(values);
-    if (!checked.success) errors.push(...zodErrors(checked.error, prefix));
-    else if (tripZone) errors.push(...itemSemanticErrors(checked.data, tripZone, prefix));
-    return { index, values, sourceErrors: uniqueErrors(sourceErrors), errors: uniqueErrors(errors), included: true };
-  });
+  const items: ImportPreviewDTO["items"] = value.items.map((raw, index) => previewItem(raw, index, tripZone));
   return { ok: true, preview: { trip: { values: tripValues, errors: tripErrors, warnings: warning ? [warning] : [], aiBudget }, items } };
 }
 
