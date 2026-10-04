@@ -1,7 +1,6 @@
-/* A day's map stays in view while the timeline scrolls and is never taller than the window; a long
-   stop list scrolls inside it. The taller Whole-trip map scrolls with the page. */
+/* The map column stays in view while the timeline scrolls, in Whole trip too, and is never taller than
+   the window; a long stop list scrolls inside it. */
 .aside { position: sticky; top: var(--space-4); display: grid; gap: var(--space-3); max-height: calc(100vh - 2 * var(--space-4)); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--ctl) transparent; border-radius: var(--radius-2xl); }
-.aside[data-whole] { position: static; max-height: none; overflow: visible; }
 .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-2xl); padding: var(--space-3); display: grid; gap: var(--space-3); }
 /* The panel remounts per day (key); its contents settle in as the timeline slides. */
 .card > * { animation: var(--kf-settle) 0.34s cubic-bezier(0.2, 0.7, 0.2, 1) both; }

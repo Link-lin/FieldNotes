@@ -23,7 +23,7 @@ export function MapPanel({ day, stops, onPin, mapsKey }: { day: string; stops: S
   });
   const total = legs.reduce((sum, leg) => sum + leg.d, 0);
   return (
-    <aside className={styles.aside} data-whole={all || undefined} aria-label="Map">
+    <aside className={styles.aside} aria-label="Map">
       <div className={styles.card}>
         {/* Day, map kind and the day's controls in one row, so the map starts near the top. */}
         <div className={styles.top}>
