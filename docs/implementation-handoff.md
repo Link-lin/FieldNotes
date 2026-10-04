@@ -1,10 +1,10 @@
 # Field Notes: implementation handoff
 
-Last updated 2 Oct 2026. Read this first, then [AGENTS.md](../AGENTS.md). Keep this file to about one page: replace sections rather than adding to them; history is in git.
+Last updated 4 Oct 2026. Read this first, then [AGENTS.md](../AGENTS.md). Keep this file to about one page: replace sections rather than adding to them; history is in git.
 
 ## Where things stand
 
-- **Validation:** lint, typecheck, all 208 tests and the production build pass. Work on a branch and keep iCloud conflict copies out of commits.
+- **Validation:** lint, typecheck, all 212 tests and the production build pass. Database tests need a non-root user (embedded PostgreSQL refuses root). Work on a branch and keep iCloud conflict copies out of commits.
 - **Built:** everything listed under "Built so far" in the [README](../README.md): sign-in with an owner allowlist, trips and the globe dashboard, the trip page (itinerary, a dedicated Bookings view, day tabs, events, costs, outline day map with optional Google road route), the event view and editor with an embedded Google map, AI import from an external chat with optional owner-reviewed place lookup in the preview and event editor, read-only viewer invitations, account deletion, pilot counts, and test trips. Dashboard cards show a compact per-trip booking shortcut instead of a cross-trip task list.
 - **Not built:** TRIP-7 (import into an existing trip, proposed) and ATLAS-4's click-the-globe point picker (catalog search only).
 - **Dashboard layout:** returning users see a compact heading, create actions and current/next-trip links before the filters and trip list; the larger introduction appears when no trips exist. The trip-list pane starts wider on desktop and has a draggable, keyboard-operable divider. Its width is saved on this browser; Enter or double-click resets it. On phones with trips, the list comes before the globe. The globe redraws when the stage changes width. Browser-checked at desktop and 390 px phone widths for the compact view; earlier divider and responsive checks remain valid.

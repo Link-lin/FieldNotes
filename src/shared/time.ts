@@ -154,8 +154,16 @@ export function dueState(due: string, today: string): DueState {
   return "overdue";
 }
 
+/** Longest trip, in days including both ends. The trip page draws one day tab per date. */
+export const MAX_TRIP_DAYS = 400;
+
+/** Whether an inclusive range fits MAX_TRIP_DAYS. Call it only with valid dates. */
+export function withinTripLength(start: string, end: string): boolean {
+  return daysBetween(start, end) < MAX_TRIP_DAYS;
+}
+
 /** All dates from start to end inclusive (bounded). */
-export function dateRange(start: string, end: string, max = 400): string[] {
+export function dateRange(start: string, end: string, max = MAX_TRIP_DAYS): string[] {
   const out: string[] = [];
   for (let d = start, i = 0; d <= end && i < max; d = addDays(d, 1), i++) out.push(d);
   return out;

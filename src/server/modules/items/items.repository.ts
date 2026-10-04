@@ -73,8 +73,9 @@ export async function softDelete(tx: Tx, itemId: string): Promise<void> {
   await tx.updateTable("plan_items").set({ deleted_at: sql`now()`, version: sql`version + 1` }).where("id", "=", itemId).execute();
 }
 
-export async function undelete(tx: Tx, itemId: string): Promise<PlanItemRow> {
-  return tx.updateTable("plan_items").set({ deleted_at: null, version: sql`version + 1` }).where("id", "=", itemId).returningAll().executeTakeFirstOrThrow();
+/** Undefined when the row is gone (purged by the database clock in the same transaction). */
+export async function undelete(tx: Tx, itemId: string): Promise<PlanItemRow | undefined> {
+  return tx.updateTable("plan_items").set({ deleted_at: null, version: sql`version + 1` }).where("id", "=", itemId).returningAll().executeTakeFirst();
 }
 
 /** A copy of the row with a new id and timestamps; a booked copy becomes "needs booking" without a due date. */

@@ -186,6 +186,17 @@ describe("items, money and map links", () => {
     await expectHttp(restoreItem(db(), viewer, t.id, a.id), 404);
   });
 
+  it("answers 410, not a server error, when the database clock has already purged the deletion", async () => {
+    const t = await createTrip(db(), owner, tripInput, NOW);
+    const a = await createItem(db(), owner, t.id, event());
+    await deleteItem(db(), owner, t.id, a.id, a.version);
+    // The database says 11 minutes have passed; this server's clock says only 9.
+    const deletedAt = new Date(Date.now() - 11 * 60_000);
+    await db().updateTable("plan_items").set({ deleted_at: deletedAt }).where("id", "=", a.id).execute();
+    await expectHttp(restoreItem(db(), owner, t.id, a.id, new Date(deletedAt.getTime() + 9 * 60_000)), 410, "restore_expired");
+    expect((await getTripDetail(db(), owner, t.id, NOW)).items).toHaveLength(0);
+  });
+
   it("rejects stale versions and unconfirmed type changes", async () => {
     const t = await createTrip(db(), owner, tripInput, NOW);
     const a = await createItem(db(), owner, t.id, event());
