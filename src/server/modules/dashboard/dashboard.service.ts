@@ -6,7 +6,8 @@ import { openBookingItems } from "@/server/modules/items/items.repository";
 import { recentCurrencies } from "@/server/modules/trips/budget.repository";
 import { tripSummary } from "@/server/modules/trips/trips.mapper";
 import { visibleTrips } from "@/server/modules/trips/trips.repository";
-import type { BookingTaskDTO, DashboardDTO } from "@/shared/dto";
+import type { BookingTaskDTO, DashboardDTO, Role } from "@/shared/dto";
+import { canEdit } from "@/shared/roles";
 import { dateInZone, dueState } from "@/shared/time";
 
 const byDue = (a: BookingTaskDTO, b: BookingTaskDTO) => {
@@ -16,14 +17,16 @@ const byDue = (a: BookingTaskDTO, b: BookingTaskDTO) => {
 };
 
 /**
- * DASH-1: every trip the person may see, and for owners their booking tasks across trips
- * (BOOK-3, due state in each trip's own zone) and their recent currencies.
+ * DASH-1: every trip the person may see with their role on it, and booking counts for the trips they can
+ * edit (BOOK-3, due state in each trip's own zone), plus their recent currencies if they may create trips.
  */
 export async function getDashboard(db: Kysely<DB>, actor: Actor, now = new Date()): Promise<DashboardDTO> {
   const rows = await visibleTrips(db, actor);
-  const isMine = (r: (typeof rows)[number]) => r.owner_user_id === actor.userId && actor.isOwner;
-  const trips = rows.map((r) => tripSummary(r, isMine(r) ? "owner" : "viewer", now));
-  const owned = new Map(rows.filter(isMine).map((r) => [r.id, r]));
+  // Your own trips (the creator, while allowlisted) are owner trips; the rest take the role of your grant.
+  const accessOf = (r: (typeof rows)[number]): { role: Role; primaryOwner: boolean } =>
+    r.owner_user_id === actor.userId && actor.isOwner ? { role: "owner", primaryOwner: true } : { role: r.member_role ?? "viewer", primaryOwner: false };
+  const trips = rows.map((r) => tripSummary(r, accessOf(r), now));
+  const owned = new Map(rows.filter((r) => canEdit(accessOf(r).role)).map((r) => [r.id, r]));
   const ownerBookingTasks: BookingTaskDTO[] = (await openBookingItems(db, [...owned.keys()]))
     .map((i) => {
       const trip = owned.get(i.trip_id)!;

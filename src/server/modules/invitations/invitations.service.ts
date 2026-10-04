@@ -6,16 +6,18 @@ import { requireTripOwner } from "@/server/auth/access";
 import { appOrigin } from "@/server/core/env";
 import { HttpError, invalid } from "@/server/core/http/errors";
 import { isUuid } from "@/server/core/http/request";
-import type { InvitationDTO, InvitationLinkDTO } from "@/shared/dto";
+import type { InvitationDTO, InvitationLinkDTO, Role } from "@/shared/dto";
 import { emailKey } from "@/shared/email";
 import { invitationDto } from "./invitations.mapper";
 import {
   insertInvitation,
   invitationByHash,
   invitationForEmail,
+  invitationForUpdate,
   markAccepted,
   reissueInvitation,
   revokeInvitationRow,
+  setInvitationRole,
   tripInvitations,
 } from "./invitations.repository";
 import { hashInvitationToken, INVITATION_TTL_MS, invitationStatus, isInvitationToken, newInvitationToken } from "./invitations.rules";
@@ -26,18 +28,19 @@ export const invalidInvitation = () =>
 
 const invitationNotFound = () => new HttpError(404, "not_found", "That invitation doesn't exist.");
 
-/** ACCESS-11: the owner's list of viewers and invitations, oldest first. */
+/** ACCESS-11: the owners' list of the people a trip is shared with and their invitations, oldest first. */
 export async function listInvitations(db: Kysely<DB>, actor: Actor, tripId: string, now = new Date()): Promise<InvitationDTO[]> {
   await requireTripOwner(db, actor, tripId);
   return (await tripInvitations(db, tripId)).map((r) => invitationDto(r, now));
 }
 
 /**
- * ACCESS-3/6: create an invitation for one email, or give a pending, expired or revoked one a new
- * link. The raw token is returned once and only its hash is stored; a new link invalidates the
- * previous one. An accepted viewer must be revoked first. No email is sent.
+ * ACCESS-3/6: create an invitation for one email with a role (viewer unless the owner chose otherwise), or
+ * give a pending, expired or revoked one a new link and the chosen role. The raw token is returned once and
+ * only its hash is stored; a new link invalidates the previous one. Someone who has already accepted keeps
+ * their entry: change their role, or revoke them, instead.
  */
-export async function createInvitation(db: Kysely<DB>, actor: Actor, tripId: string, email: string, now = new Date()): Promise<InvitationLinkDTO> {
+export async function createInvitation(db: Kysely<DB>, actor: Actor, tripId: string, email: string, now = new Date(), role: Role = "viewer"): Promise<InvitationLinkDTO> {
   return db.transaction().execute(async (tx) => {
     // Locking the trip serializes concurrent invitations for the same new email.
     await requireTripOwner(tx, actor, tripId, true);
@@ -49,15 +52,29 @@ export async function createInvitation(db: Kysely<DB>, actor: Actor, tripId: str
     const expiresAt = new Date(now.getTime() + INVITATION_TTL_MS);
     const existing = await invitationForEmail(tx, tripId, email);
     if (existing?.status === "accepted") {
-      throw new HttpError(409, "invitation_accepted", "This person can already see the trip. Revoke their access first if you want to send a new link.");
+      throw new HttpError(409, "invitation_accepted", "This person already has access. Change their role in the list below, or revoke their access first to send a new link.");
     }
-    const row = existing ? await reissueInvitation(tx, existing.id, hash, expiresAt, now) : await insertInvitation(tx, tripId, email, hash, expiresAt);
+    const row = existing ? await reissueInvitation(tx, existing.id, role, hash, expiresAt, now) : await insertInvitation(tx, tripId, email, role, hash, expiresAt);
     return {
       invitationId: row.id,
       invitationUrl: `${appOrigin()}/invite#${token}`,
       expiresAt: expiresAt.toISOString(),
       invitation: invitationDto(row, now),
     };
+  });
+}
+
+/**
+ * ACCESS-5: an owner changes what a pending or accepted person may do (also their own role, to step down).
+ * It takes effect on their next request. A revoked entry needs a new link first.
+ */
+export async function updateInvitationRole(db: Kysely<DB>, actor: Actor, tripId: string, invitationId: string, role: Role, now = new Date()): Promise<InvitationDTO> {
+  return db.transaction().execute(async (tx) => {
+    await requireTripOwner(tx, actor, tripId, true);
+    const row = isUuid(invitationId) ? await invitationForUpdate(tx, tripId, invitationId) : undefined;
+    if (!row) throw invitationNotFound();
+    if (row.status === "revoked") throw new HttpError(409, "invitation_revoked", "This person's access was revoked. Create a new link to invite them again.");
+    return invitationDto(await setInvitationRole(tx, row.id, role, now), now);
   });
 }
 

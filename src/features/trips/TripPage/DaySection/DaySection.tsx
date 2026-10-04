@@ -11,7 +11,7 @@ type Props = {
   outside?: boolean;
   empty?: boolean;
   note?: React.ReactNode;
-  /** Shows the dashed "Add an event to this day" row (owners only). */
+  /** Shows the dashed "Add an event to this day" row (people who can edit). */
   onAdd?: () => void;
   addKey?: string;
   className?: string;

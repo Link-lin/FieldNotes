@@ -1,7 +1,7 @@
 import "server-only";
 import type { Kysely } from "kysely";
 import type { z } from "zod";
-import { requireOwnerAccount } from "@/server/auth/access";
+import { requireEditorAccount, requireOwnerAccount } from "@/server/auth/access";
 import type { Actor } from "@/server/auth/actor";
 import { requireActor } from "@/server/auth/session";
 import { getDb } from "@/server/core/db/client";
@@ -12,6 +12,8 @@ import { handle, json, noContent } from "./respond";
 type Options<S extends z.ZodType | undefined> = {
   /** Only allowlisted owners may call it. Per-trip checks stay in the services (server/auth/access.ts). */
   ownerAccount?: boolean;
+  /** Allowlisted owners, and anyone who is an editor or owner of some trip, may call it (place search and lookup). */
+  editorAccount?: boolean;
   /** JSON body schema: the body is size-limited, parsed and validated before the handler runs. */
   body?: S;
   /** Status for a successful response with data (default 200). */
@@ -41,6 +43,7 @@ export function route<P extends Record<string, string> = Record<string, never>, 
       if (req.method !== "GET" && req.method !== "HEAD") assertSameOrigin(req);
       const actor = await requireActor();
       if (options.ownerAccount) requireOwnerAccount(actor);
+      if (options.editorAccount) await requireEditorAccount(getDb(), actor);
       const body = (options.body ? await readJson(req, options.body) : undefined) as Context<P, S>["body"];
       const params = (ctx ? await ctx.params : {}) as P;
       const result = await handler({ actor, db: getDb(), params, body, req });

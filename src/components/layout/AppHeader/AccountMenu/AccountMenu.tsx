@@ -7,10 +7,10 @@ import { plural } from "@/lib/format";
 import { DeleteAccountDialog } from "./DeleteAccountDialog/DeleteAccountDialog";
 import styles from "./AccountMenu.module.css";
 
-type Props = { name: string; email: string; ownedTrips: string[]; viewerCount: number; signOut: () => Promise<void> };
+type Props = { name: string; email: string; ownedTrips: string[]; sharedCount: number; signOut: () => Promise<void> };
 
 /** ACCESS-10: account menu with sign out and account deletion. */
-export function AccountMenu({ name, email, ownedTrips, viewerCount, signOut }: Props) {
+export function AccountMenu({ name, email, ownedTrips, sharedCount, signOut }: Props) {
   const [open, setOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const avatar = useRef<HTMLButtonElement | null>(null);
@@ -39,7 +39,7 @@ export function AccountMenu({ name, email, ownedTrips, viewerCount, signOut }: P
         <MenuHeader>
           <b>{name}</b>
           <span>{email}</span>
-          <span className="mono">Owner of {plural(ownedTrips.length, "trip")} · viewer of {viewerCount}</span>
+          <span className="mono">Owner of {plural(ownedTrips.length, "trip")} · invited to {sharedCount}</span>
         </MenuHeader>
         <form action={signOut}>
           <MenuItem type="submit">Sign out</MenuItem>

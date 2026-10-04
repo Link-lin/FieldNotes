@@ -13,7 +13,7 @@ const TYPE_COLOR: Record<string, string> = { flight: "#3a3026", lodging: "#5e8fa
  * BUDGET-6 and 7: one card per currency (never added or converted), the budget bar in the
  * budget's currency only, a breakdown by type, and a note while AI estimates remain.
  */
-export function CostsSection({ data, owner }: { data: TripDetailDTO; owner: boolean }) {
+export function CostsSection({ data, canManage }: { data: TripDetailDTO; canManage: boolean }) {
   const { trip, plannedTotals: totals, budgetComparison: cmp } = data;
   const budgetOnly = trip.budget && !totals.some((t) => t.currency === trip.budget!.currency);
   const cards: PlannedTotalDTO[] = [...(budgetOnly ? [{ currency: trip.budget!.currency, total: "0", priceCount: 0, unverifiedCount: 0, byType: [] }] : []), ...totals]
@@ -21,7 +21,7 @@ export function CostsSection({ data, owner }: { data: TripDetailDTO; owner: bool
   return (
     <Section title="Planned costs" titleId="costs-title">
       {!totals.length && !trip.budget ? (
-        <Card><p className="note">No prices yet.{owner ? " Add a price to an event, or set a trip budget with Edit trip." : ""}</p></Card>
+        <Card><p className="note">No prices yet.{canManage ? " Add a price to an event, or set a trip budget with Edit trip." : ""}</p></Card>
       ) : (
         <>
           <div className={styles.costs}>

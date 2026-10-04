@@ -1,6 +1,7 @@
 import "server-only";
 import type { Kysely, Selectable, Transaction } from "kysely";
 import type { DB, TripViewersTable } from "@/server/core/db/schema";
+import type { Role } from "@/shared/dto";
 import { emailKey } from "@/shared/email";
 
 type Conn = Kysely<DB> | Transaction<DB>;
@@ -21,22 +22,32 @@ export async function invitationForEmail(tx: Transaction<DB>, tripId: string, em
   return rows.find((r) => r.status === "accepted") ?? rows[0];
 }
 
-export async function insertInvitation(tx: Transaction<DB>, tripId: string, email: string, hash: Buffer, expiresAt: Date): Promise<InvitationRow> {
+export async function insertInvitation(tx: Transaction<DB>, tripId: string, email: string, role: Role, hash: Buffer, expiresAt: Date): Promise<InvitationRow> {
   return tx
     .insertInto("trip_viewers")
-    .values({ trip_id: tripId, invitee_email_normalized: email, status: "pending", invitation_token_hash: hash, expires_at: expiresAt })
+    .values({ trip_id: tripId, invitee_email_normalized: email, role, status: "pending", invitation_token_hash: hash, expires_at: expiresAt })
     .returningAll()
     .executeTakeFirstOrThrow();
 }
 
-/** Reissue: a new token and expiry in the same row. Any previous link and viewer binding stop working. */
-export async function reissueInvitation(tx: Transaction<DB>, id: string, hash: Buffer, expiresAt: Date, now: Date): Promise<InvitationRow> {
+/** Reissue: a new token, expiry and the chosen role in the same row. Any previous link and binding stop working. */
+export async function reissueInvitation(tx: Transaction<DB>, id: string, role: Role, hash: Buffer, expiresAt: Date, now: Date): Promise<InvitationRow> {
   return tx
     .updateTable("trip_viewers")
-    .set({ status: "pending", invitation_token_hash: hash, expires_at: expiresAt, viewer_user_id: null, accepted_at: null, revoked_at: null, updated_at: now })
+    .set({ role, status: "pending", invitation_token_hash: hash, expires_at: expiresAt, viewer_user_id: null, accepted_at: null, revoked_at: null, updated_at: now })
     .where("id", "=", id)
     .returningAll()
     .executeTakeFirstOrThrow();
+}
+
+/** Locks one entry of the trip; undefined when it does not exist. */
+export async function invitationForUpdate(tx: Transaction<DB>, tripId: string, id: string): Promise<InvitationRow | undefined> {
+  return tx.selectFrom("trip_viewers").selectAll().where("id", "=", id).where("trip_id", "=", tripId).forUpdate().executeTakeFirst();
+}
+
+/** Sets an entry's role. The change applies to the person's next request. */
+export async function setInvitationRole(tx: Transaction<DB>, id: string, role: Role, now: Date): Promise<InvitationRow> {
+  return tx.updateTable("trip_viewers").set({ role, updated_at: now }).where("id", "=", id).returningAll().executeTakeFirstOrThrow();
 }
 
 /** Revoke a pending or accepted entry. Returns false when no such entry exists on the trip. */

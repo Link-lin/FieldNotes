@@ -15,7 +15,7 @@ Travel Planner is one TypeScript web application with a server-side data-access 
 
 Built: sign-in, the dashboard and globe, trips, the trip page with events, costs and day map, the event side panel, account deletion, owner-only AI import into a new trip with optional owner-reviewed place lookup, read-only viewer invitations, pasted-coordinate pins and pilot counts. Not built: importing into an existing trip (TRIP-7, proposed; see [Open questions](#open-questions)) and ATLAS-4's click-the-globe point picker (owners set a point through catalog search only); no structured request logging yet (see [Observability](#observability)).
 
-Out of scope, per the PRD's MVP scope: in-app AI, weather, live flight status, email or push reminders, booking and payment, currency conversion, paid-spend accounting, packing lists, attachments, offline use, collaborative editing, and any app-owned street basemap, tiles, routing engine or background geocoding outside an owner-triggered import preview or event edit. The dataset is personal: a modest number of trips, at most 250 items each, and a few invited viewers.
+Out of scope, per the PRD's MVP scope: in-app AI, weather, live flight status, email or push reminders, booking and payment, currency conversion, paid-spend accounting, packing lists, attachments, offline use, live co-editing (changes appear on reload; concurrent edits are caught by version checks), and any app-owned street basemap, tiles, routing engine or background geocoding outside an owner-triggered import preview or event edit. The dataset is personal: a modest number of trips, at most 250 items each, and a few invited people.
 
 The main product risk is the pasted AI response: it is untrusted, validated against a strict contract, previewed, committed atomically only after confirmation, and never stored or logged.
 
@@ -45,7 +45,7 @@ All dependencies are pinned exactly.
 
 - One deployable Next.js app and one database; no separate API service, queue, cache or microservice.
 - The server-side DAL (`src/server/auth/access.ts`) is the only per-trip authorization boundary.
-- Owners come from an email allowlist; everyone else needs an accepted invitation. The default deployment is a public sign-in shell.
+- The allowlist decides who can create trips and import. Everyone else needs an accepted invitation, which carries a role (viewer, editor or owner) per trip; the person who created a trip is its primary owner. The default deployment is a public sign-in shell.
 - Schedules are local date/time plus an IANA zone; a flight item is one segment in airport-local times.
 - One `plan_items` table holds booking state; the booking list is derived.
 - Money is exact decimal, grouped by currency, never converted.
@@ -99,7 +99,7 @@ sequenceDiagram
     U->>R: HTTPS request + session cookie
     R->>A: Resolve session and user ID
     A-->>R: Authenticated user or no session
-    R->>A: Check owner or accepted viewer for resource
+    R->>A: Check the caller's role (owner, editor or viewer) on the resource
     A->>D: Parameterized query scoped to user/trip
     D-->>A: Authorized rows only
     A-->>R: DTO (no internal tokens/secrets)
@@ -182,6 +182,8 @@ A small idempotency tombstone, not import history. One row per unique `(owner_us
 
 #### `trip_viewers`
 
+Every person a trip is shared with, whatever their role, so the table keeps its first name. The trip's creator is never a row here.
+
 One row per `(trip_id, invitee_email_normalized)`, so a trip has at most one current grant per email. A user may own one trip and view another; role is per trip.
 
 | Field | Type/constraint | Meaning |
@@ -189,6 +191,7 @@ One row per `(trip_id, invitee_email_normalized)`, so a trip has at most one cur
 | `id`, `trip_id` | UUID PK, UUID FK `trips.id ON DELETE CASCADE` | Invitation/grant identity and parent trip. |
 | `invitee_email_normalized` | Text, not null | The address as typed, trimmed and lowercased (checked by a constraint); the Share dialog shows it. People are matched by `emailKey` instead (see [Sharing and invitations](#sharing-and-invitations)), so this column is not the match key. |
 | `viewer_user_id` | Nullable UUID FK `User.id ON DELETE CASCADE` | Set only on acceptance. |
+| `role` | `viewer` (default), `editor` or `owner`; checked | What the person may do once accepted (see [Roles](#roles)). Changing it applies on their next request; a new link sets the role chosen with it. |
 | `status` | `pending`, `accepted` or `revoked` | `expired` is derived: `pending` with `expires_at <= now()`. No cron. |
 | `invitation_token_hash` | Nullable bytes, unique while non-null | SHA-256 of a random 256-bit token. |
 | `expires_at` | `timestamptz`, required while pending | Seven days from issue. |
@@ -226,7 +229,7 @@ Daily pilot totals for the PRD's "Validation and MVP acceptance" pilot, added by
 
 - `trips(owner_user_id, start_date)` for the owner dashboard.
 - Unique `import_receipts(owner_user_id, idempotency_key)`; `import_receipts(trip_id)` for deletion.
-- `trip_viewers(viewer_user_id, status, trip_id)` for accepted shared trips.
+- `trip_viewers(viewer_user_id, status, trip_id)` for accepted shared trips and role lookups.
 - Unique `trip_viewers(trip_id, invitee_email_normalized)`; unique token hash where non-null.
 - `plan_items(trip_id, local_date, created_at)` for timeline sections.
 - Partial `plan_items(trip_id, booking_due_date)` where `booking_status = 'needs_booking'` and a due date exists.
@@ -241,14 +244,15 @@ Migrations are TypeScript modules of raw SQL in `db/migrations`, listed explicit
 - `0001_initial`: Auth.js tables and the app tables `trips`, `trip_viewers`, `plan_items` (including `map_url`, coordinates, `price_source` and `deleted_at`) and `import_receipts`, with their constraints and indexes.
 - `0002_import_v1_limits`: widens trip and item IANA zones to 100 characters, airline to 120, flight number to 24, and airport codes to 3–4 uppercase alphanumeric characters, matching JSON v1. Manual validation and form lengths match.
 - `0003_usage_counts`: the pilot counts table.
+- `0004_member_roles`: adds `trip_viewers.role` (`viewer`, `editor` or `owner`, default `viewer`, so every existing entry stays a viewer).
 
 Deployment runs `npm run db:migrate` with a schema-owner credential (`MIGRATION_DATABASE_URL`); the runtime credential cannot run DDL. Migrating on `npm run dev` is for local development only. Take a provider snapshot before a production migration. Write a rollback only when it cannot destroy user data; otherwise use a forward corrective migration. Never seed production trips.
 
 ### Deletion and retention
 
-- **Trip deletion** is owner-only and transactional: lock the trip and its import receipts, set each receipt's `trip_id` and `payload_hash` to null, then delete the trip. Items and viewer rows cascade. The trip disappears from owner and viewer queries at once. There is no undo.
+- **Trip deletion** is for owners (including co-owners) and transactional: lock the trip and its import receipts, set each receipt's `trip_id` and `payload_hash` to null, then delete the trip. Items and viewer rows cascade. The trip disappears from every member's queries at once. There is no undo.
 - **Item deletion** is a soft delete with a 10-minute restore (TRIP-8); see `plan_items`.
-- **Account deletion** removes the `User` row and, by cascade, every owned trip (with the trip-deletion effects), session, account, viewer grant and import receipt (ACCESS-10).
+- **Account deletion** removes the `User` row and, by cascade, every trip the user created (with the trip-deletion effects, so for everyone it is shared with), session, account, grant on other people's trips and import receipt (ACCESS-10).
 - **Backups** are the owner's: a `pg_dump` taken with the container setup (see the README), or a managed provider's retention window, keeps deleted rows until that backup is deleted or expires. "Delete" means removed from the live app at once. Tell the people you share a trip with how long you keep backups.
 - There is no audit-history table. `created_at`/`updated_at`, Auth.js sessions and provider logs are enough for debugging.
 
@@ -272,31 +276,32 @@ Responses never include SQL, stack traces, session or invitation tokens, or othe
 
 ### Endpoint summary
 
-"Owner" means an allowlisted owner of that trip. A trip the caller cannot read returns 404; a viewer calling an owner route gets 403.
+"Owner" means an owner of that trip (its creator while allowlisted, or someone given the owner role); "editor" means an owner or an editor. A trip the caller cannot read returns 404; a caller who can read it but lacks the role gets 403. See [Roles](#roles).
 
 | Endpoint | Purpose/input | Authorization and behavior |
 |---|---|---|
 | `GET /api/trips` | Dashboard data. | Signed-in user. Owned trips (while allowlisted) plus accepted shared trips, each with `role`. |
-| `GET /api/atlas/places?q=...` | Catalog search: 2–160-character query, at most ten results. | Allowlisted owner. No trip data; no external geocoder. |
-| `POST /api/places/resolve` | `{ "location": "...", "destination": "..." }`; returns `{ candidates, suggestedIndex }` with at most three labeled coordinate candidates and a nullable suggested index. | Allowlisted owner. Sends only those two fields to Geoapify when configured; no database write, bounded timeout, and no logging of query or result. |
+| `GET /api/atlas/places?q=...` | Catalog search: 2–160-character query, at most ten results. | Allowlisted owner, or an editor or owner of some trip. No trip data; no external geocoder. |
+| `POST /api/places/resolve` | `{ "location": "...", "destination": "..." }`; returns `{ candidates, suggestedIndex }` with at most three labeled coordinate candidates and a nullable suggested index. | Allowlisted owner, or an editor or owner of some trip. Sends only those two fields to Geoapify when configured; no database write, bounded timeout, and no logging of query or result. |
 | `POST /api/trips` | Title, destination, inclusive dates, IANA zone, optional budget. | Allowlisted owner. Creates an empty trip; an exact, unique catalog match sets the globe point. |
-| `GET /api/trips/{tripId}` | Trip, items and totals. | Owner or accepted viewer. |
+| `GET /api/trips/{tripId}` | Trip, items and totals. | Any role. |
 | `POST /api/trips/{tripId}/time-zone-preview` | `{ "timeZone": "...", "expectedVersion": 4 }`. | Owner. Read-only impact list (see [Time zones](#time-zones)). |
 | `PATCH /api/trips/{tripId}` | Trip fields and `expectedVersion`. Optional `atlasLocation`: omitted (no point edit), `{latitude,longitude}` (owner point) or `null` (clear). A zone change adds `confirmTimeZoneImpact: true` and `timeDisambiguationByItem`. | Owner. A destination edit rematches catalog points, keeps an owner-set point with an editor warning, and yields to an explicit `atlasLocation`. A zone change applies in one transaction, rejecting DST gaps (with item paths) and unresolved overlaps, and bumps the version of each affected item. |
 | `DELETE /api/trips/{tripId}` | `{ "confirm": true, "expectedVersion": 4 }`. | Owner. See [Deletion and retention](#deletion-and-retention). |
-| `POST /api/trips/{tripId}/items` | New item or flight segment, including `mapUrl`, `plannedPrice` and `bookingStatus`. | Owner. `source` forced to `manual`; trip lock and 250-item cap. |
-| `POST /api/trips/{tripId}/items/{itemId}/duplicate` | Source item's `expectedVersion`. | Owner. Trip lock and cap. Copies content and provenance with a new ID, clears the due date, and turns `booked` into `needs_booking`. |
-| `PATCH /api/trips/{tripId}/items/{itemId}` | Item fields and `expectedVersion`; `confirmTypeChange: true` to switch to or from flight; optional `confirmPrice: true`. | Owner; the item must belong to the trip. A confirmed type change clears incompatible schedule fields, and a `not_required` item becoming a flight becomes `needs_booking`. |
-| `DELETE /api/trips/{tripId}/items/{itemId}` | `{ "expectedVersion": 2 }`. | Owner. Sets `deleted_at` and bumps the trip version. |
-| `PATCH /api/trips/{tripId}/items/{itemId}/notes` | `{ "notes": string \| null, "expectedVersion": 3 }` (TRIP-10). | Owner. Stores trimmed notes only (blank is null, at most 5,000 characters) with the same lock, purge and version rules as a full edit. |
-| `PATCH /api/trips/{tripId}/items/{itemId}/booking` | `{ "bookingStatus": "needs_booking" \| "booked", "bookingDueDate": "2026-10-03" \| null, "expectedVersion": 3 }` (BOOK-3, BOOK-4). | Owner. Changes only the booking state and book-by date, with the same lock, purge and version rules as a full edit. **Booked** clears the date; it is 422 `flight_incomplete` for a flight without its FLIGHT-2 fields, and a date sent with **Booked** is 422. |
-| `POST /api/trips/{tripId}/items/{itemId}/restore` | Undo a deletion. | Owner. Clears `deleted_at` on the same row and bumps the trip version. 410 after 10 minutes; 409 if the cap is full; 409 `restore_time_invalid` if the local time no longer exists or is now ambiguous in the trip zone. |
+| `POST /api/trips/{tripId}/items` | New item or flight segment, including `mapUrl`, `plannedPrice` and `bookingStatus`. | Editor. `source` forced to `manual`; trip lock and 250-item cap. |
+| `POST /api/trips/{tripId}/items/{itemId}/duplicate` | Source item's `expectedVersion`. | Editor. Trip lock and cap. Copies content and provenance with a new ID, clears the due date, and turns `booked` into `needs_booking`. |
+| `PATCH /api/trips/{tripId}/items/{itemId}` | Item fields and `expectedVersion`; `confirmTypeChange: true` to switch to or from flight; optional `confirmPrice: true`. | Editor; the item must belong to the trip. A confirmed type change clears incompatible schedule fields, and a `not_required` item becoming a flight becomes `needs_booking`. |
+| `DELETE /api/trips/{tripId}/items/{itemId}` | `{ "expectedVersion": 2 }`. | Editor. Sets `deleted_at` and bumps the trip version. |
+| `PATCH /api/trips/{tripId}/items/{itemId}/notes` | `{ "notes": string \| null, "expectedVersion": 3 }` (TRIP-10). | Editor. Stores trimmed notes only (blank is null, at most 5,000 characters) with the same lock, purge and version rules as a full edit. |
+| `PATCH /api/trips/{tripId}/items/{itemId}/booking` | `{ "bookingStatus": "needs_booking" \| "booked", "bookingDueDate": "2026-10-03" \| null, "expectedVersion": 3 }` (BOOK-3, BOOK-4). | Editor. Changes only the booking state and book-by date, with the same lock, purge and version rules as a full edit. **Booked** clears the date; it is 422 `flight_incomplete` for a flight without its FLIGHT-2 fields, and a date sent with **Booked** is 422. |
+| `POST /api/trips/{tripId}/items/{itemId}/restore` | Undo a deletion. | Editor. Clears `deleted_at` on the same row and bumps the trip version. 410 after 10 minutes; 409 if the cap is full; 409 `restore_time_invalid` if the local time no longer exists or is now ambiguous in the trip zone. |
 | `GET /api/health` | None. | No session, no input, no trip data: 200 `{"status":"ok"}` when the database answers `select 1` within two seconds, otherwise 503 `{"status":"unhealthy"}`. Used by the container's health check. |
 | `GET /api/import/schema` | The JSON v1 schema. | Allowlisted owner. Serves `docs/design/json-v1.schema.json` unchanged. |
 | `POST /api/import/preview` | `{ "responseText": "...", "ownerProvidedBudget": MoneyDTO \| null }`. | Allowlisted owner. See [JSON v1 contract](#json-v1-contract). Writes only a pilot count. |
 | `POST /api/import/commit` | Normalized trip and included items, optional owner-selected `confirmedMapUrls` parallel to items, `ownerProvidedBudget`, `Idempotency-Key` UUID header, `expectedFormatVersion: 1`, optional `previewSkipped` (0–250). | Allowlisted owner. See [Import](#import). `trip.budget` must equal `ownerProvidedBudget`. Map choices are validated and included in the idempotency hash; `previewSkipped` feeds only the pilot count and is not hashed. |
-| `POST /api/trips/{tripId}/invitations` | `{ "email": "..." }`. | Owner. Creates or reissues the entry, rotating token and expiry. Own email is 422; an accepted viewer is 409 until revoked. No email is sent. |
-| `GET /api/trips/{tripId}/invitations` | Viewer and invitation entries. | Owner. Never returns a token, hash or link. |
+| `POST /api/trips/{tripId}/invitations` | `{ "email": "...", "role": "viewer" \| "editor" \| "owner" }` (role defaults to `viewer`). | Owner. Creates or reissues the entry with that role, rotating token and expiry. Own email is 422; someone who has accepted is 409 (change their role or revoke them instead). No email is sent. |
+| `GET /api/trips/{tripId}/invitations` | The people the trip is shared with and their invitations, each with a role. | Owner. Never returns a token, hash or link. |
+| `PATCH /api/trips/{tripId}/invitations/{invitationId}` | `{ "role": "viewer" \| "editor" \| "owner" }`. | Owner, including changing their own role. Pending, expired and accepted entries only (a revoked one is 409 `invitation_revoked`). Effective on the person's next request. |
 | `DELETE /api/trips/{tripId}/invitations/{invitationId}` | Revoke. | Owner. Effective on the next request. |
 | `POST /api/invitations/stage` | `{ "token": "..." }` from the URL fragment. | No session. Accepts a pending, unexpired token, or an accepted one for its bound account; sets the staging cookie; returns no trip detail. Unusable links get 404 `invitation_invalid`. |
 | `POST /api/invitations/accept` | Staging cookie plus session; no token in the URL. | Signed-in user. Binds `viewer_user_id` per [Sharing and invitations](#sharing-and-invitations). Wrong account is 403 `invitation_wrong_account`; a same-user repeat is idempotent. |
@@ -311,7 +316,7 @@ Auth.js owns `/api/auth/*` and the OAuth callback; these need HTTPS and correct 
 Responses are explicit camel-case DTOs from `src/shared/dto.ts` and `src/shared/import.ts`, never database rows. They never expose owner IDs, Auth.js records, token or import hashes, or internal fields.
 
 ```ts
-type Role = "owner" | "viewer";
+type Role = "owner" | "editor" | "viewer";
 type TripStatus = "upcoming" | "ongoing" | "past";
 type DueState = "upcoming" | "due_today" | "overdue";
 type MoneyDTO = { amount: string; currency: string };
@@ -331,7 +336,8 @@ type TripSummaryDTO = {
   daysSinceEnd: number | null; // past only, trip time zone
   dayCount: number;            // inclusive length
   role: Role;
-  ownerName: string | null;    // viewers only ("shared by")
+  primaryOwner: boolean;       // you created the trip (a co-owner is an owner who did not)
+  ownerName: string | null;    // the creator, for everyone else ("shared by")
   atlasLocation: (LatLon & { source: "catalog" | "owner" }) | null;
 };
 
@@ -342,7 +348,7 @@ type BookingTaskDTO = {
 
 type DashboardDTO = {
   canCreateTrips: boolean;     // from the server-side owner allowlist
-  recentCurrencies: string[];  // newest first; empty for viewers
+  recentCurrencies: string[];  // newest first; empty unless you are on the allowlist
   trips: TripSummaryDTO[];
   ownerBookingTasks: BookingTaskDTO[];
 };
@@ -355,7 +361,7 @@ type TripDetailDTO = {
     byType: Array<{ type: PlanItemDTO["type"]; amount: string }>;
   }>;
   budgetComparison: { currency: string; budget: string; planned: string; remaining: string; over: boolean } | null;
-  recentCurrencies: string[]; // empty for viewers
+  recentCurrencies: string[]; // empty unless you are an owner of this trip
 };
 
 type FlightEndpointDTO = {
@@ -455,7 +461,7 @@ Return types: `GET /api/trips` returns `DashboardDTO`; trip detail returns `Trip
 | `204` | Delete or revoke with no body. |
 | `400` | Malformed request envelope or invalid idempotency-key format. Malformed JSON inside `responseText` is an import validation error, not a malformed envelope. |
 | `401` | Missing or expired session. |
-| `403` | Signed in but forbidden (a viewer write, a non-owner calling an owner-only route, a missing or mismatched `Origin`, `invitation_wrong_account`). |
+| `403` | Signed in but forbidden (a viewer writing, an editor calling an owner-only route, a non-owner on an account-level route, a missing or mismatched `Origin`, `invitation_wrong_account`). |
 | `404` | Missing item or trip, no read access to the trip, or `invitation_invalid`. |
 | `409` | Version conflict, same idempotency key with a different payload, incompatible invitation state, the 250-item cap (`item_cap`) on create, duplicate or restore, `time_zone_confirmation_required`, or `restore_time_invalid`. |
 | `410` | An import receipt whose trip was deleted (use a new key), or a restore after the 10-minute window. |
@@ -564,14 +570,14 @@ booked ──owner reopens task──> needs_booking
 needs_booking ──owner clears need──> not_required
 ```
 
-Only the owner changes status. Flights are never `not_required`; a new or imported flight starts as `needs_booking`. Moving to `booked` validates flight completeness and clears the due date; reopening needs a new due date if wanted. Imports can set only `not_required` or `needs_booking`, and flights only `needs_booking`. A trip-zone change can change the due state but never the stored date. There is no cron, scheduler, email provider or push-token table.
+Only owners and editors change status. Flights are never `not_required`; a new or imported flight starts as `needs_booking`. Moving to `booked` validates flight completeness and clears the due date; reopening needs a new due date if wanted. Imports can set only `not_required` or `needs_booking`, and flights only `needs_booking`. A trip-zone change can change the due state but never the stored date. There is no cron, scheduler, email provider or push-token table.
 
-**Booking view.** Each trip has a dedicated `?view=bookings` view, linked from its dashboard card when an owned trip has pending tasks. `BookingList` derives the tasks from the trip items and groups them into due now (overdue or due today), coming up and no date. `BookingTask` opens the event (TRIP-10). For the owner, **Mark booked** and the inline book-by date call `PATCH …/booking`. **Mark booked** is offered only when `flightReadyToBook` (`src/shared/booking.ts`) passes; the server checks again. Its toast's **Undo** sends `needs_booking` with the previous date and the new version. A row shows the saved result at once and then refreshes the page data; a 409 keeps the row's message and reloads the data so a retry uses the newer version. Viewers get the same grouping without write controls.
+**Booking view.** Each trip has a dedicated `?view=bookings` view, linked from its dashboard card when a trip you can edit has pending tasks. `BookingList` derives the tasks from the trip items and groups them into due now (overdue or due today), coming up and no date. `BookingTask` opens the event (TRIP-10). For owners and editors, **Mark booked** and the inline book-by date call `PATCH …/booking`. **Mark booked** is offered only when `flightReadyToBook` (`src/shared/booking.ts`) passes; the server checks again. Its toast's **Undo** sends `needs_booking` with the previous date and the new version. A row shows the saved result at once and then refreshes the page data; a 409 keeps the row's message and reloads the data so a retry uses the newer version. Viewers get the same grouping without write controls.
 
 ### Dashboard
 
 - One query returns owned trips (while allowlisted) and accepted shared trips, deduplicated, each with a `role`. It feeds both the list and the globe; nothing else reaches the globe. `canCreateTrips` drives the empty state and create actions; an account with no trips sees an empty state with account settings and deletion.
-- `ownerBookingTasks` covers only owned trips and includes tasks with no book-by date (`no_due_date`). The dashboard uses it only for a per-trip count and overdue count; each owned card with tasks links to `/trips/{tripId}?view=bookings`. There is no dashboard task list, global booking action or paid-spend summary.
+- `ownerBookingTasks` covers the trips you can edit (your own, and ones where you are an editor or owner) and includes tasks with no book-by date (`no_due_date`). The dashboard uses it only for a per-trip count and overdue count; each such card with tasks links to `/trips/{tripId}?view=bookings`. There is no dashboard task list, global booking action or paid-spend summary.
 - `Hero` uses the presence of trips in the authorized DTO to choose the compact returning-user heading or the empty-state introduction. Current/next-trip links use `daysToStart` and `dayIndex`, computed in each trip's zone. The hero shows the viewer's own local date, read in the browser. On narrow screens, the existing trip list precedes the globe.
 - The status filter lives in `?filter=` and applies to list and globe. Returning from a trip (Back or All trips) restores the filter, list scroll and focus on that trip's card or booking shortcut.
 - The list renders at once; the globe loads lazily. If it fails, a short error replaces it and the list, filters and point editor keep working. A trip without a point stays in the list, and the owner can set one.
@@ -601,7 +607,7 @@ Product rules are TRIP-1 to TRIP-10, MAP-1 to MAP-9 and BUDGET-6 to BUDGET-7; la
 - **Sections.** Pin numbers are assigned once across the trip and reused in day tabs. Within a day, timed events come first and date-only events follow under **Unscheduled**. **Undated flights** and **Undated** follow the last day, in Whole trip only (TRIP-2). Events deleted during the visit are listed under **Recently deleted** with a Restore button, so undo stays reachable after the toast closes.
 - **Up next.** `upNext` and `flightRoute` (`TripPage/trip-days.ts`) pick the header card's event from the DTO: the first dated item on or after the trip's `today`, in timeline order, with no card for a past trip. The browser's clock, read after hydration through `useClientValue` and rounded to the minute, also skips today's timed items whose `sortInstant` has passed; the server render uses the day-level choice, so the markup matches.
 - **Status and highlights.** The trip header, itinerary timing highlight and dashboard tickets use the server's `status`, `daysToStart`, `dayIndex`, `daysSinceEnd` and `dayCount` (TRIP-5); the browser does no zone arithmetic. The planned-cost highlight uses the DTO's budget comparison or per-currency totals and appears only in Itinerary when a budget or prices exist; multiple currencies are never summed. Event and pin counts live in the day tabs, booking and overdue counts in the view switch, and distances in the map stop list. Bookings uses a compact trip header so due tasks appear near the top.
-- **Event edit and delete.** Each owner event row has a visible three-dot menu (ARIA menu button; Tab or Escape closes it) with Edit event and Delete event. Edit opens the item editor (TRIP-9) in the event view (see [Event view](#event-view)). Delete calls `DELETE` at once, removes the row and shows a toast with **Undo** that takes focus, stays at least 10 seconds and pauses on hover or focus; Undo calls `…/restore`. A failed delete restores the row with an error. Focus then moves to the next event's menu button or the day's add row. Viewers get no menu, and the routes reject them.
+- **Event edit and delete.** Each event row has, for owners and editors, a visible three-dot menu (ARIA menu button; Tab or Escape closes it) with Edit event and Delete event. Edit opens the item editor (TRIP-9) in the event view (see [Event view](#event-view)). Delete calls `DELETE` at once, removes the row and shows a toast with **Undo** that takes focus, stays at least 10 seconds and pauses on hover or focus; Undo calls `…/restore`. A failed delete restores the row with an error. Focus then moves to the next event's menu button or the day's add row. Viewers get no menu, and the routes reject them.
 - **Dialogs.** Add item, edit trip, import, share and delete use a modal with a focus trap and `inert` background, Escape and backdrop close, and inline errors tied to fields with `aria-describedby` and `aria-invalid`, with focus moved to the first invalid field. On open, focus goes to the first field or else the first button. On close, it returns to the trigger, or to the element with the same stable selector if a re-render replaced it; a dialog that replaces its own content keeps the original trigger.
 - **Motion.** CSS only, no animation library. `prefers-reduced-motion` disables all animation and transitions, including `::before`/`::after`. Scroll-reveal classes are added by script only when `IntersectionObserver` exists. Looping motion (globe pulse and ring, route dash) stops within 10 seconds of the last interaction (WCAG 2.2.2). On a day change, `animateDayEnter` (`TripPage/day-motion.ts`) runs from a layout effect: Web Animations slide and fade the timeline from the chosen tab's side and stagger its first eight rows, leaving no inline styles. The map panel remounts per day; its cards use the shared `--kf-settle` keyframe. `DayTabs` scrolls only its own strip to keep the chosen tab in view. Reduced motion skips all of this, including the JavaScript animations, which the global CSS rule does not cover.
 - **Visual accessibility.** Body and label text meet 4.5:1 (secondary ink `#766A55`, not `#8A7E69`); text on vermilion uses the dark vermilion `#A63615`; form borders meet 3:1. Fonts are self-hosted.
@@ -664,9 +670,9 @@ Pasted response
 
 - **Sign-in shell.** The only public screen offers **Continue with Google** (ACCESS-9). States: ready; redirecting; denied (not on the owner allowlist and no staged invitation: "This Google account is not set up for Field Notes. Try another account, or ask the trip owner for an invitation.", with **Switch Google account**); invitation landing (shows only that an invitation exists; no owner, trip or invited email); and wrong account. Private routes render only this shell until a session exists; a deep link to a trip is kept only as a post-sign-in path. Post-sign-in redirects go through `safePath`, which accepts only same-origin paths.
 - **Account menu.** Initials avatar, name, email and a role summary. **Sign out** ends the session. **Delete my account** lists the owned trips that will be deleted (from `GET /api/trips`) and requires typing DELETE (ACCESS-10).
-- **Share dialog (owner, ACCESS-11).** Shows the ACCESS-8 notice, then an email field. Creating an invitation shows a copyable message once (it names the trip, invited email, link and expiry). Every link created while the dialog is open stays visible; a newer link for the same email replaces the older one. Closing with an uncopied link, by button or keyboard, asks first; asking twice closes. The list shows each entry's status and expiry. **Revoke** is offered for pending and accepted entries and asks for confirmation for an accepted viewer. **Create new link** is offered for pending, expired and revoked entries. Dates use the viewer's own zone ("4 Oct 2026").
+- **Share dialog (owners, ACCESS-11).** Shows the ACCESS-8 notice with what each role can do, then an email field and a role picker (viewer by default, with the role's description beneath). Creating an invitation shows a copyable message once (it names the trip, what the role allows, invited email, link and expiry). Every link created while the dialog is open stays visible; a newer link for the same email replaces the older one. Closing with an uncopied link, by button or keyboard, asks first; asking twice closes. The list notes who created the trip (always an owner, never listed) and shows each entry's status, role picker and expiry; changing a role applies at once, except that choosing owner asks first. **Revoke** is offered for pending and accepted entries and asks for confirmation for an accepted viewer. **Create new link** is offered for pending, expired and revoked entries. Dates use the viewer's own zone ("4 Oct 2026").
 - **Delete trip (owner).** A danger action in the edit-trip dialog. The confirmation says invitations are revoked and items and booking state removed with no undo, and requires typing the trip title (DASH-5).
-- **Viewers** see no add, edit, import, share or delete controls; the server rejects those calls regardless.
+- **Controls follow the role**: `canEdit` (owner or editor) shows the add, edit, duplicate, delete, booking and notes controls; `canManage` (owner) shows edit trip, share, the globe-point editor and budget hints; viewers see none. The screens only mirror the server, which rejects those calls regardless.
 
 ### Sharing and invitations
 
@@ -674,7 +680,7 @@ Pasted response
 - **Staging.** `/invite` reads the fragment, replaces the address with `/invite`, and posts the token to `POST /api/invitations/stage`. That sets a 15-minute `HttpOnly`, `SameSite=Lax`, `Path=/` cookie holding the hash in hex: `__Host-fieldnotes-invite` (with `Secure`) on HTTPS, `fieldnotes-invite` on `http://localhost`. The root path lets it survive the OAuth callback. Only invitation endpoints read its value; the sign-in page checks only that it exists. Handlers use the Cookie and Set-Cookie headers directly, so route tests exercise it. Invitation pages send `Referrer-Policy: no-referrer` and load no third-party content.
 - **Acceptance.** A signed-in visitor is accepted at once and sent to the trip; others see the landing with **Continue with Google**, returning to `/invite`. `POST /api/invitations/accept` locks the row by token hash and compares the `emailKey` of the invitation's address with that of the account's stored `User.email`. The sign-in gate verified that email with Google at account creation, and Auth.js does not refresh it, so an account whose Google address later changed must be invited at its original address. A mismatch leaves the invitation pending and the cookie in place; **Switch Google account** signs out and reopens the account chooser. If the sign-in gate refuses a new identity while an invitation is staged, the sign-in page shows the wrong-account state and switching returns to `/invite`. Success clears the cookie. No state shows the trip, owner or invited email.
 - **Reuse.** The bound account can stage an accepted link again and land on the trip. If the success redirect is lost, the grant appears on the dashboard, and a remaining cookie repeats acceptance idempotently. Every other account, and every unknown, malformed, expired, replaced or revoked link, gets `invitation_invalid`: the page says the link is no longer valid and to ask the owner for a new one.
-- **Revocation** blocks the next request and removes the trip from the viewer's dashboard. An already rendered tab keeps its content until navigation.
+- **Revocation** blocks the next request and removes the trip from that person's dashboard. An already rendered tab keeps its content until navigation.
 
 ```text
 pending --verified matching Google email before expiry--> accepted
@@ -690,7 +696,7 @@ Acceptance is a conditional update in a transaction, so two concurrent accepts c
 
 ### Authentication and authorization
 
-Roles are per trip: an allowlisted **owner** creates and changes their own trips; a **viewer** reads trips with an accepted grant bound to their `User.id`; an **anonymous visitor** sees only the sign-in and invitation pages.
+Roles are per trip: a trip's creator is an **owner** while still on the allowlist; everyone else needs an accepted grant bound to their `User.id`, whose role is **viewer**, **editor** or **owner**; an **anonymous visitor** sees only the sign-in and invitation pages. The allowlist is account-level: it decides who may create trips and import.
 
 **Sign-in gate** (`src/server/auth/sign-in-gate.ts`, a plain function so it can be tested without Auth.js):
 
@@ -704,13 +710,26 @@ Roles are per trip: an allowlisted **owner** creates and changes their own trips
 **Access checks** (`src/server/auth/access.ts`):
 
 - `requireActor` (in `session.ts`) resolves the session; `route()` calls it for every protected route.
-- `requireOwnerAccount` requires the user's current email to be on the allowlist, for trip creation, import, the schema route and place search.
-- `tripAccess` returns `owner` only for the trip's owner who is still allowlisted, or `viewer` for an `accepted` grant whose `viewer_user_id` is the current user. Email alone never grants access after acceptance, and an email change does not break a grant for the same linked account.
-- `requireTripRead` answers 404 when access is missing, so trip IDs cannot be probed. `requireTripOwner` answers 404 for an unreadable trip and 403 for a viewer. Every trip mutation and share action uses it.
+- `requireOwnerAccount` requires the user's current email to be on the allowlist, for trip creation, import preview and commit, and the schema route. `requireEditorAccount` (the `route()` option `editorAccount`) admits the allowlist or anyone with an accepted editor or owner grant on some trip, for place search and place lookup; viewers and strangers never reach them.
+- `tripAccess` returns `{ role, primaryOwner }`: `owner` with `primaryOwner` for the trip's creator while still allowlisted, otherwise the highest role among the `accepted` grants whose `viewer_user_id` is the current user (a grant of any role needs no allowlist entry), otherwise nothing. Email alone never grants access after acceptance, and an email change does not break a grant for the same linked account.
+- `requireTripRead` answers 404 when access is missing, so trip IDs cannot be probed. `requireTripEditor` (events, bookings, notes) answers 404 for an unreadable trip and 403 for a viewer. `requireTripOwner` (the trip itself and sharing) answers 404 for an unreadable trip and 403 for an editor or viewer. Every trip mutation and share action uses one of them.
 - **Address matching** (`emailKey`, `src/shared/email.ts`) decides whether two addresses are one person for the owner allowlist, the sign-in gate, invitation acceptance and duplicate invitations. Gmail ignores dots and everything after the first `+`, and googlemail.com is the same mailbox as gmail.com, so those collapse to one key; every other domain is compared as typed, because other providers treat dots and `+` differently. It is safe for Gmail because Google never issues two accounts that differ only by dots and does not allow `+` in an address. A malformed address, or one whose name is empty after stripping, keeps its typed form so it cannot collide. The gate compares keys in application code against pending Gmail-domain invitations, an invitation lookup for a trip loads that trip's entries, and one person never has two entries on a trip; no column or migration is involved.
-- Removing an email from `TRIP_OWNER_EMAILS` blocks that identity's owned trips on the next request. Update the allowlist before an owner changes Google email. Adding a second owner is a configuration change.
+- Removing an email from `TRIP_OWNER_EMAILS` blocks the trips that identity created on the next request; trips where they hold an editor or owner grant are unaffected. Update the allowlist before an owner changes Google email. Making someone an owner of a trip is done in the Share dialog and needs no allowlist entry; the allowlist only decides who creates trips.
 
-PostgreSQL applies no row-level policies, and the runtime credential can read every trip row. The DAL is therefore the only per-trip authorization boundary, and a missed check is a data leak. Keep checks in the central helpers and treat owner, viewer and anonymous regression tests as release-blocking. Route handlers and server functions are public entry points; navigation, client guards and layout redirects are not protection.
+#### Roles
+
+| Capability | Viewer | Editor | Owner |
+|---|---|---|---|
+| Read the trip, its map and bookings | yes | yes | yes |
+| Add, edit, duplicate, delete and restore events; change bookings, book-by dates, prices and notes | | yes | yes |
+| Use place search and place lookup | | yes | yes |
+| Edit trip details, time zone, budget and globe point; delete the trip | | | yes |
+| See who the trip is shared with; invite, change roles, revoke | | | yes |
+| Create trips; import an AI plan | allowlist only, whatever the trip role | | |
+
+The creator is always an owner while allowlisted and is never a grant row, so no one can remove or demote them. Several accepted grants for one account (under different invited addresses) resolve to the highest role. An owner may change their own role, which lets a co-owner step down. A role change takes effect on the person's next request, as revocation does. Concurrent editing needs nothing new: every item and trip write carries `expectedVersion`, so two editors cannot overwrite each other; the loser gets a 409 and reloads. `shared/roles.ts` holds `canEdit`, `canManage` and the labels the screens use.
+
+PostgreSQL applies no row-level policies, and the runtime credential can read every trip row. The DAL is therefore the only per-trip authorization boundary, and a missed check is a data leak. Keep checks in the central helpers and treat owner, editor, viewer and anonymous regression tests as release-blocking. Route handlers and server functions are public entry points; navigation, client guards and layout redirects are not protection.
 
 ### Deployment exposure
 
@@ -831,7 +850,7 @@ Vitest runs `unit` and `db` projects (`npm run test:unit`, `npm run test:db`, or
 - The 250-item cap under concurrent create and duplicate; shared limits for manual and imported data.
 - Trip and account cascades; soft delete, restore, purge and `restore_time_invalid`; duplicate rules; version conflicts; check constraints.
 - Booking-list actions: Booked clears the date, Undo, FLIGHT-2 refusal, version and Origin checks, owner-only access and pilot counts.
-- Owner, viewer, unrelated-account and anonymous access; revocation on the next request; a revoked viewer can still sign in and delete their account.
+- Owner, co-owner, editor, viewer, unrelated-account and anonymous access across items, trip settings, sharing, place helpers, import and account deletion (`member-roles.test.ts`); role changes and revocation on the next request; a revoked viewer can still sign in and delete their account.
 - Invitations: pending, expired, revoked, wrong email, success, retry, race, staging cookie; raw token never stored; grants survive an email change; an accepted link cannot bind another account.
 - Pilot counts and the demo seed.
 
@@ -864,7 +883,7 @@ Vitest runs `unit` and `db` projects (`npm run test:unit`, `npm run test:db`, or
 | PRD requirement(s) | Where designed | Verified by |
 |---|---|---|
 | ACCESS-1, ACCESS-7 | [Authentication and authorization](#authentication-and-authorization), [Deployment exposure](#deployment-exposure) | Sign-in gate, anonymous route and header tests |
-| ACCESS-2 to ACCESS-6 | [Sharing and invitations](#sharing-and-invitations), `trip_viewers` | Invitation integration tests |
+| ACCESS-2 to ACCESS-6 | [Sharing and invitations](#sharing-and-invitations), [Roles](#roles), `trip_viewers` | Invitation and role-matrix integration tests |
 | ACCESS-8 to ACCESS-11 | [Sign-in, account and sharing screens](#sign-in-account-and-sharing-screens) | Browser checks |
 | DASH-1 to DASH-7 | [Dashboard](#dashboard), [Time zones](#time-zones), [Deletion and retention](#deletion-and-retention) | Dashboard, cascade and edit tests; responsive browser check |
 | ATLAS-1 to ATLAS-7 | [Dashboard](#dashboard), `trips` atlas columns, [Atlas v1](atlas-v1.md). ATLAS-4's click-the-globe picker is not built. | Catalog and globe-motion tests, browser checks |

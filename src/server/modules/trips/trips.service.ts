@@ -19,12 +19,13 @@ import { deleteTripRow, insertTrip, updateTripRow } from "./trips.repository";
 
 /** A trip page: the trip, its live items in timeline order, money totals and budget comparison. */
 export async function getTripDetail(db: Kysely<DB>, actor: Actor, tripId: string, now = new Date()): Promise<TripDetailDTO> {
-  const { trip, role } = await requireTripRead(db, actor, tripId);
+  const access = await requireTripRead(db, actor, tripId);
+  const { trip, role } = access;
   const today = dateInZone(trip.time_zone, now.getTime());
   const items = (await liveItems(db, trip.id)).map((r) => itemDto(r, trip.time_zone, today)).sort(compareItems);
   return {
     trip: {
-      ...tripSummary(trip, role, now),
+      ...tripSummary(trip, access, now),
       version: trip.version,
       budget: trip.budget_amount !== null && trip.budget_currency ? { amount: trimAmount(trip.budget_amount), currency: trip.budget_currency } : null,
       today,
@@ -53,13 +54,14 @@ export async function createTrip(db: Kysely<DB>, actor: Actor, input: TripInput,
     atlas_source: point ? "catalog" : null,
   });
   await countUsage(db, [{ name: "manual_trip_created" }]);
-  return tripSummary(row, "owner", now);
+  return tripSummary(row, { role: "owner", primaryOwner: true }, now);
 }
 
 /** DASH-6: edit a trip; a time-zone change needs confirmation, a destination change re-matches the globe point. */
 export async function updateTrip(db: Kysely<DB>, actor: Actor, tripId: string, patch: TripPatch, now = new Date()): Promise<TripSummaryDTO> {
   return db.transaction().execute(async (tx) => {
-    const { trip } = await requireTripOwner(tx, actor, tripId, true);
+    const access = await requireTripOwner(tx, actor, tripId, true);
+    const { trip } = access;
     if (trip.version !== patch.expectedVersion) throw conflict();
     if (patch.timeZone !== trip.time_zone) await applyTimeZoneChange(tx, trip, patch.timeZone, patch.confirmTimeZoneImpact, patch.timeDisambiguationByItem ?? {});
 
@@ -88,7 +90,7 @@ export async function updateTrip(db: Kysely<DB>, actor: Actor, tripId: string, p
       atlas_source: src,
     });
     if (!row) throw conflict();
-    return tripSummary(row, "owner", now);
+    return tripSummary({ ...row, owner_name: trip.owner_name }, access, now);
   });
 }
 

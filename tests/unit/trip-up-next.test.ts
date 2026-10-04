@@ -6,7 +6,7 @@ type Trip = TripDetailDTO["trip"];
 const trip = (over: Partial<Trip>): Trip => ({
   id: "t", title: "Trip", destination: "Honolulu", startDate: "2026-10-19", endDate: "2026-10-26", timeZone: "Pacific/Honolulu",
   status: "upcoming", daysToStart: 21, dayIndex: null, daysSinceEnd: null, dayCount: 8, role: "owner", ownerName: null, atlasLocation: null,
-  version: 1, budget: null, today: "2026-09-28", ...over,
+  version: 1, budget: null, today: "2026-09-28", primaryOwner: true, ...over,
 });
 const endpoint = (airportCode: string | null) => ({ airportCode, localDateTime: null, timeZone: null, timeDisambiguation: null });
 const item = (id: string, timelineDate: string | null, sortInstant: string | null = null, over: Partial<PlanItemDTO> = {}): PlanItemDTO => ({

@@ -9,6 +9,7 @@ export function invitationDto(row: InvitationRow, now: Date): InvitationDTO {
   return {
     id: row.id,
     email: row.invitee_email_normalized,
+    role: row.role,
     status,
     expiresAt: status === "pending" || status === "expired" ? (row.expires_at?.toISOString() ?? null) : null,
     acceptedAt: status === "accepted" ? (row.accepted_at?.toISOString() ?? null) : null,

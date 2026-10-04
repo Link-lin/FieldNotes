@@ -5,7 +5,7 @@
 
 ## Scope and product meaning
 
-The globe is a way to browse trips, with **one approximate destination point per trip**. It does not show itinerary stops, actual travel, flight paths, live location, directions, or a visited-country total. Itinerary stops appear only on the outline day map described in [Trip page v1](trip-page-v1.md). A trip may have no point and must still be visible and openable in the dashboard list. The owner can correct or clear a point. A viewer can only read the points for trips they can already read.
+The globe is a way to browse trips, with **one approximate destination point per trip**. It does not show itinerary stops, actual travel, flight paths, live location, directions, or a visited-country total. Itinerary stops appear only on the outline day map described in [Trip page v1](trip-page-v1.md). A trip may have no point and must still be visible and openable in the dashboard list. The owner can correct or clear a point. Only an owner can change a point; editors and viewers can only read the points for trips they can already read.
 
 The first-release dashboard has **All**, **Upcoming**, **Ongoing**, and **Past** filters. One server-authorized `DashboardDTO` feeds both the list and the globe. Filtering is client-side over that response; the date status comes from the server's trip-time-zone calculation. Selecting a marker highlights its list card and offers **Open trip**. Selecting a list card highlights and rotates/focuses the matching marker if one exists. Opening a trip works from either view. The list is the complete, keyboard-operable route; do not make globe drag or hover the only way to reach a trip.
 
@@ -37,7 +37,7 @@ The dashboard uses the warm paper-and-ink palette and shared tokens defined in [
 
 - Check catalog generation output and licensing notes into the repository with a deterministic source version; keep runtime free of a geocoder key or external map availability dependency.
 - Test exact/ambiguous/unmatched matching, owner correction/clear, destination edit rules, coordinate bounds, and stale-version conflict.
-- Test owner/viewer/anonymous dashboard and search/write permissions, including immediate revocation. A revoked trip marker must disappear on the next protected fetch.
+- Test owner/editor/viewer/anonymous dashboard and search/write permissions, including immediate revocation. A revoked trip marker must disappear on the next protected fetch.
 - Test list/globe filter synchronization, shared-coordinate selection, no-point trips, canvas or asset failure, reduced motion, keyboard navigation, and small screens.
 - Load-test only the realistic personal-data bound (the existing 250-item trip cap does not bound trip count). Keep markers and the list responsive with dozens of trips; measure before adding clustering or pagination.
 - Do not log destination search text or coordinates. Serve world assets from the app origin and confirm no browser request to third-party tile/geocoding endpoints in the dashboard.

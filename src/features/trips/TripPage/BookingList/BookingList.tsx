@@ -8,10 +8,10 @@ import { TaskList } from "@/components/ui/TaskList/TaskList";
 import { BookingTask, type BookingRow } from "@/features/trips/BookingTask/BookingTask";
 import styles from "./BookingList.module.css";
 
-type Props = { trip: TripDetailDTO["trip"]; items: PlanItemDTO[]; owner: boolean; onOpen: (item: PlanItemDTO) => void };
+type Props = { trip: TripDetailDTO["trip"]; items: PlanItemDTO[]; canEdit: boolean; onOpen: (item: PlanItemDTO) => void };
 
 /** Booking work for this trip, grouped by urgency and read-only for viewers. */
-export function BookingList({ trip, items, owner, onOpen }: Props) {
+export function BookingList({ trip, items, canEdit, onOpen }: Props) {
   const pendingFocus = useRef<{ itemId: string; version: number } | null>(null);
   useEffect(() => {
     const pending = pendingFocus.current;
@@ -44,7 +44,7 @@ export function BookingList({ trip, items, owner, onOpen }: Props) {
         <p className="mono">For this trip</p>
         <h2 id="bookings-title" tabIndex={-1}>Bookings</h2>
         <p>{toBook.length ? `${toBook.length} ${toBook.length === 1 ? "item needs" : "items need"} booking. Keep dates and booking status here; open an event for its details.` : items.length ? "No booking tasks right now." : "No events yet, so there is nothing to book."}</p>
-        {!owner ? <p className="note">Read only. {trip.ownerName ?? "The owner"} manages the bookings.</p> : null}
+        {!canEdit ? <p className="note">Read only. {trip.ownerName ?? "The owner"} manages the bookings.</p> : null}
       </div>
       <div className={styles.groups}>
         {groups.map((group) => (
@@ -57,7 +57,7 @@ export function BookingList({ trip, items, owner, onOpen }: Props) {
             <Card className={styles.card}>
               <TaskList className={styles.tasks}>
                 {group.items.map((i) => (
-                  <BookingTask key={i.id} task={task(i)} owner={owner} onOpen={() => onOpen(i)} onDateSaved={(itemId, version) => { pendingFocus.current = { itemId, version }; }} emptyFocus="#bookings-title" />
+                  <BookingTask key={i.id} task={task(i)} canEdit={canEdit} onOpen={() => onOpen(i)} onDateSaved={(itemId, version) => { pendingFocus.current = { itemId, version }; }} emptyFocus="#bookings-title" />
                 ))}
               </TaskList>
             </Card>

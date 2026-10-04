@@ -22,7 +22,7 @@ type Props = {
   item: PlanItemDTO;
   /** False while the panel slides out; it unmounts (onExited) when that finishes. */
   open: boolean;
-  owner: boolean;
+  canEdit: boolean;
   num: { n: number; need: boolean } | null;
   mapsKey: string | null;
   /** The previous and next events in the order the page shows them, if any. */
@@ -49,11 +49,11 @@ const EXIT_MS = 320;
  * owner edits in place. Previous and next step through the events in page order. Escape, the close
  * button or a click on the faded page closes it and returns focus to the event.
  */
-export function EventPanel({ trip, item, open, owner, num, mapsKey, prev, next, onGo, onClose, onExited, onSaved, onNotesSaved, defaultCurrency, recentCurrencies, initialEditing = false, presentation = "panel", triggerSelector }: Props) {
+export function EventPanel({ trip, item, open, canEdit, num, mapsKey, prev, next, onGo, onClose, onExited, onSaved, onNotesSaved, defaultCurrency, recentCurrencies, initialEditing = false, presentation = "panel", triggerSelector }: Props) {
   const ref = useRef<HTMLElement>(null);
   const notesRef = useRef<NotesEditorHandle>(null);
   const leaving = useRef(false);
-  const [editing, setEditing] = useState(initialEditing && owner);
+  const [editing, setEditing] = useState(initialEditing && canEdit);
   const [editItem, setEditItem] = useState<PlanItemDTO | null>(null);
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -163,7 +163,7 @@ export function EventPanel({ trip, item, open, owner, num, mapsKey, prev, next, 
             </div>
           )}
           <div className={styles.barActions}>
-            {!editing && owner ? <Button variant="fill" data-panel-edit onClick={startEditing} disabled={waiting}><EditIcon /> Edit event</Button> : null}
+            {!editing && canEdit ? <Button variant="fill" data-panel-edit onClick={startEditing} disabled={waiting}><EditIcon /> Edit event</Button> : null}
             <button type="button" className={styles.close} data-panel-close aria-label={presentation === "page" ? "Back to trip" : "Close event details"} disabled={busy || waiting} onClick={requestClose}>{presentation === "page" ? "← Trip" : "×"}</button>
           </div>
         </div>
@@ -275,7 +275,7 @@ export function EventPanel({ trip, item, open, owner, num, mapsKey, prev, next, 
             </section>
           ) : null}
 
-          {owner ? (
+          {canEdit ? (
             <NotesEditor ref={notesRef} tripId={trip.id} item={item} onSaved={onNotesSaved} />
           ) : (
             <section className={styles.section} aria-label="Notes">

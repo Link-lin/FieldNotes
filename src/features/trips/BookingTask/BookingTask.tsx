@@ -15,7 +15,7 @@ export type BookingRow = BookingTaskDTO & { itemVersion: number; canMarkBooked: 
 
 type Props = {
   task: BookingRow;
-  owner: boolean;
+  canEdit: boolean;
   onOpen: () => void;
   onDateSaved: (itemId: string, version: number) => void;
   /** Focused when the last task in the list has been marked booked. */
@@ -32,11 +32,11 @@ function focusSoon(selector: string, tries = 40) {
 }
 
 /**
- * BOOK-3, BOOK-4: one task in a booking list. Its title opens the event's view (TRIP-10). The owner
- * can mark it booked, with Undo (a flight only once it has its FLIGHT-2 fields), and set, change or
+ * BOOK-3, BOOK-4: one task in a booking list. Its title opens the event's view (TRIP-10). Anyone
+ * who can edit can mark it booked, with Undo (a flight only once it has its FLIGHT-2 fields), and set, change or
  * remove its book-by date in place. A viewer sees the task only.
  */
-export function BookingTask({ task, owner, onOpen, onDateSaved, emptyFocus }: Props) {
+export function BookingTask({ task, canEdit, onOpen, onDateSaved, emptyFocus }: Props) {
   const router = useRouter();
   const toast = useToast();
   const id = useId();
@@ -146,7 +146,7 @@ export function BookingTask({ task, owner, onOpen, onDateSaved, emptyFocus }: Pr
       ) : (
         <p className={styles.due}>{dueText(current.dueDate, current.state)}</p>
       )}
-      {owner && !editing ? (
+      {canEdit && !editing ? (
         <div className={styles.actions}>
           {task.canMarkBooked ? (
             <Button variant="quiet" data-book={task.itemId} onClick={() => void markBooked()} aria-label={`Mark ${task.itemTitle} booked`}>{busy ? "Saving…" : "Mark booked"}</Button>

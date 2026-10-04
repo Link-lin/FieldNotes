@@ -14,7 +14,7 @@ const samePoint = (a: TripSummaryDTO, b: TripSummaryDTO) =>
  */
 export function GlobeCallout({ ref, selected, trips, onSelect }: { ref: React.Ref<HTMLDivElement>; selected: TripSummaryDTO; trips: TripSummaryDTO[]; onSelect: (id: string) => void }) {
   const same = trips.filter((t) => samePoint(t, selected));
-  const setBy = selected.atlasLocation?.source === "owner" ? (selected.role === "owner" ? "Point set by you" : "Point set by the trip owner") : "Approximate destination";
+  const setBy = selected.atlasLocation?.source === "owner" ? (selected.primaryOwner ? "Point set by you" : "Point set by an owner") : "Approximate destination";
   return (
     <div className={styles.callout} ref={ref}>
       {same.length > 1 ? (

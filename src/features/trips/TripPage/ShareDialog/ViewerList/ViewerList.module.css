@@ -4,6 +4,10 @@
 .who { display: grid; gap: var(--space-1); min-width: 0; }
 .email { overflow-wrap: anywhere; }
 .meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); color: var(--ink-3); font-size: var(--text-sm); }
+/* A compact role picker beside the person; its shared field styling is tightened to fit the row. */
+.role { flex: 0 0 auto; }
+.role select { min-height: 32px; padding: 4px 32px 4px 12px; font-size: var(--text-sm); }
+.was { color: var(--ink-3); font-size: var(--text-sm); }
 .actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
 .ask { font-size: var(--text-sm); }
 .error { flex-basis: 100%; }

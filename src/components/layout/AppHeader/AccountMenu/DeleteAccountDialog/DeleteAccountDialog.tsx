@@ -37,8 +37,8 @@ export function DeleteAccountDialog({ ownedTrips, onClose, returnFocus }: { owne
       fallbackFocus={returnFocus}
       subtitle={
         <>
-          This signs you out and removes your sign-in identity. Trips shared with you stop being visible to you.
-          {ownedTrips.length ? ` It also permanently deletes ${ownedTrips.length === 1 ? "the trip" : `the ${ownedTrips.length} trips`} you own, with their events, booking lists and invitations:` : ""}
+          This signs you out and removes your sign-in identity. Trips shared with you stop being visible to you, and you leave them.
+          {ownedTrips.length ? ` It also permanently deletes ${ownedTrips.length === 1 ? "the trip" : `the ${ownedTrips.length} trips`} you created, with their events, booking lists and invitations, for everyone they are shared with:` : ""}
         </>
       }
     >

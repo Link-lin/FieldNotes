@@ -6,7 +6,7 @@ type Props = {
   items: PlanItemDTO[];
   /** Stop numbers by item id; rows without one get a plain bullet. */
   numbers: Map<string, { n: number; need: boolean }> | null;
-  owner: boolean;
+  canEdit: boolean;
   tripZone: string;
   menuFor: string | null;
   onMenu: (id: string | null) => void;
@@ -17,7 +17,7 @@ type Props = {
 };
 
 /** A vertical line of events in time order. */
-export function Timeline({ items, numbers, owner, tripZone, menuFor, onMenu, onOpen, onEdit, onDuplicate, onDelete }: Props) {
+export function Timeline({ items, numbers, canEdit, tripZone, menuFor, onMenu, onOpen, onEdit, onDuplicate, onDelete }: Props) {
   return (
     <ul className={styles.timeline} data-timeline>
       {items.map((i) => (
@@ -25,7 +25,7 @@ export function Timeline({ items, numbers, owner, tripZone, menuFor, onMenu, onO
           key={i.id}
           item={i}
           num={numbers?.get(i.id) ?? null}
-          owner={owner}
+          canEdit={canEdit}
           tripZone={tripZone}
           menuOpen={menuFor === i.id}
           onMenu={(o) => onMenu(o ? i.id : null)}

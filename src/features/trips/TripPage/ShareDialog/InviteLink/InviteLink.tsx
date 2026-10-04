@@ -3,16 +3,24 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button/Button";
 import { Field } from "@/components/ui/Field/Field";
+import { ROLE_LABEL } from "@/shared/roles";
 import { CopyIcon } from "@/components/ui/Icon/icons";
+import type { Role } from "@/shared/dto";
 import { instantDate } from "@/lib/format";
 import styles from "./InviteLink.module.css";
 
-type Props = { tripTitle: string; email: string; url: string; expiresAt: string };
+type Props = { tripTitle: string; email: string; role: Role; url: string; expiresAt: string };
 type LinkProps = Props & { /** Called when the message is copied, by the button or by the keyboard. */ onCopied: () => void };
 
-export function inviteMessage({ tripTitle, email, url, expiresAt }: Props): string {
+const WHAT_YOU_CAN_DO: Record<Role, string> = {
+  viewer: "You can view it but not change it.",
+  editor: "You can view it and change its events, bookings and notes.",
+  owner: "You can view it, change it, share it and delete it.",
+};
+
+export function inviteMessage({ tripTitle, email, role, url, expiresAt }: Props): string {
   return [
-    `I've shared my trip "${tripTitle}" with you on Field Notes. You can view it but not change it.`,
+    `I've shared my trip "${tripTitle}" with you on Field Notes. ${WHAT_YOU_CAN_DO[role]}`,
     "",
     `Open this link and sign in with Google as ${email}:`,
     url,
@@ -50,7 +58,7 @@ export function InviteLink({ onCopied, ...props }: LinkProps) {
 
   return (
     <div ref={box} className={styles.box} role="group" aria-labelledby={`${id}-title`} data-invite-link>
-      <p id={`${id}-title`} className={styles.title}>Invitation for {props.email}</p>
+      <p id={`${id}-title`} className={styles.title}>Invitation for {props.email} as {ROLE_LABEL[props.role].toLowerCase()}</p>
       <p className="note">
         Copy this message and send it yourself; Field Notes doesn&apos;t send email. This is the only time the link is shown. It expires on{" "}
         {instantDate(props.expiresAt)}.

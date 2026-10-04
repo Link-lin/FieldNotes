@@ -3,7 +3,7 @@ import type { Kysely } from "kysely";
 import type { DB, PlanItemRow } from "@/server/core/db/schema";
 import { conflict, HttpError, invalid } from "@/server/core/http/errors";
 import type { Actor } from "@/server/auth/actor";
-import { requireTripOwner } from "@/server/auth/access";
+import { requireTripEditor } from "@/server/auth/access";
 import { bumpTripVersion } from "@/server/modules/trips/trips.repository";
 import type { PlanItemDTO } from "@/shared/dto";
 import type { ItemInput } from "@/shared/schemas";
@@ -27,7 +27,7 @@ const capError = () => new HttpError(409, "item_cap", `A trip can have at most $
 
 export async function createItem(db: Kysely<DB>, actor: Actor, tripId: string, input: ItemInput, now = new Date()): Promise<PlanItemDTO> {
   const created = await db.transaction().execute(async (tx) => {
-    const { trip } = await requireTripOwner(tx, actor, tripId, true);
+    const { trip } = await requireTripEditor(tx, actor, tripId, true);
     await repo.purgeExpired(tx, trip.id);
     if ((await repo.liveCount(tx, trip.id)) >= ITEM_CAP) throw capError();
     const errs = scheduleErrors(input, trip.time_zone);
@@ -60,7 +60,7 @@ export async function updateItem(
 ): Promise<PlanItemDTO> {
   let before: PlanItemRow | null = null;
   const saved = await db.transaction().execute(async (tx) => {
-    const { trip } = await requireTripOwner(tx, actor, tripId, true);
+    const { trip } = await requireTripEditor(tx, actor, tripId, true);
     await repo.purgeExpired(tx, trip.id);
     const current = await repo.loadItemForUpdate(tx, trip.id, itemId);
     if (current.version !== body.expectedVersion) throw conflict();
@@ -95,7 +95,7 @@ export async function updateItemNotes(
 ): Promise<PlanItemDTO> {
   let wasAi = false;
   const saved = await db.transaction().execute(async (tx) => {
-    const { trip } = await requireTripOwner(tx, actor, tripId, true);
+    const { trip } = await requireTripEditor(tx, actor, tripId, true);
     await repo.purgeExpired(tx, trip.id);
     const current = await repo.loadItemForUpdate(tx, trip.id, itemId);
     if (current.version !== body.expectedVersion) throw conflict();
@@ -125,7 +125,7 @@ export async function updateItemBooking(
 ): Promise<PlanItemDTO> {
   let before: PlanItemRow | null = null;
   const saved = await db.transaction().execute(async (tx) => {
-    const { trip } = await requireTripOwner(tx, actor, tripId, true);
+    const { trip } = await requireTripEditor(tx, actor, tripId, true);
     await repo.purgeExpired(tx, trip.id);
     const current = await repo.loadItemForUpdate(tx, trip.id, itemId);
     if (current.version !== body.expectedVersion) throw conflict();
@@ -145,7 +145,7 @@ export async function updateItemBooking(
 /** TRIP-8: immediate soft delete; restorable for 10 minutes. */
 export async function deleteItem(db: Kysely<DB>, actor: Actor, tripId: string, itemId: string, expectedVersion: number): Promise<void> {
   const source = await db.transaction().execute(async (tx) => {
-    const { trip } = await requireTripOwner(tx, actor, tripId, true);
+    const { trip } = await requireTripEditor(tx, actor, tripId, true);
     await repo.purgeExpired(tx, trip.id);
     const current = await repo.loadItemForUpdate(tx, trip.id, itemId);
     if (current.version !== expectedVersion) throw conflict();
@@ -159,7 +159,7 @@ export async function deleteItem(db: Kysely<DB>, actor: Actor, tripId: string, i
 /** Undo within 10 minutes: the same row comes back, if the cap allows and its time still exists. */
 export async function restoreItem(db: Kysely<DB>, actor: Actor, tripId: string, itemId: string, now = new Date()): Promise<PlanItemDTO> {
   return db.transaction().execute(async (tx) => {
-    const { trip } = await requireTripOwner(tx, actor, tripId, true);
+    const { trip } = await requireTripEditor(tx, actor, tripId, true);
     const current = await repo.loadItemForUpdate(tx, trip.id, itemId, true);
     if (!current.deleted_at) return dto(current, trip.time_zone, now);
     if (now.getTime() - new Date(current.deleted_at).getTime() > RESTORE_WINDOW_MS) {
@@ -183,7 +183,7 @@ export async function restoreItem(db: Kysely<DB>, actor: Actor, tripId: string, 
 /** PLAN-3: duplicate; a booked item becomes "needs booking" with no due date. */
 export async function duplicateItem(db: Kysely<DB>, actor: Actor, tripId: string, itemId: string, expectedVersion: number, now = new Date()): Promise<PlanItemDTO> {
   return db.transaction().execute(async (tx) => {
-    const { trip } = await requireTripOwner(tx, actor, tripId, true);
+    const { trip } = await requireTripEditor(tx, actor, tripId, true);
     const src = await repo.loadItemForUpdate(tx, trip.id, itemId);
     if (src.version !== expectedVersion) throw conflict();
     await repo.purgeExpired(tx, trip.id);

@@ -10,6 +10,7 @@ import { TripForm } from "@/features/trips/TripForm/TripForm";
 import { api } from "@/lib/api";
 import { clearEventReturn } from "@/lib/event-return";
 import { fmtDay } from "@/lib/format";
+import { canEdit as mayEdit, canManage as mayManage } from "@/shared/roles";
 import { AddFab } from "./AddFab/AddFab";
 import { BookingList } from "./BookingList/BookingList";
 import { CostsSection } from "./CostsSection/CostsSection";
@@ -43,7 +44,8 @@ export function TripPage({ data, initialDay, initialEvent, initialView, mapsKey 
   const router = useRouter();
   const toast = useToast();
   const { trip, items } = data;
-  const owner = trip.role === "owner";
+  const canEdit = mayEdit(trip.role); // events, bookings and notes
+  const canManage = mayManage(trip.role); // the trip itself, sharing and deletion
 
   const { byDate, inRange, days } = useMemo(() => tripDays(trip, items), [trip, items]);
   const undated = items.filter((i) => !i.timelineDate && !i.flightDetails);
@@ -204,7 +206,7 @@ export function TripPage({ data, initialDay, initialEvent, initialView, mapsKey 
     <Timeline
       items={list}
       numbers={numbered ? numbers : null}
-      owner={owner}
+      canEdit={canEdit}
       tripZone={trip.timeZone}
       menuFor={menuFor}
       onMenu={setMenuFor}
@@ -220,7 +222,7 @@ export function TripPage({ data, initialDay, initialEvent, initialView, mapsKey 
       <article className={styles.trip}>
         <div className={styles.hero} data-view={view}>
           <div className={styles.heading}>
-            <TripHeader trip={trip} owner={owner} compact={view === "bookings"} items={items} onOpenEvent={(i) => eventPanel.open(i, { trigger: "[data-up-next]" })} onAdd={() => openAdd(all ? "" : day, "[data-add-top]")} onEdit={() => setEditingTrip(true)} onShare={() => setSharing(true)} />
+            <TripHeader trip={trip} canEdit={canEdit} canManage={canManage} compact={view === "bookings"} items={items} onOpenEvent={(i) => eventPanel.open(i, { trigger: "[data-up-next]" })} onAdd={() => openAdd(all ? "" : day, "[data-add-top]")} onEdit={() => setEditingTrip(true)} onShare={() => setSharing(true)} />
           </div>
           <div className={styles.sectionNav}>
             <TripViewNav selected={view} toBook={toBook.length} overdue={overdueCount} onSelect={selectView} />
@@ -228,7 +230,7 @@ export function TripPage({ data, initialDay, initialEvent, initialView, mapsKey 
           </div>
         </div>
         {view === "bookings" ? (
-          <BookingList trip={trip} items={items} owner={owner} onOpen={(i) => eventPanel.open(i, { trigger: `[data-task-open="${i.id}"]` })} />
+          <BookingList trip={trip} items={items} canEdit={canEdit} onOpen={(i) => eventPanel.open(i, { trigger: `[data-task-open="${i.id}"]` })} />
         ) : (
           <>
             <DayTabs trip={trip} days={days} byDate={byDate} eventCount={items.length} pinCount={allStops.length} selected={day} onSelect={selectDay} />
@@ -248,7 +250,7 @@ export function TripPage({ data, initialDay, initialEvent, initialView, mapsKey 
                         meta={<>{outside ? "Outside trip dates" : `Day ${pad2(dayNumber(trip, d))} of ${pad2(inRange.length)}`}{d === trip.today ? <TodayMark /> : null}</>}
                         outside={outside}
                         empty={!list.length}
-                        onAdd={owner ? () => openAdd(d, `[data-add-day="${d}"]`) : undefined}
+                        onAdd={canEdit ? () => openAdd(d, `[data-add-day="${d}"]`) : undefined}
                         addKey={d}
                       >
                         {list.length ? (
@@ -277,10 +279,10 @@ export function TripPage({ data, initialDay, initialEvent, initialView, mapsKey 
                       {timeline(undated, false)}
                     </DaySection>
                   ) : null}
-                  {owner && recentlyDeleted.length ? <RecentlyDeleted items={recentlyDeleted} onRestore={restoreEvent} /> : null}
+                  {canEdit && recentlyDeleted.length ? <RecentlyDeleted items={recentlyDeleted} onRestore={restoreEvent} /> : null}
                 </div>
-                <CostsSection data={data} owner={owner} />
-                <div className={styles.location}><GlobeLocation trip={trip} owner={owner} /></div>
+                <CostsSection data={data} canManage={canManage} />
+                <div className={styles.location}><GlobeLocation trip={trip} canManage={canManage} /></div>
               </div>
               <MapPanel key={day} day={day} stops={stops} onPin={goToEvent} mapsKey={mapsKey} />
             </div>
@@ -288,7 +290,7 @@ export function TripPage({ data, initialDay, initialEvent, initialView, mapsKey 
         )}
       </article>
 
-      {owner ? <AddFab onClick={() => openAdd(all ? "" : day, "[data-fab]")} /> : null}
+      {canEdit ? <AddFab onClick={() => openAdd(all ? "" : day, "[data-fab]")} /> : null}
 
       {itemForm ? (
         <ItemForm
@@ -315,7 +317,7 @@ export function TripPage({ data, initialDay, initialEvent, initialView, mapsKey 
           trip={trip}
           item={eventPanel.item}
           open={eventPanel.panel.open}
-          owner={owner}
+          canEdit={canEdit}
           num={numbers.get(eventPanel.item.id) ?? null}
           mapsKey={mapsKey}
           defaultCurrency={defaultCurrency}
@@ -338,7 +340,7 @@ export function TripPage({ data, initialDay, initialEvent, initialView, mapsKey 
           }}
         />
       ) : null}
-      {sharing && owner ? <ShareDialog trip={trip} onClose={() => setSharing(false)} /> : null}
+      {sharing && canManage ? <ShareDialog trip={trip} onClose={() => setSharing(false)} /> : null}
       {editingTrip ? <TripForm trip={trip} recentCurrencies={data.recentCurrencies} onClose={() => setEditingTrip(false)} itemDates={items.map((i) => i.timelineDate).filter((d): d is string => !!d)} /> : null}
     </div>
   );

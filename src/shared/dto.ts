@@ -1,6 +1,6 @@
 import type { TripStatus, DueState, Disambiguation } from "./time";
 
-export type Role = "owner" | "viewer";
+export type Role = "owner" | "editor" | "viewer";
 export type ItemType = "flight" | "lodging" | "transport" | "meal" | "activity" | "other";
 export type BookingStatus = "not_required" | "needs_booking" | "booked";
 export type MoneyDTO = { amount: string; currency: string };
@@ -18,8 +18,9 @@ export type TripSummaryDTO = {
   dayIndex: number | null; // ongoing only, 1-based
   daysSinceEnd: number | null; // past only, in the trip time zone
   dayCount: number;
-  role: Role;
-  ownerName: string | null; // shown to viewers only ("shared by")
+  role: Role; // what you may do on this trip
+  primaryOwner: boolean; // you created it (a co-owner has the owner role without this)
+  ownerName: string | null; // who created it, for everyone else ("shared by")
   atlasLocation: (LatLon & { source: "catalog" | "owner" }) | null;
 };
 
@@ -119,6 +120,8 @@ export type InvitationStatus = "pending" | "accepted" | "expired" | "revoked";
 export type InvitationDTO = {
   id: string;
   email: string;
+  /** What this person may do once they accept (or do now, if already accepted). */
+  role: Role;
   status: InvitationStatus;
   expiresAt: string | null;
   acceptedAt: string | null;

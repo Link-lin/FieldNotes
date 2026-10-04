@@ -6,13 +6,27 @@ import type { Actor } from "@/server/auth/actor";
 
 /** SQL for trips. No access checks here: services call auth/access first. */
 
-/** Owned trips (owner still allowlisted) plus trips with an accepted grant, with the owner's name. */
-export async function visibleTrips(db: Conn, actor: Actor): Promise<Array<TripRow & { owner_name: string | null }>> {
+/**
+ * Trips you created (while still on the allowlist) plus trips with an accepted grant, with the creator's
+ * name. `member_role` is the highest role of your accepted grant on the trip, or null for your own trips.
+ */
+export async function visibleTrips(db: Conn, actor: Actor): Promise<Array<TripRow & { owner_name: string | null; member_role: "viewer" | "editor" | "owner" | null }>> {
   return db
     .selectFrom("trips")
     .innerJoin("User", "User.id", "trips.owner_user_id")
     .selectAll("trips")
     .select("User.name as owner_name")
+    .select((eb) =>
+      eb
+        .selectFrom("trip_viewers")
+        .select("trip_viewers.role")
+        .whereRef("trip_viewers.trip_id", "=", "trips.id")
+        .where("trip_viewers.viewer_user_id", "=", actor.userId)
+        .where("trip_viewers.status", "=", "accepted")
+        .orderBy(sql`case trip_viewers.role when 'owner' then 2 when 'editor' then 1 else 0 end`, "desc")
+        .limit(1)
+        .as("member_role"),
+    )
     .where((eb) =>
       eb.or([
         eb.and([eb("trips.owner_user_id", "=", actor.userId), eb.val(actor.isOwner)]),

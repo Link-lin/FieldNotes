@@ -5,7 +5,7 @@ import { getTripDetail } from "@/server/modules/trips/trips.service";
 import { actorFor } from "@/server/auth/actor";
 import { flightReadyToBook } from "@/shared/booking";
 import { upNext } from "@/features/trips/TripPage/trip-days";
-import { HAWAII_TITLE, KAUAI_TITLE, KYOTO_TITLE, LISBON_TITLE, seedDemoTrips, TEST_FRIEND } from "../../scripts/demo-trips";
+import { HAWAII_TITLE, KAUAI_TITLE, KYOTO_TITLE, LISBON_TITLE, OSAKA_TITLE, SEOUL_TITLE, seedDemoTrips, TEST_FRIEND } from "../../scripts/demo-trips";
 import { makeActor, reset, testDb } from "./helpers";
 
 const NOW = new Date("2026-09-28T20:00:00Z"); // 28 Sep in Hawaii
@@ -82,11 +82,21 @@ describe("test trips seed", () => {
     const ids = await seed();
     const invitations = await listInvitations(testDb(), owner, ids[HAWAII_TITLE]!, NOW);
     expect(invitations.map((i) => i.status).sort()).toEqual(["accepted", "expired", "pending", "revoked"]);
+    // Every role appears in the sharing list: an accepted editor, a pending owner, an expired editor, a revoked viewer.
+    expect(invitations.map((i) => `${i.status}:${i.role}`).sort()).toEqual(["accepted:editor", "expired:editor", "pending:owner", "revoked:viewer"]);
 
     const dash = await getDashboard(testDb(), owner, NOW);
     const byTitle = Object.fromEntries(dash.trips.map((t) => [t.title, t]));
     expect(byTitle[KYOTO_TITLE]).toMatchObject({ role: "viewer", status: "past", ownerName: TEST_FRIEND.name, atlasLocation: { source: "catalog" } });
-    expect(byTitle[LISBON_TITLE]).toMatchObject({ role: "owner", status: "upcoming", atlasLocation: null });
+    expect(byTitle[LISBON_TITLE]).toMatchObject({ role: "owner", primaryOwner: true, status: "upcoming", atlasLocation: null });
+    // Trips someone else made, with each role you can hold on them.
+    expect(byTitle[KYOTO_TITLE]).toMatchObject({ role: "viewer", primaryOwner: false });
+    expect(byTitle[OSAKA_TITLE]).toMatchObject({ role: "editor", primaryOwner: false, ownerName: TEST_FRIEND.name });
+    expect(byTitle[SEOUL_TITLE]).toMatchObject({ role: "owner", primaryOwner: false, ownerName: TEST_FRIEND.name });
+    // Booking counts cover the trips you can edit (yours, the editor trip and the co-owned one), never the viewer trip.
+    const taskTrips = new Set(dash.ownerBookingTasks.map((t) => t.tripTitle));
+    expect(taskTrips.has(OSAKA_TITLE) && taskTrips.has(SEOUL_TITLE) && taskTrips.has(HAWAII_TITLE)).toBe(true);
+    expect(taskTrips.has(KYOTO_TITLE)).toBe(false);
     expect(new Set(dash.ownerBookingTasks.map((t) => t.state))).toEqual(new Set(["overdue", "due_today", "upcoming", "no_due_date"]));
 
     const kyoto = await getTripDetail(testDb(), owner, ids[KYOTO_TITLE]!, NOW);
@@ -101,7 +111,7 @@ describe("test trips seed", () => {
 
     const friend = await testDb().selectFrom("User").select(["id", "email"]).where("email", "=", TEST_FRIEND.email).executeTakeFirstOrThrow();
     const asFriend = await getTripDetail(testDb(), actorFor(friend), ids[HAWAII_TITLE]!, NOW);
-    expect(asFriend.trip.role).toBe("viewer");
+    expect(asFriend.trip.role).toBe("editor"); // Sam, the made-up friend, edits your Hawaii trip
   });
 
   it("replaces its own trips on a re-run and leaves the owner's other trips alone", async () => {
@@ -112,7 +122,7 @@ describe("test trips seed", () => {
     await seed();
     await seed();
     const trips = await testDb().selectFrom("trips").select(["id", "title"]).execute();
-    expect(trips.map((t) => t.title).sort()).toEqual([HAWAII_TITLE, KAUAI_TITLE, KYOTO_TITLE, LISBON_TITLE, "My real trip"].sort());
+    expect(trips.map((t) => t.title).sort()).toEqual([HAWAII_TITLE, KAUAI_TITLE, KYOTO_TITLE, LISBON_TITLE, OSAKA_TITLE, SEOUL_TITLE, "My real trip"].sort());
     expect(trips.find((t) => t.title === "My real trip")?.id).toBe(mine.id);
     const users = await testDb().selectFrom("User").select("email").where("email", "=", TEST_FRIEND.email).execute();
     expect(users).toHaveLength(1);

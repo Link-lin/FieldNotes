@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/Toast/Toast";
 import { replaceEventReturn, takeEventReturn } from "@/lib/event-return";
 import type { PlanItemDTO, TripDetailDTO } from "@/shared/dto";
+import { canEdit } from "@/shared/roles";
 import { EventPanel } from "../TripPage/EventPanel/EventPanel";
 import { tripDays, tripStops } from "../TripPage/trip-days";
 
@@ -42,7 +43,7 @@ export function EventPage({ data, itemId, selectedDay, fromBookings, initialEdit
       trip={trip}
       item={item}
       open
-      owner={trip.role === "owner"}
+      canEdit={canEdit(trip.role)}
       num={numbers.get(item.id) ?? null}
       mapsKey={mapsKey}
       defaultCurrency={defaultCurrency}

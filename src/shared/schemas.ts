@@ -170,9 +170,16 @@ export const timeZonePreviewSchema = z.object({ timeZone: zone, expectedVersion:
 export const accountDeleteSchema = z.object({ confirm: z.literal("DELETE") }).strict();
 
 /** ACCESS-3: invite one email address as a viewer. Stored trimmed and lowercased. */
+const memberRole = z.enum(["viewer", "editor", "owner"], { message: "Choose viewer, editor or owner." });
 export const invitationCreateSchema = z
-  .object({ email: z.string().trim().toLowerCase().max(254, { message: "That email address is too long." }).pipe(z.email({ message: "Enter an email address, like sam@example.com." })) })
+  .object({
+    email: z.string().trim().toLowerCase().max(254, { message: "That email address is too long." }).pipe(z.email({ message: "Enter an email address, like sam@example.com." })),
+    role: memberRole.default("viewer"),
+  })
   .strict();
+
+/** ACCESS-5: an owner changes what a person the trip is shared with may do. */
+export const invitationRoleSchema = z.object({ role: memberRole }).strict();
 
 /** The token from an invitation link's fragment. Its format is checked by the service, which answers with one generic error. */
 export const invitationStageSchema = z.object({ token: z.string().max(200) }).strict();

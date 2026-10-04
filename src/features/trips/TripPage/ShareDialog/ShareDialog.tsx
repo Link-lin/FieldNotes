@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { InvitationDTO, InvitationLinkDTO, TripDetailDTO } from "@/shared/dto";
+import type { InvitationDTO, InvitationLinkDTO, Role, TripDetailDTO } from "@/shared/dto";
+import { ROLE_HELP, ROLE_LABEL, ROLES } from "@/shared/roles";
 import { Banner } from "@/components/ui/Banner/Banner";
 import { Button } from "@/components/ui/Button/Button";
 import { Field, FormError } from "@/components/ui/Field/Field";
@@ -12,7 +13,7 @@ import { ViewerList, type IssueResult } from "./ViewerList/ViewerList";
 import styles from "./ShareDialog.module.css";
 
 type Props = { trip: TripDetailDTO["trip"]; onClose: () => void };
-type Shown = { email: string; url: string; expiresAt: string; copied: boolean };
+type Shown = { email: string; role: Role; url: string; expiresAt: string; copied: boolean };
 
 /** Insert or replace entries by ID, keeping list order. */
 function upsert(list: InvitationDTO[], add: InvitationDTO[]): InvitationDTO[] {
@@ -22,14 +23,15 @@ function upsert(list: InvitationDTO[], add: InvitationDTO[]): InvitationDTO[] {
 }
 
 /**
- * ACCESS-8/11: the owner's Share dialog. It states what viewers can see before anything is created,
- * invites one email at a time, shows each new link once (only its hash is stored, so it can't be
- * shown again), and lists viewers and invitations with Revoke and Create new link.
+ * ACCESS-5/8/11: the Share dialog for owners. It states what each role can see and do before anything is
+ * created, invites one email at a time with a role, shows each new link once (only its hash is stored, so
+ * it can't be shown again), and lists the people with their roles, Revoke and Create new link.
  */
 export function ShareDialog({ trip, onClose }: Props) {
   const [entries, setEntries] = useState<InvitationDTO[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [email, setEmail] = useState("");
+  const [role, setRole] = useState<Role>("viewer");
   const [emailError, setEmailError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -63,8 +65,8 @@ export function ShareDialog({ trip, onClose }: Props) {
   }, [trip.id, loads]);
 
   /** Create an invitation, or a new link for an existing entry, and show the link once. */
-  async function issue(address: string): Promise<IssueResult> {
-    const r = await api<InvitationLinkDTO>("POST", `/api/trips/${trip.id}/invitations`, { email: address });
+  async function issue(address: string, chosen: Role): Promise<IssueResult> {
+    const r = await api<InvitationLinkDTO>("POST", `/api/trips/${trip.id}/invitations`, { email: address, role: chosen });
     if (!r.ok) {
       const field = r.fields.find((f) => f.path === "email");
       return { ok: false, message: field?.message ?? r.message, onEmail: Boolean(field) };
@@ -72,7 +74,7 @@ export function ShareDialog({ trip, onClose }: Props) {
     const entry = r.data.invitation;
     issuedDuringLoad.current.set(entry.id, entry);
     setEntries((list) => upsert(list ?? [], [entry]));
-    const link = { email: entry.email, url: r.data.invitationUrl, expiresAt: r.data.expiresAt, copied: false };
+    const link = { email: entry.email, role: entry.role, url: r.data.invitationUrl, expiresAt: r.data.expiresAt, copied: false };
     setLinks((all) => [link, ...all.filter((l) => l.email !== entry.email)]);
     setConfirmClose(false);
     return { ok: true };
@@ -88,7 +90,7 @@ export function ShareDialog({ trip, onClose }: Props) {
       return;
     }
     setCreating(true);
-    const r = await issue(email);
+    const r = await issue(email, role);
     setCreating(false);
     if (r.ok) {
       setEmail("");
@@ -113,10 +115,15 @@ export function ShareDialog({ trip, onClose }: Props) {
   }, [confirmClose]);
 
   return (
-    <Modal title="Share this trip" onClose={requestClose} subtitle="Invite people to view this trip. They sign in with Google and can't make changes." triggerSelector="[data-share-trip]">
+    <Modal title="Share this trip" onClose={requestClose} subtitle="Invite people and choose what each can do. They sign in with Google." triggerSelector="[data-share-trip]">
       <Banner tone="info">
-        Viewers can see everything in this trip: all events, place names, map links and exact pinned positions, planned prices, booking status and
-        links. You can&apos;t share only part of a trip.
+        <p>
+          Everyone you invite can see everything in this trip: all events, place names, map links and exact pinned positions, planned prices, booking
+          status and links. You can&apos;t share only part of a trip.
+        </p>
+        <ul>
+          {ROLES.map((r) => <li key={r}><b>{ROLE_LABEL[r]}:</b> {ROLE_HELP[r]}</li>)}
+        </ul>
       </Banner>
 
       <form className={styles.invite} onSubmit={onSubmit} noValidate>
@@ -133,6 +140,11 @@ export function ShareDialog({ trip, onClose }: Props) {
             aria-describedby={emailError ? "share-email-error" : "share-email-hint"}
           />
         </Field>
+        <Field label="Can" htmlFor="share-role" hint={ROLE_HELP[role]} hintId="share-role-hint" className={styles.roleField}>
+          <select id="share-role" value={role} onChange={(e) => setRole(e.target.value as Role)} aria-describedby="share-role-hint">
+            {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
+          </select>
+        </Field>
         <Button variant="fill" type="submit" disabled={creating}>{creating ? "Creating…" : "Create invitation"}</Button>
       </form>
       {formError ? <FormError>{formError}</FormError> : null}
@@ -142,6 +154,7 @@ export function ShareDialog({ trip, onClose }: Props) {
           key={l.url}
           tripTitle={trip.title}
           email={l.email}
+          role={l.role}
           url={l.url}
           expiresAt={l.expiresAt}
           onCopied={() => setLinks((all) => all.map((x) => (x.url === l.url ? { ...x, copied: true } : x)))}
@@ -149,7 +162,8 @@ export function ShareDialog({ trip, onClose }: Props) {
       ))}
 
       <section className={styles.people} aria-labelledby="share-people">
-        <h3 id="share-people" className={styles.heading}>Viewers and invitations</h3>
+        <h3 id="share-people" className={styles.heading}>People and invitations</h3>
+        <p className="note">{trip.primaryOwner ? "You" : (trip.ownerName ?? "Someone else")} created this trip and is always an owner.</p>
         {loadError ? (
           <div className={styles.loadError}>
             <FormError>{loadError}</FormError>
@@ -161,6 +175,10 @@ export function ShareDialog({ trip, onClose }: Props) {
           <ViewerList
             entries={entries}
             onNewLink={issue}
+            onRoleChanged={(entry) => {
+              setEntries((list) => upsert(list ?? [], [entry]));
+              setLinks((all) => all.map((l) => (l.email === entry.email ? { ...l, role: entry.role } : l)));
+            }}
             onRevoked={(id) => {
               // A revoked entry's link no longer works; stop showing it.
               const entry = entries.find((e) => e.id === id);

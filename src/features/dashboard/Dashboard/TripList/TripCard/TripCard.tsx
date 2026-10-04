@@ -5,6 +5,7 @@ import { StatusIcon } from "@/components/ui/Icon/icons";
 import { Tag } from "@/components/ui/Tag/Tag";
 import { cx } from "@/lib/cx";
 import { dateRangeLabel, relativeLabel, STATUS_LABEL } from "@/lib/format";
+import { canManage, ROLE_LABEL } from "@/shared/roles";
 import styles from "./TripCard.module.css";
 
 /** One trip in the list, with a compact route to its booking work when needed. */
@@ -17,7 +18,7 @@ export function TripCard({ trip, booking, index, selected, onShowOnGlobe }: { tr
         </span>
         <span className={styles.tags}>
           <Tag tone={trip.status}><StatusIcon status={trip.status} />{STATUS_LABEL[trip.status]}</Tag>
-          <Tag tone="soft">{trip.role === "owner" ? "Owner" : "Viewer"}</Tag>
+          <Tag tone="soft">{ROLE_LABEL[trip.role]}</Tag>
         </span>
       </div>
       <h3 className={styles.title}>
@@ -25,7 +26,7 @@ export function TripCard({ trip, booking, index, selected, onShowOnGlobe }: { tr
       </h3>
       <p className={styles.dest}>
         {trip.destination}
-        {trip.role === "viewer" && trip.ownerName ? <span className="muted"> · shared by {trip.ownerName}</span> : null}
+        {!trip.primaryOwner && trip.ownerName ? <span className="muted"> · shared by {trip.ownerName}</span> : null}
       </p>
       <div className={styles.actions}>
         <ButtonLink variant="link" href={`/trips/${trip.id}`} data-open={trip.id} data-trip-link={trip.id}>Open trip</ButtonLink>
@@ -36,7 +37,7 @@ export function TripCard({ trip, booking, index, selected, onShowOnGlobe }: { tr
         ) : null}
         {trip.atlasLocation ? (
           <Button variant="link" onClick={onShowOnGlobe}>Show on globe</Button>
-        ) : trip.role === "owner" ? (
+        ) : canManage(trip.role) ? (
           <ButtonLink variant="link" href={`/trips/${trip.id}#globe-location`} data-trip-link={trip.id}>Set globe location</ButtonLink>
         ) : (
           <span className="muted">Not on the globe</span>

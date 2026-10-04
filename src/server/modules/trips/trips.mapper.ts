@@ -3,8 +3,11 @@ import type { TripRow } from "@/server/core/db/schema";
 import type { Role, TripSummaryDTO } from "@/shared/dto";
 import { dateInZone, daysBetween, tripStatus } from "@/shared/time";
 
-/** Trip row to the summary every screen uses. Day counts are computed in the trip's own time zone. */
-export function tripSummary(trip: TripRow & { owner_name?: string | null }, role: Role, now: Date): TripSummaryDTO {
+/**
+ * Trip row to the summary every screen uses. Day counts are computed in the trip's own time zone.
+ * `access` is the viewer's role and whether they created the trip.
+ */
+export function tripSummary(trip: TripRow & { owner_name?: string | null }, access: { role: Role; primaryOwner: boolean }, now: Date): TripSummaryDTO {
   const today = dateInZone(trip.time_zone, now.getTime());
   const status = tripStatus(trip.start_date, trip.end_date, today);
   return {
@@ -19,8 +22,9 @@ export function tripSummary(trip: TripRow & { owner_name?: string | null }, role
     dayIndex: status === "ongoing" ? daysBetween(trip.start_date, today) + 1 : null,
     daysSinceEnd: status === "past" ? daysBetween(trip.end_date, today) : null,
     dayCount: daysBetween(trip.start_date, trip.end_date) + 1,
-    role,
-    ownerName: role === "viewer" ? (trip.owner_name ?? null) : null,
+    role: access.role,
+    primaryOwner: access.primaryOwner,
+    ownerName: access.primaryOwner ? null : (trip.owner_name ?? null),
     atlasLocation:
       trip.atlas_latitude !== null && trip.atlas_longitude !== null && trip.atlas_source
         ? { latitude: Number(trip.atlas_latitude), longitude: Number(trip.atlas_longitude), source: trip.atlas_source }

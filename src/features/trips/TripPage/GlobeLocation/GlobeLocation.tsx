@@ -11,8 +11,8 @@ import { useToast } from "@/components/ui/Toast/Toast";
 import { api } from "@/lib/api";
 import styles from "./GlobeLocation.module.css";
 
-/** ATLAS-4: the trip's globe point, and for the owner a search of the bundled place list to set or clear it. */
-export function GlobeLocation({ trip, owner }: { trip: TripDetailDTO["trip"]; owner: boolean }) {
+/** ATLAS-4: the trip's globe point, and for owners a search of the bundled place list to set or clear it. */
+export function GlobeLocation({ trip, canManage }: { trip: TripDetailDTO["trip"]; canManage: boolean }) {
   const router = useRouter();
   const toast = useToast();
   const [q, setQ] = useState("");
@@ -60,12 +60,12 @@ export function GlobeLocation({ trip, owner }: { trip: TripDetailDTO["trip"]; ow
             <p className={styles.coords}>
               {Math.abs(p.latitude).toFixed(2)}° {p.latitude >= 0 ? "N" : "S"}, {Math.abs(p.longitude).toFixed(2)}° {p.longitude >= 0 ? "E" : "W"}
             </p>
-            <p className="note">{p.source === "owner" ? (owner ? "Point set by you." : "Point set by the trip owner.") : "Approximate destination, matched from the bundled place list."}</p>
+            <p className="note">{p.source === "owner" ? (trip.primaryOwner ? "Point set by you." : "Point set by an owner.") : "Approximate destination, matched from the bundled place list."}</p>
           </>
         ) : (
-          <p className="note">This trip has no point yet, so it appears in the list only.{owner ? " Pick a place to show it on the globe." : ""}</p>
+          <p className="note">This trip has no point yet, so it appears in the list only.{canManage ? " Pick a place to show it on the globe." : ""}</p>
         )}
-        {owner ? (
+        {canManage ? (
           <>
             <Field label="Search places (bundled list, nothing is sent out)" htmlFor="place-q">
               <input id="place-q" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Try Ushuaia or Santiago" autoComplete="off" />
@@ -86,7 +86,7 @@ export function GlobeLocation({ trip, owner }: { trip: TripDetailDTO["trip"]; ow
             </div>
           </>
         ) : (
-          <p className="note">Only the owner can change this point.</p>
+          <p className="note">Only an owner can change this point.</p>
         )}
       </Card>
     </Section>

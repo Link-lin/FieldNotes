@@ -1,6 +1,7 @@
 /* Email field and its button on one line; the button wraps under the field on narrow screens. */
 .invite { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-3); }
 .invite > .email { flex: 1 1 240px; }
+.invite > .roleField { flex: 0 1 200px; }
 .people { display: grid; gap: var(--space-3); }
 .heading { font-size: var(--text-lg); }
 .loadError { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }

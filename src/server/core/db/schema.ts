@@ -65,6 +65,8 @@ export interface TripViewersTable {
   trip_id: string;
   invitee_email_normalized: string;
   viewer_user_id: string | null;
+  /** What the person may do once accepted; viewer unless the owner chose otherwise. */
+  role: Generated<"viewer" | "editor" | "owner">;
   status: "pending" | "accepted" | "revoked";
   invitation_token_hash: Buffer | null;
   expires_at: Date | null;

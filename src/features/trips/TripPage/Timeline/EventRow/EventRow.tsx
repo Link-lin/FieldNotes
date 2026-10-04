@@ -15,7 +15,7 @@ import styles from "./EventRow.module.css";
 type Props = {
   item: PlanItemDTO;
   num: { n: number; need: boolean } | null;
-  owner: boolean;
+  canEdit: boolean;
   tripZone: string;
   menuOpen: boolean;
   onMenu: (open: boolean) => void;
@@ -28,17 +28,17 @@ type Props = {
 
 /**
  * One timeline summary: number, time, title (or flight card), place, map link, status, and the
- * owner's three-dot menu (TRIP-8). data-hl links it with its pin and stop-list line. The whole
+ * three-dot menu for people who can edit (TRIP-8). data-hl links it with its pin and stop-list line. The whole
  * row opens the event's side panel (TRIP-10) through one stretched button; links and the menu
  * sit above it and keep working.
  */
-export function EventRow({ item, num, owner, tripZone, menuOpen, onMenu, onOpen, onEdit, onDuplicate, onDelete }: Props) {
+export function EventRow({ item, num, canEdit, tripZone, menuOpen, onMenu, onOpen, onEdit, onDuplicate, onDelete }: Props) {
   const f = item.flightDetails;
   return (
-    <li className={styles.event} data-hl={item.id} data-numbered={!!num} data-owned={owner} data-menu-open={menuOpen}>
+    <li className={styles.event} data-hl={item.id} data-numbered={!!num} data-editable={canEdit} data-menu-open={menuOpen}>
       {num ? <StopNumber n={num.n} need={num.need} className={styles.num} /> : null}
       <button type="button" className={styles.open} data-details={item.id} aria-haspopup="dialog" aria-label={`Details for ${item.title}`} onClick={onOpen} />
-      {owner ? (
+      {canEdit ? (
         <Menu
           className={styles.menu}
           popupClassName={styles.popup}

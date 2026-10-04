@@ -234,7 +234,7 @@ export function DayMap({ stops, onPin }: { stops: Stop[]; onPin: (id: string) =>
     return (
       <div className={styles.empty}>
         <b>No places on this map yet</b>
-        <span>The trip owner can find a place by name while importing or editing an event, then confirm its map location.</span>
+        <span>Owners and editors can find a place by name while importing or editing an event, then confirm its map location.</span>
       </div>
     );
   }

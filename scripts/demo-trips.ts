@@ -20,6 +20,8 @@ export const HAWAII_TITLE = "Hawaii test trip: Oʻahu, Maui & the Big Island";
 export const LISBON_TITLE = "Lisbon & Porto (test, no events yet)";
 export const KAUAI_TITLE = "Kauaʻi long weekend (test, happening now)";
 export const KYOTO_TITLE = "Kyoto long weekend (test, shared with you)";
+export const OSAKA_TITLE = "Osaka street food (test, you can edit)";
+export const SEOUL_TITLE = "Seoul weekend (test, you co-own)";
 /** A made-up person who owns the shared Kyoto trip and is an accepted viewer of Hawaii. */
 export const TEST_FRIEND = { email: "sam.rivera@example.com", name: "Sam Rivera (test)" };
 
@@ -60,10 +62,12 @@ type FlightSpec = Common & {
 };
 type ItemSpec = EventSpec | FlightSpec;
 
+type Role = "viewer" | "editor" | "owner";
+/** A person the trip is shared with, and what they may do (viewer unless stated). */
 type Viewer =
-  | { kind: "accepted-friend" }
-  | { kind: "accepted-you" }
-  | { kind: "pending" | "expired" | "revoked"; email: string };
+  | { kind: "accepted-friend"; role?: Role }
+  | { kind: "accepted-you"; role?: Role }
+  | { kind: "pending" | "expired" | "revoked"; email: string; role?: Role };
 
 export type TripSpec = {
   owner: "you" | "friend";
@@ -99,9 +103,9 @@ export function demoTrips(today: string): TripSpec[] {
     budget: { amount: "7500", currency: "USD" },
     ownerPoint: { latitude: 20.8, longitude: -156.33 },
     viewers: [
-      { kind: "accepted-friend" },
-      { kind: "pending", email: "jordan.test@example.com" },
-      { kind: "expired", email: "casey.test@example.com" },
+      { kind: "accepted-friend", role: "editor" },
+      { kind: "pending", email: "jordan.test@example.com", role: "owner" },
+      { kind: "expired", email: "casey.test@example.com", role: "editor" },
       { kind: "revoked", email: "morgan.test@example.com" },
     ],
     items: [
@@ -614,7 +618,38 @@ export function demoTrips(today: string): TripSpec[] {
     ],
   };
 
-  return [hawaii, kyoto, lisbon, kauai];
+  // Trips someone else created where you are an editor and a co-owner, so every role can be tried.
+  const osaka: TripSpec = {
+    owner: "friend",
+    title: OSAKA_TITLE,
+    destination: "Osaka, Japan",
+    startDate: addDays(today, 60),
+    endDate: addDays(today, 62),
+    timeZone: "Asia/Tokyo",
+    budget: null,
+    viewers: [{ kind: "accepted-you", role: "editor" }],
+    items: [
+      { type: "meal", title: "Takoyaki in Dotonbori", location: "Dotonbori, Osaka", mapUrl: "34.66870, 135.50130", date: addDays(today, 60), time: "19:00", bookingStatus: "needs_booking", bookingDueDate: addDays(today, 30), price: { amount: "2500", currency: "JPY", label: "estimate" } },
+      { type: "activity", title: "Osaka Castle morning", location: "Osaka Castle", date: addDays(today, 61), bookingStatus: "not_required" },
+      { type: "other", title: "Buy an ICOCA card", bookingStatus: "not_required" },
+    ],
+  };
+  const seoul: TripSpec = {
+    owner: "friend",
+    title: SEOUL_TITLE,
+    destination: "Seoul, South Korea",
+    startDate: addDays(today, 90),
+    endDate: addDays(today, 92),
+    timeZone: "Asia/Seoul",
+    budget: { amount: "900000", currency: "KRW" },
+    viewers: [{ kind: "accepted-you", role: "owner" }],
+    items: [
+      { type: "lodging", title: "Hanok stay in Bukchon", location: "Bukchon Hanok Village, Seoul", date: addDays(today, 90), time: "15:00", bookingStatus: "needs_booking", price: { amount: "380000", currency: "KRW", label: "quote" } },
+      { type: "meal", title: "Korean BBQ in Mapo", location: "Mapo-gu, Seoul", date: addDays(today, 91), time: "19:30", bookingStatus: "not_required" },
+    ],
+  };
+
+  return [hawaii, kyoto, lisbon, kauai, osaka, seoul];
 }
 
 function toInput(spec: ItemSpec): unknown {
@@ -705,13 +740,13 @@ export async function seedDemoTrips(db: Kysely<DB>, you: { id: string; email: st
         const hash = () => hashInvitationToken(newInvitationToken());
         if (v.kind === "accepted-friend" || v.kind === "accepted-you") {
           const who = v.kind === "accepted-friend" ? friend : you;
-          await tx.insertInto("trip_viewers").values({ ...base, invitee_email_normalized: who.email.trim().toLowerCase(), viewer_user_id: who.id, status: "accepted", invitation_token_hash: hash(), expires_at: days(3), accepted_at: days(-4) }).execute();
+          await tx.insertInto("trip_viewers").values({ ...base, role: v.role ?? "viewer", invitee_email_normalized: who.email.trim().toLowerCase(), viewer_user_id: who.id, status: "accepted", invitation_token_hash: hash(), expires_at: days(3), accepted_at: days(-4) }).execute();
         } else if (v.kind === "pending") {
-          await tx.insertInto("trip_viewers").values({ ...base, invitee_email_normalized: v.email, status: "pending", invitation_token_hash: hash(), expires_at: days(5) }).execute();
+          await tx.insertInto("trip_viewers").values({ ...base, role: v.role ?? "viewer", invitee_email_normalized: v.email, status: "pending", invitation_token_hash: hash(), expires_at: days(5) }).execute();
         } else if (v.kind === "expired") {
-          await tx.insertInto("trip_viewers").values({ ...base, invitee_email_normalized: v.email, status: "pending", invitation_token_hash: hash(), expires_at: days(-2) }).execute();
+          await tx.insertInto("trip_viewers").values({ ...base, role: v.role ?? "viewer", invitee_email_normalized: v.email, status: "pending", invitation_token_hash: hash(), expires_at: days(-2) }).execute();
         } else {
-          await tx.insertInto("trip_viewers").values({ ...base, invitee_email_normalized: v.email, status: "revoked", invitation_token_hash: null, expires_at: days(-1), revoked_at: days(-1) }).execute();
+          await tx.insertInto("trip_viewers").values({ ...base, role: v.role ?? "viewer", invitee_email_normalized: v.email, status: "revoked", invitation_token_hash: null, expires_at: days(-1), revoked_at: days(-1) }).execute();
         }
       }
       result.trips.push({ id: trip.id, title: spec.title, items: spec.items.length, viewers: spec.viewers.length });

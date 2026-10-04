@@ -4,7 +4,7 @@ A private trip planner: a globe of every trip, and a page per trip with a day-by
 
 **Built so far:** Google sign-in with an owner allowlist, trips (create, edit, time-zone change, delete), dashboard globe and list, trip page with an itinerary and a dedicated Bookings view (open an event, mark it booked, set a book-by date), events (add, edit, duplicate, delete with undo), costs and budget, an outline day map with an optional Google road-route view, account deletion, owner-only AI import, read-only viewer invitations, an event side panel (click an event) with an embedded Google map and notes, place-name lookup and coordinate pins, and privacy-safe daily pilot counts. Dashboard cards link to each owned trip's bookings without repeating the task list. The import page provides a conversion prompt for a plan already discussed in an external AI chat, an optional new-trip prompt, JSON v1 validation, a day-by-day editable preview with optional place suggestions, and confirmed atomic creation.
 
-Owners share a trip from its **Share** dialog: invite one email, copy the one-time link (Field Notes sends no email), and revoke access or create a new link later. The invitee opens the link, signs in with the matching Google account and sees the trip read-only.
+Owners share a trip from its **Share** dialog: invite one email with a role (**viewer** reads, **editor** also changes events, bookings and notes, **owner** also edits the trip, shares it and deletes it), copy the one-time link (Field Notes sends no email), and change a role, revoke access or create a new link later. The invitee opens the link, signs in with the matching Google account and gets that role. The person who created a trip is always an owner.
 
 **Not built yet:** Importing into an existing trip (proposed TRIP-7).
 
@@ -15,7 +15,7 @@ To see every screen without entering anything, load the demo trips into a local 
 ```sh
 npm install && cp .env.example .env.local   # fill in the values under Setup
 npm run dev                                 # open http://localhost:3000 and sign in once
-npm run db:seed:hawaii                      # in a second terminal: loads the four demo trips
+npm run db:seed:hawaii                      # in a second terminal: loads the six demo trips
 ```
 
 The loader is a development tool and refuses to run in production, so a Docker install starts empty. To look around the demo, run it locally as above.
@@ -85,10 +85,11 @@ npm run build
 
 ## Test trips
 
-`npm run db:seed:hawaii` loads four test trips into your local database for the first address in `TRIP_OWNER_EMAILS` (or `npm run db:seed:hawaii -- you@example.com`). Sign in to the app once first so your account exists, and keep the database running (`npm run dev` in another terminal). Running it again replaces the test trips; your other trips are not touched.
+`npm run db:seed:hawaii` loads six test trips into your local database for the first address in `TRIP_OWNER_EMAILS` (or `npm run db:seed:hawaii -- you@example.com`). Sign in to the app once first so your account exists, and keep the database running (`npm run dev` in another terminal). Running it again replaces the test trips; your other trips are not touched.
 
-- **Hawaii test trip** (starts three weeks from today, 32 events): every event type; timed, date-only, undated and outside-the-trip events; booked, scheduled-but-unbooked, placeholder, overnight and undated flights (one with no airports yet); an event in another time zone; a return visit to the same place on another day; pins from Google, Apple Maps, OpenStreetMap and pasted coordinates; a shortened and a look-alike link that don't pin; overdue, due-today, upcoming and undated booking tasks; AI drafts with unverified and confirmed prices; a second currency; a budget; and a viewer, a pending, an expired and a revoked invitation in **Share**.
-- **Kyoto long weekend**: a past trip over budget, owned by a made-up friend (Sam Rivera) and shared with you, so you can see the read-only viewer view.
+- **Hawaii test trip** (starts three weeks from today, 32 events): every event type; timed, date-only, undated and outside-the-trip events; booked, scheduled-but-unbooked, placeholder, overnight and undated flights (one with no airports yet); an event in another time zone; a return visit to the same place on another day; pins from Google, Apple Maps, OpenStreetMap and pasted coordinates; a shortened and a look-alike link that don't pin; overdue, due-today, upcoming and undated booking tasks; AI drafts with unverified and confirmed prices; a second currency; a budget; and sharing entries in every state and role (an editor, a pending owner, an expired editor and a revoked viewer) in **Share**.
+- **Kyoto long weekend**: a past trip over budget, owned by a made-up friend (Sam Rivera) and shared with you as a **viewer**, so you can see the read-only view.
+- **Osaka street food** and **Seoul weekend**: small trips owned by Sam where you are an **editor** (you can change events but not the trip or its sharing) and a **co-owner**. In Hawaii's **Share** dialog, Sam is an editor and the pending, expired and revoked entries show other roles.
 - **Lisbon & Porto**: far in the future, no events and no globe point.
 - **Kauaʻi long weekend**: happening now (yesterday to tomorrow), so the trip shows Travelling now and **Up next** picks the next event of the day.
 
