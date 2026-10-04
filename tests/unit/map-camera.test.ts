@@ -284,7 +284,7 @@ describe("the camera director", () => {
         for (const [, fn] of due) fn(now);
       }
     };
-    return { director, advance, shown, events, now: () => now, view: () => view };
+    return { director, advance, shown, events, now: () => now, view: () => view, waiting: () => timers.size };
   }
   const event = (id: string): MapFocus => ({ kind: "event", id });
 
@@ -412,15 +412,21 @@ describe("the camera director", () => {
     expect(r.shown).toHaveLength(stopped);
   });
 
-  it("keeps what it shows when the pointer reaches the map before the highlight is let go", () => {
+  it("holds what it shows while the pointer is on the map, and sends it all the way back once the pointer leaves", () => {
     const r = rig();
     r.director.point(event("a"));
     r.advance(TIMING.intent + TIMING.max + 100);
-    r.director.point(null);
+    r.director.point(null); // the pointer leaves the row...
     r.advance(100);
-    r.director.keep();
+    r.director.hold(); // ...and reaches the map before the pause is up
     r.advance(5000);
-    near(r.view(), A);
+    near(r.view(), A); // it stays for as long as the pointer does
+    expect(r.events).toEqual(["preview"]);
+    r.director.release();
+    r.advance(TIMING.leave - 50);
+    near(r.view(), A); // the usual pause first
+    r.advance(100 + TIMING.max + 100);
+    near(r.view(), HOME); // and then all the way, not to wherever it was
     expect(r.events).toEqual(["preview", "rest"]);
   });
 
@@ -429,9 +435,103 @@ describe("the camera director", () => {
     r.director.point(event("a"));
     r.advance(TIMING.intent + 200);
     r.director.point(null);
-    r.director.keep();
+    r.director.hold();
     r.advance(TIMING.max + 100);
     near(r.view(), A);
+    r.director.release();
+    r.advance(TIMING.leave + TIMING.max + 100);
+    near(r.view(), HOME);
+  });
+
+  it("doesn't go back while the pointer is on the map even if a highlight ends there", () => {
+    const r = rig();
+    r.director.hold();
+    r.director.point(event("a")); // by keyboard, say
+    r.advance(TIMING.intent + TIMING.max + 100);
+    near(r.view(), A);
+    r.director.point(null);
+    r.advance(5000);
+    near(r.view(), A);
+    r.director.release();
+    r.advance(TIMING.leave + TIMING.max + 100);
+    near(r.view(), HOME);
+  });
+
+  it("goes from the map to the next row without returning in between", () => {
+    const r = rig();
+    r.director.point(event("a"));
+    r.advance(TIMING.intent + TIMING.max + 100);
+    r.director.point(null);
+    r.director.hold();
+    r.advance(1000);
+    r.director.release(); // leaving the map for a row: the pointer leaves, then the row's highlight arrives
+    r.director.point(event("b"));
+    r.advance(TIMING.retarget + TIMING.max + 100);
+    near(r.view(), B);
+    expect(r.events).toEqual(["preview"]);
+    r.director.point(null);
+    r.advance(TIMING.leave + TIMING.max + 100);
+    near(r.view(), HOME);
+  });
+
+  it("doesn't lose a highlight that arrives just before the pointer leaves the map", () => {
+    const r = rig();
+    r.director.point(event("a"));
+    r.advance(TIMING.intent + TIMING.max + 100);
+    r.director.point(null);
+    r.director.hold();
+    r.advance(500);
+    r.director.point(event("b")); // the row's highlight comes first this time...
+    r.director.release(); // ...and then the map lets go
+    r.advance(TIMING.retarget + TIMING.max + 100);
+    near(r.view(), B);
+    expect(r.events).toEqual(["preview"]);
+  });
+
+  it("goes all the way back after any number of visits to the map and the rows, not just to where it was last", () => {
+    const r = rig();
+    for (const id of ["a", "b", "a"]) {
+      r.director.point(event(id));
+      r.advance(TIMING.intent + TIMING.max + 100);
+      r.director.point(null);
+      r.director.hold();
+      r.advance(800);
+      r.director.release();
+      r.advance(TIMING.leave + TIMING.max + 100);
+      near(r.view(), HOME);
+    }
+    expect(r.events).toEqual(["preview", "rest", "preview", "rest", "preview", "rest"]);
+  });
+
+  it("leaves the view alone, on the map or off it, once the person has used the map themselves", () => {
+    const r = rig();
+    r.director.point(event("a"));
+    r.advance(TIMING.intent + TIMING.max + 100);
+    r.director.point(null);
+    r.director.hold();
+    r.director.takeOver(); // they zoomed, dragged or clicked
+    r.director.release();
+    r.advance(5000);
+    near(r.view(), A);
+    expect(r.events).toEqual(["preview", "rest"]);
+  });
+
+  it("doesn't start a second return when the pointer touches the map during one that is already under way", () => {
+    const r = rig();
+    r.director.point(event("a"));
+    r.advance(TIMING.intent + TIMING.max + 100);
+    r.director.point(null);
+    r.advance(TIMING.leave + 200); // the return has begun
+    const mid = r.view();
+    expect(mid.w).toBeGreaterThan(A.w);
+    r.director.hold();
+    r.director.release();
+    expect(r.waiting()).toBe(0); // nothing is scheduled: it is already on its way
+    r.advance(TIMING.max + 100);
+    near(r.view(), HOME);
+    // One continuous return: it never turns back.
+    const after = r.shown.slice(r.shown.indexOf(mid));
+    for (let i = 1; i < after.length; i++) expect(after[i]!.w).toBeGreaterThanOrEqual(after[i - 1]!.w - 1e-9);
   });
 
   it("leaves a map that is out of sight where it is", () => {

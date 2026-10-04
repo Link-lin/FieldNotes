@@ -47,29 +47,38 @@ export type CameraDirector = {
   point: (focus: MapFocus | null) => void;
   /** The person is using the map themselves: stop, and don't go back. */
   takeOver: () => void;
-  /** The pointer reached the map: whatever it shows now stays. */
-  keep: () => void;
+  /** The pointer is on the map: what it shows stays while the pointer does. */
+  hold: () => void;
+  /** The pointer left the map: what it was showing for a highlight goes back, after the usual pause. */
+  release: () => void;
   dispose: () => void;
 };
 
 /**
  * Moves the map to what the page highlights, and back when the highlight ends, with a smooth flight each way. Resting
  * on something starts it; moving on to the next thing retargets from where the camera is; leaving everything returns it to
- * the view the person had. Using the map takes over for good (`takeOver`), and so does moving the pointer onto it (`keep`).
+ * the view the person had, all the way. The pointer going onto the map to look at what it shows holds the view while it
+ * stays there (`hold`) and sends it back once it leaves (`release`). Using the map takes over for good (`takeOver`).
  */
 export function createCameraDirector(o: Options): CameraDirector {
   const t = { ...TIMING, ...o.timing };
   let rest: View | null = null;
   let timer: unknown = null;
+  let waiting: "go" | "back" | null = null;
   let frame: unknown = null;
   let flight = 0;
+  let returning = false;
+  let held = false;
+  let pointed: MapFocus | null = null;
 
   const clearTimer = () => {
     if (timer !== null) o.clock.clearTimeout(timer);
     timer = null;
+    waiting = null;
   };
   const stopFlight = () => {
     flight += 1;
+    returning = false;
     if (frame !== null) o.clock.cancelFrame(frame);
     frame = null;
   };
@@ -78,20 +87,29 @@ export function createCameraDirector(o: Options): CameraDirector {
     rest = view;
     if ((view !== null) !== was) o.previewing?.(view !== null);
   };
-  const later = (ms: number, fn: () => void) => {
+  const later = (ms: number, kind: "go" | "back", fn: () => void) => {
     clearTimer();
+    waiting = kind;
     timer = o.clock.setTimeout(() => {
       timer = null;
+      waiting = null;
       fn();
     }, ms);
   };
+  /** Whether a highlight that has ended should send the map back now: not while the pointer is on it or it is already going. */
+  const returnsNow = () => rest !== null && !held && !returning;
 
-  function fly(to: View, arrived?: () => void) {
+  function fly(to: View, home = false) {
     stopFlight();
+    returning = home;
+    const arrived = () => {
+      returning = false;
+      if (home) remember(null);
+    };
     const from = o.view();
     if (o.instant() || sameView(from, to)) {
       o.show(to);
-      arrived?.();
+      arrived();
       return;
     }
     const path = zoomPath(from, to);
@@ -108,15 +126,14 @@ export function createCameraDirector(o: Options): CameraDirector {
         frame = o.clock.requestFrame(step);
       } else {
         frame = null;
-        arrived?.();
+        arrived();
       }
     };
     frame = o.clock.requestFrame(step);
   }
 
   function back() {
-    const home = rest;
-    if (home) fly(home, () => remember(null));
+    if (rest) fly(rest, true);
   }
 
   function go(focus: MapFocus) {
@@ -124,7 +141,7 @@ export function createCameraDirector(o: Options): CameraDirector {
     const from = rest ?? o.view();
     const to = o.resolve(focus, from);
     if (!to) {
-      if (rest) later(t.leave, back);
+      if (returnsNow()) later(t.leave, "back", back);
       return;
     }
     if (!rest) remember(from);
@@ -133,18 +150,23 @@ export function createCameraDirector(o: Options): CameraDirector {
 
   return {
     point(focus) {
-      if (focus) later(rest ? t.retarget : t.intent, () => go(focus));
-      else if (rest) later(t.leave, back);
-      else clearTimer();
+      pointed = focus;
+      if (focus) later(rest ? t.retarget : t.intent, "go", () => go(focus));
+      else if (returnsNow()) later(t.leave, "back", back);
+      else if (waiting === "go") clearTimer();
     },
     takeOver() {
       clearTimer();
       stopFlight();
       remember(null);
     },
-    keep() {
-      clearTimer();
-      remember(null);
+    hold() {
+      held = true;
+      if (waiting === "back") clearTimer();
+    },
+    release() {
+      held = false;
+      if (!pointed && returnsNow()) later(t.leave, "back", back);
     },
     dispose() {
       clearTimer();

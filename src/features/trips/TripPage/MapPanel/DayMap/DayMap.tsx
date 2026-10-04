@@ -320,7 +320,7 @@ export function DayMap({ stops, focus, onPin }: { stops: Stop[]; focus: MapFocus
   if (run.length > 1) runs.push(run);
 
   return (
-      <div className={styles.wrap} onPointerEnter={() => director.current?.keep()}>
+      <div className={styles.wrap} onPointerEnter={() => director.current?.hold()} onPointerLeave={() => director.current?.release()}>
         <svg
           ref={svg}
           className={styles.map}

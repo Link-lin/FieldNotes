@@ -19,7 +19,8 @@ import { EventPanel } from "./EventPanel/EventPanel";
 import { DayTabs } from "./DayTabs/DayTabs";
 import { GlobeLocation } from "./GlobeLocation/GlobeLocation";
 import { MapPanel } from "./MapPanel/MapPanel";
-import { createMapFocus, type MapFocus } from "./MapPanel/map-focus";
+import { createMapFocus } from "./MapPanel/map-focus";
+import { pointing } from "./MapPanel/pointing";
 import { RecentlyDeleted } from "./RecentlyDeleted/RecentlyDeleted";
 import { ShareDialog } from "./ShareDialog/ShareDialog";
 import { Timeline } from "./Timeline/Timeline";
@@ -122,25 +123,9 @@ export function TripPage({ data, initialDay, initialEvent, initialView, mapsKey,
     // A marker for several stops at nearly one place also lights for each of them (data-hl-also).
     const set = (id: string, on: boolean) => el.querySelectorAll(`[data-hl="${CSS.escape(id)}"], [data-hl-also~="${CSS.escape(id)}"]`).forEach((x) => x.toggleAttribute(LIT, on));
     const over = (e: Event) => {
-      const on = e.type === "mouseover" || e.type === "focusin";
-      const from = e.target as Element;
-      const aim = (host: Element, at: MapFocus) => {
-        // A touch screen's tap sends a mouseover that stays until the next tap; it shouldn't move the map.
-        if (e.type.startsWith("mouse") && !window.matchMedia("(any-hover: hover)").matches) return;
-        if (on) mapFocus.set(at);
-        // Moving from one part of an element to another isn't leaving it.
-        else if (!host.contains((e as MouseEvent | FocusEvent).relatedTarget as Node | null)) mapFocus.set(null);
-      };
-      const t = from.closest?.("[data-hl]");
-      if (t) {
-        const id = t.getAttribute("data-hl")!;
-        set(id, on);
-        // A pin is on the map already: lighting it is enough, and moving the map from under the pointer isn't wanted.
-        if (!t.closest("svg")) aim(t, { kind: "event", id });
-        return;
-      }
-      const d = from.closest?.("[data-hl-day]");
-      if (d) aim(d, { kind: "day", day: d.getAttribute("data-hl-day")! });
+      const { light, look } = pointing({ type: e.type, target: e.target as Element, relatedTarget: (e as MouseEvent | FocusEvent).relatedTarget }, window.matchMedia("(any-hover: hover)").matches);
+      if (light) set(light.id, light.on);
+      if (look !== undefined) mapFocus.set(look);
     };
     const kinds = ["mouseover", "mouseout", "focusin", "focusout"];
     kinds.forEach((t) => el.addEventListener(t, over));
