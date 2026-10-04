@@ -24,6 +24,7 @@ export const RESTORE_WINDOW_MS = 10 * 60 * 1000;
 
 const dto = (row: PlanItemRow, zone: string, now: Date): PlanItemDTO => itemDto(row, zone, dateInZone(zone, now.getTime()));
 const capError = () => new HttpError(409, "item_cap", `A trip can have at most ${ITEM_CAP} events.`);
+const restoreExpired = () => new HttpError(410, "restore_expired", "This event was deleted more than 10 minutes ago and can't be restored.");
 
 export async function createItem(db: Kysely<DB>, actor: Actor, tripId: string, input: ItemInput, now = new Date()): Promise<PlanItemDTO> {
   const created = await db.transaction().execute(async (tx) => {
@@ -162,9 +163,7 @@ export async function restoreItem(db: Kysely<DB>, actor: Actor, tripId: string, 
     const { trip } = await requireTripEditor(tx, actor, tripId, true);
     const current = await repo.loadItemForUpdate(tx, trip.id, itemId, true);
     if (!current.deleted_at) return dto(current, trip.time_zone, now);
-    if (now.getTime() - new Date(current.deleted_at).getTime() > RESTORE_WINDOW_MS) {
-      throw new HttpError(410, "restore_expired", "This event was deleted more than 10 minutes ago and can't be restored.");
-    }
+    if (now.getTime() - new Date(current.deleted_at).getTime() > RESTORE_WINDOW_MS) throw restoreExpired();
     if ((await repo.liveCount(tx, trip.id)) >= ITEM_CAP) throw capError();
     // The trip time zone may have changed since the delete; the restored time must still exist.
     if (current.type !== "flight" && current.local_date && current.local_time && !current.time_zone) {
@@ -173,8 +172,11 @@ export async function restoreItem(db: Kysely<DB>, actor: Actor, tripId: string, 
         throw new HttpError(409, "restore_time_invalid", `This event's time ${current.local_time.slice(0, 5)} ${r.reason === "gap" ? "doesn't exist" : "happens twice"} on ${current.local_date} in ${trip.time_zone}, so it can't be restored. Add it again with a new time.`);
       }
     }
+    // The purge uses the database clock. If it is ahead of this server's, it may remove this row
+    // after the check above passed; that is still an expired restore, not a server error.
     await repo.purgeExpired(tx, trip.id);
     const row = await repo.undelete(tx, current.id);
+    if (!row) throw restoreExpired();
     await bumpTripVersion(tx, trip.id);
     return dto(row, trip.time_zone, now);
   });

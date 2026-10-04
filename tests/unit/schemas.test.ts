@@ -57,3 +57,18 @@ describe("trip validation", () => {
     expect(tripInputSchema.safeParse({ ...t, endDate: "2026-11-15" }).success).toBe(true);
   });
 });
+
+describe("trip length", () => {
+  const trip = { title: "Long", destination: "Kyoto, Japan", startDate: "2026-01-01", timeZone: "Asia/Tokyo", budget: null };
+  it("accepts a trip of exactly the maximum length and rejects one day more, for new, edited and imported trips", async () => {
+    const { tripDraftSchema } = await import("@/shared/import");
+    const { tripPatchSchema } = await import("@/shared/schemas");
+    const longest = { ...trip, endDate: "2027-02-04" }; // 400 days including both ends
+    const tooLong = { ...trip, endDate: "2027-02-05" };
+    expect(tripInputSchema.safeParse(longest).success).toBe(true);
+    const r = tripInputSchema.safeParse(tooLong);
+    expect(r.success ? [] : toFieldErrors(r.error).map((e) => e.path)).toEqual(["endDate"]);
+    expect(tripPatchSchema.safeParse({ ...tooLong, expectedVersion: 1 }).success).toBe(false);
+    expect(tripDraftSchema.safeParse(tooLong).success).toBe(false);
+  });
+});

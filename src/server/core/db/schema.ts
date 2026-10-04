@@ -1,4 +1,4 @@
-import type { ColumnType, Generated, Insertable, Selectable, Updateable } from "kysely";
+import type { ColumnType, Generated, Selectable } from "kysely";
 
 /** NUMERIC columns are read as exact decimal strings (pg default parser). */
 type Numeric = ColumnType<string, string, string>;
@@ -154,5 +154,3 @@ export interface DB {
 
 export type TripRow = Selectable<TripsTable>;
 export type PlanItemRow = Selectable<PlanItemsTable>;
-export type NewPlanItem = Insertable<PlanItemsTable>;
-export type PlanItemUpdate = Updateable<PlanItemsTable>;

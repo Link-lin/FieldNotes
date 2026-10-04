@@ -1,9 +1,7 @@
-import { redirect } from "next/navigation";
-import { headers } from "next/headers";
-import { auth, signIn, signOut } from "@/server/auth/auth";
+import { signIn, signOut } from "@/server/auth/auth";
 import { wechatEnabled } from "@/server/auth/wechat";
 import { getDb } from "@/server/core/db/client";
-import { currentActor } from "@/server/auth/session";
+import { currentSession, pageActor } from "@/server/auth/session";
 import { getDashboard } from "@/server/modules/dashboard/dashboard.service";
 import { AppHeader } from "@/components/layout/AppHeader/AppHeader";
 import { AppShell } from "@/components/layout/AppShell/AppShell";
@@ -13,12 +11,8 @@ export const dynamic = "force-dynamic";
 
 /** Signed-in shell. A redirect here is a convenience; every page and route re-checks access. */
 export default async function PrivateLayout({ children }: { children: React.ReactNode }) {
-  const session = await auth();
-  const actor = await currentActor();
-  if (!session?.user || !actor) {
-    const path = (await headers()).get("x-pathname") ?? "/";
-    redirect(`/sign-in?callbackUrl=${encodeURIComponent(path)}`);
-  }
+  const actor = await pageActor();
+  const user = (await currentSession())?.user;
   const dash = await getDashboard(getDb(), actor);
   // Offer "Sign-in methods" only when there is more than one to choose from.
   const linked = wechatEnabled() ? new Set((await getDb().selectFrom("Account").select("provider").where("userId", "=", actor.userId).execute()).map((r) => r.provider)) : null;
@@ -43,12 +37,12 @@ export default async function PrivateLayout({ children }: { children: React.Reac
       <AppShell
         header={
           <AppHeader
-            name={session.user.name ?? session.user.email ?? "You"}
-            email={session.user.email ?? ""}
+            name={user?.name ?? actor.email ?? "You"}
+            email={user?.email ?? actor.email ?? ""}
             ownedCount={dash.trips.filter((t) => t.role === "owner").length}
             sharedCount={dash.trips.filter((t) => t.role !== "owner").length}
             signOut={doSignOut}
-            methods={linked ? { google: linked.has("google"), wechat: linked.has("wechat"), connectGoogle, connectWeChat, hasEmail: Boolean(session.user.email) } : null}
+            methods={linked ? { google: linked.has("google"), wechat: linked.has("wechat"), connectGoogle, connectWeChat, hasEmail: Boolean(user?.email) } : null}
           />
         }
       >

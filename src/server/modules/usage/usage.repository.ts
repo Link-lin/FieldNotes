@@ -1,7 +1,6 @@
 import "server-only";
 import { sql, type Kysely } from "kysely";
 import type { DB } from "@/server/core/db/schema";
-import type { UsageRow } from "./usage.rules";
 
 /** Adds to today's (database date) totals, one row per name. */
 export async function addUsage(db: Kysely<DB>, counts: Map<string, number>): Promise<void> {
@@ -12,8 +11,4 @@ export async function addUsage(db: Kysely<DB>, counts: Map<string, number>): Pro
     .values(values as never)
     .onConflict((oc) => oc.columns(["day", "name"]).doUpdateSet({ count: sql`usage_counts.count + excluded.count` }))
     .execute();
-}
-
-export async function usageRows(db: Kysely<DB>): Promise<UsageRow[]> {
-  return db.selectFrom("usage_counts").select(["day", "name", "count"]).orderBy("day").orderBy("name").execute();
 }

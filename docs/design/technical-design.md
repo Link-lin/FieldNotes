@@ -109,7 +109,7 @@ sequenceDiagram
     R-->>U: JSON or page data, private/no-store
 ```
 
-`src/proxy.ts` only sets the per-request CSP nonce and security headers; it is not the authorization boundary. Private pages send an anonymous visitor to sign-in through `pageActor` (`src/server/auth/session.ts`). The DAL checks access on every read and write, as the [Next.js authentication guide](https://nextjs.org/docs/app/guides/authentication) requires for Route Handlers and Server Functions.
+`src/proxy.ts` only sets the per-request CSP nonce, security headers and the return-path header; it is not the authorization boundary. Private pages send an anonymous visitor to sign-in through `pageActor` (`src/server/auth/session.ts`), returning to the requested path and query, which the proxy passes as `x-return-path`. The session, the actor and the trip page's data are read once per server render (React `cache`), so the layout, page and metadata share them. The DAL checks access on every read and write, as the [Next.js authentication guide](https://nextjs.org/docs/app/guides/authentication) requires for Route Handlers and Server Functions.
 
 ### Code layout and file map
 
@@ -171,7 +171,7 @@ Columns are listed in the tables below; `usage_counts` stands alone. Flight fiel
 | `title` | Text, required, trimmed, length 1–120 | User-facing title. |
 | `destination` | Text, required, trimmed, length 1–160 | Human-readable destination; not a geocoded place ID. |
 | `atlas_latitude`, `atlas_longitude`, `atlas_source` | Nullable `NUMERIC(8,5)` pair plus `catalog`/`owner` provenance; all present or all null; valid latitude/longitude bounds | One approximate globe point, set by an exact, unique catalog match or an owner edit. Never guessed for an ambiguous or unmatched destination. See [Atlas v1](atlas-v1.md). |
-| `start_date`, `end_date` | SQL `DATE`, required, `start_date <= end_date` | Planned inclusive range. Metadata only: it never hides items. |
+| `start_date`, `end_date` | SQL `DATE`, required, `start_date <= end_date`, at most 400 days including both ends (`MAX_TRIP_DAYS` in `src/shared/time.ts`, checked by the shared schemas) | Planned inclusive range. Metadata only: it never hides items. The limit bounds the trip page's one-tab-per-date strip. |
 | `time_zone` | Text, required, valid IANA zone, at most 100 characters, stored in canonical spelling | Default zone for status, inherited item times and due dates. |
 | `budget_amount`, `budget_currency` | Nullable `NUMERIC(18,4)` plus uppercase ISO 4217 code; both null or both set; 0 to 99999999999999.9999 | Optional trip budget. |
 | `version` | Integer, required, starts at 1 | Incremented on each trip edit and once per transaction that changes any child item. |
@@ -301,7 +301,7 @@ Responses never include SQL, stack traces, session or invitation tokens, or othe
 | `DELETE /api/trips/{tripId}/items/{itemId}` | `{ "expectedVersion": 2 }`. | Editor. Sets `deleted_at` and bumps the trip version. |
 | `PATCH /api/trips/{tripId}/items/{itemId}/notes` | `{ "notes": string \| null, "expectedVersion": 3 }` (TRIP-10). | Editor. Stores trimmed notes only (blank is null, at most 5,000 characters) with the same lock, purge and version rules as a full edit. |
 | `PATCH /api/trips/{tripId}/items/{itemId}/booking` | `{ "bookingStatus": "needs_booking" \| "booked", "bookingDueDate": "2026-10-03" \| null, "expectedVersion": 3 }` (BOOK-3, BOOK-4). | Editor. Changes only the booking state and book-by date, with the same lock, purge and version rules as a full edit. **Booked** clears the date; it is 422 `flight_incomplete` for a flight without its FLIGHT-2 fields, and a date sent with **Booked** is 422. |
-| `POST /api/trips/{tripId}/items/{itemId}/restore` | Undo a deletion. | Editor. Clears `deleted_at` on the same row and bumps the trip version. 410 after 10 minutes; 409 if the cap is full; 409 `restore_time_invalid` if the local time no longer exists or is now ambiguous in the trip zone. |
+| `POST /api/trips/{tripId}/items/{itemId}/restore` | Undo a deletion. | Editor. Clears `deleted_at` on the same row and bumps the trip version. 410 after 10 minutes, including when the database clock has already purged the row; 409 if the cap is full; 409 `restore_time_invalid` if the local time no longer exists or is now ambiguous in the trip zone. |
 | `GET /api/health` | None. | No session, no input, no trip data: 200 `{"status":"ok"}` when the database answers `select 1` within two seconds, otherwise 503 `{"status":"unhealthy"}`. Used by the container's health check. |
 | `GET /api/import/schema` | The JSON v1 schema. | Allowlisted owner. Serves `docs/design/json-v1.schema.json` unchanged. |
 | `POST /api/import/preview` | `{ "responseText": "...", "ownerProvidedBudget": MoneyDTO \| null }`. | Allowlisted owner. See [JSON v1 contract](#json-v1-contract). Writes only a pilot count. |
@@ -540,7 +540,7 @@ The flight is a placeholder on purpose: an import cannot mark a flight booked or
 1. Enforce the body limit; require a string response and a validated `ownerProvidedBudget` or `null`.
 2. Trim. Accept plain JSON or exactly one surrounding Markdown JSON code fence; reject prose around it.
 3. Parse with `jsonc-parser` in AST mode, comments and trailing commas disabled. Reject parser diagnostics and repeated decoded property names in one object before `JSON.parse` could keep only the last value. Then validate `formatVersion === 1` strictly, with JSON-path errors for unknown keys and unsupported values.
-4. Check cross-field rules: `startDate <= endDate`; money pairs; a local time needs a date; a flight local date-time needs a valid zone; URLs are `http` or `https`; `bookingStatus` is `Needs booking` or `Not required` only (`Booked` is rejected); flights must be `Needs booking`; no placeholder date with an exact departure; arrival after departure. Booked-flight completeness is checked later, at the owner action.
+4. Check cross-field rules: `startDate <= endDate` and a trip of at most 400 days (an app limit outside the JSON v1 schema, shown as a correctable trip-date error in the preview); money pairs; a local time needs a date; a flight local date-time needs a valid zone; URLs are `http` or `https`; `bookingStatus` is `Needs booking` or `Not required` only (`Booked` is rejected); flights must be `Needs booking`; no placeholder date with an exact departure; arrival after departure. Booked-flight completeness is checked later, at the owner action.
 5. Build the preview. Replace the parsed `trip.budget` with `ownerProvidedBudget`. Warn (without blocking) when the model omitted or changed the owner's budget or supplied one when the owner gave none. If the AI budget is valid and differs, return it as `trip.aiBudget`; the warning offers **Use this budget ($1,200)**, which sets it as the owner-provided budget in the preview. Nothing from the AI is applied without an owner action.
 6. On commit, revalidate the normalized draft and reject client-supplied `source`, IDs, ownership, `Booked`, totals and other server-owned fields.
 
@@ -798,7 +798,7 @@ Over a network the database connection uses TLS. In the container setup the data
 - Sign-in keeps only Google's subject, verified email, name and optional avatar, and from WeChat only the nickname and the `unionid` or `openid`. No location tracking, contacts, passport, payment card, reservation code or booking confirmation is collected.
 - Tokens have 256 bits of randomness; invitation actions need an authenticated owner. No separate rate-limit service is used; the 60-second resend limit is a safeguard for the emailed link, not abuse protection.
 - An invitation email goes only to the address the owner typed and holds only the trip title, the sender's name, what the role allows and the link; the host's mail service and the recipient's mail provider can read it, which is why the Share dialog still states what an invitation reveals (ACCESS-8).
-- Never log request bodies, pasted responses, normalized drafts, trip titles, destinations, notes, place names, map links, coordinates, prices, emails, invitation tokens or URLs, OAuth codes or tokens, or session IDs. Mail failures log the error's class and code only, because a mail error's message holds the address and the server's reply. Unexpected route errors log only the error class and a generated request ID, because database and provider messages can contain submitted values.
+- Never log request bodies, pasted responses, normalized drafts, trip titles, destinations, notes, place names, map links, coordinates, prices, emails, invitation tokens or URLs, OAuth codes or tokens, or session IDs. Mail failures log the error's class and code only, because a mail error's message holds the address and the server's reply. Unexpected route errors log only the error class, a database error's SQLSTATE code and constraint name, and a generated request ID, because database and provider messages can contain submitted values.
 - No analytics SDK. Pilot measurement uses aggregate counts that cannot reconstruct a trip (see [Pilot counts](#pilot-counts)).
 - Deletion removes live data at once; backup retention depends on how backups are taken and must be disclosed to anyone you share a trip with.
 
@@ -825,7 +825,7 @@ No scale infrastructure for the personal dataset: no Redis, search engine, backg
 
 ### Observability
 
-- Built: an unexpected route error logs one line, `[requestId] ErrorName` (`src/server/core/http/respond.ts`), and a failed pilot count logs `[usage] ErrorName`. Nothing else is logged, under the never-log rules in [Privacy and logging](#privacy-and-logging).
+- Built: an unexpected route error logs one line, `[requestId] ErrorName SQLSTATE constraint` (`errorTag` in `src/server/core/http/respond.ts`; the last two only for database errors), and a failed pilot count logs `[usage]` with the same tag. Nothing else is logged, under the never-log rules in [Privacy and logging](#privacy-and-logging).
 - Before launch (not built): structured request logs (route, status, duration, sanitized error code) under the same rules.
 - `docker compose ps` and `docker compose logs` (or the host's and database provider's own health, connection and backup views) are enough for the MVP; no paid APM.
 - Built: `GET /api/health` reports only healthy or unhealthy after a short database check, with no credentials, SQL, provider detail or user state; a failed check logs only its error class. The container's `HEALTHCHECK` uses it.
@@ -847,7 +847,7 @@ Daily totals in `usage_counts` support the pilot in the PRD's "Validation and MV
 
 Booking-list actions count only `due_date_set` and `item_booked`, never `ai_item_edited`.
 
-`countUsage` (`usage.service.ts`) runs after the action succeeds, outside its transaction. It upserts `count = count + n` and swallows errors, logging only the error class, so a missing table or failed count never fails the owner's request. `npm run pilot:report` (`scripts/pilot-report.ts`) reads the table with `DATABASE_URL` and prints totals, figures per ISO week (Monday start) and four rates: clean previews and rejected previews out of all previews, items skipped out of items reviewed in confirmed imports, and owner edits per imported item. It has no web route.
+`countUsage` (`usage.service.ts`) runs after the action succeeds, outside its transaction. It upserts `count = count + n` and swallows errors, logging only the error tag, so a missing table or failed count never fails the owner's request. `npm run pilot:report` (`scripts/pilot-report.ts`) reads the table with `DATABASE_URL` and prints totals, figures per ISO week (Monday start) and four rates: clean previews and rejected previews out of all previews, items skipped out of items reviewed in confirmed imports, and owner edits per imported item. It has no web route.
 
 ## 8. Development and testing
 

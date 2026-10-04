@@ -1,5 +1,7 @@
 import "server-only";
+import { cache } from "react";
 import type { Kysely } from "kysely";
+import { getDb } from "@/server/core/db/client";
 import type { DB } from "@/server/core/db/schema";
 import { conflict } from "@/server/core/http/errors";
 import type { Actor } from "@/server/auth/actor";
@@ -36,6 +38,12 @@ export async function getTripDetail(db: Kysely<DB>, actor: Actor, tripId: string
     recentCurrencies: role === "owner" ? await recentCurrencies(db, actor.userId) : [],
   };
 }
+
+/**
+ * The trip page's data, read once per server render: the page and its metadata share it.
+ * Pass the Actor from currentActor/pageActor, which is one object per render.
+ */
+export const tripDetailForPage = cache((actor: Actor, tripId: string) => getTripDetail(getDb(), actor, tripId));
 
 /** DASH-3: only allowlisted owners create trips; the destination is matched to the place catalog. */
 export async function createTrip(db: Kysely<DB>, actor: Actor, input: TripInput, now = new Date()): Promise<TripSummaryDTO> {

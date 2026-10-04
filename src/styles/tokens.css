@@ -23,6 +23,13 @@
     --land: #f4ebd3;
     --land-line: #cdbe96;
     --scrim: rgba(58, 48, 38, 0.38);
+    /* Planned-cost breakdown, one neutral hue per event type */
+    --cost-flight: var(--ink);
+    --cost-lodging: #5e8fa0;
+    --cost-activity: #9a8c70;
+    --cost-meal: #c9b48a;
+    --cost-transport: var(--pass-ink);
+    --cost-other: #b8ab8c;
 
     /* Type */
     --serif: "Source Serif 4", "Songti SC", "Noto Serif CJK SC", Georgia, serif;

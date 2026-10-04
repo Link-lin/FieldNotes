@@ -1,6 +1,7 @@
 import "server-only";
 import type { Kysely } from "kysely";
 import type { DB } from "@/server/core/db/schema";
+import { errorTag } from "@/server/core/http/respond";
 import { addUsage } from "./usage.repository";
 import type { UsageEvent } from "./usage.rules";
 
@@ -16,6 +17,6 @@ export async function countUsage(db: Kysely<DB>, events: UsageEvent[]): Promise<
   try {
     await addUsage(db, counts);
   } catch (err) {
-    console.error(`[usage] ${err instanceof Error ? err.name : "Unknown error"}`);
+    console.error(`[usage] ${errorTag(err)}`);
   }
 }

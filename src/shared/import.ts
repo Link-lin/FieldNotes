@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { FieldError, ItemType } from "./dto";
 import { isCurrencyCode } from "./currencies";
+import { tripLengthIssue, tripLengthOk } from "./schemas";
 import { AMOUNT_PATTERN, trimAmount } from "./money";
 import { coordinatesFromMapUrl, parseWebUrl } from "./map-links";
 import { isDate, isLocalDateTime, isTime, isTimeZone, resolveLocal } from "./time";
@@ -47,7 +48,7 @@ export const tripDraftSchema = z.object({
   endDate: date,
   timeZone: zone,
   budget: nullable(importMoneySchema),
-}).strict().refine((trip) => trip.startDate <= trip.endDate, { path: ["endDate"], message: "The trip can't end before it starts." });
+}).strict().refine((trip) => trip.startDate <= trip.endDate, { path: ["endDate"], message: "The trip can't end before it starts." }).refine(tripLengthOk, tripLengthIssue);
 
 export const planItemDraftSchema = z.object({
   type: z.enum(["flight", "lodging", "transport", "meal", "activity", "other"]),

@@ -33,7 +33,8 @@ export function proxy(request: NextRequest) {
   ].join("; ");
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-nonce", nonce);
-  requestHeaders.set("x-pathname", request.nextUrl.pathname);
+  // Where a signed-out visitor returns after sign-in, query included (?view=bookings, ?filter=past).
+  requestHeaders.set("x-return-path", request.nextUrl.pathname + request.nextUrl.search);
   requestHeaders.set("Content-Security-Policy", csp);
   const response = NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set("Content-Security-Policy", csp);

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { AMOUNT_PATTERN } from "./money";
 import { isCurrencyCode } from "./currencies";
-import { canonicalTimeZone, isDate, isTime, isLocalDateTime, isTimeZone } from "./time";
+import { canonicalTimeZone, isDate, isTime, isLocalDateTime, isTimeZone, MAX_TRIP_DAYS, withinTripLength } from "./time";
 import { parseWebUrl, MAX_URL_LENGTH } from "./map-links";
 import type { FieldError } from "./dto";
 
@@ -19,6 +19,11 @@ const optionalText = (max: number) =>
     .transform((v) => (v === null || v.trim() === "" ? null : v.trim()));
 const choice = z.enum(["earlier", "later"]).nullable();
 
+/** A trip is at most MAX_TRIP_DAYS long; invalid or reversed dates are reported by their own rules. */
+export const tripLengthOk = (t: { startDate: string; endDate: string }) =>
+  !isDate(t.startDate) || !isDate(t.endDate) || t.startDate > t.endDate || withinTripLength(t.startDate, t.endDate);
+export const tripLengthIssue = { path: ["endDate"], message: `A trip can be at most ${MAX_TRIP_DAYS} days long.` };
+
 export const moneySchema = z.object({ amount, currency }).strict();
 
 export const tripInputSchema = z
@@ -31,7 +36,8 @@ export const tripInputSchema = z
     budget: moneySchema.nullable(),
   })
   .strict()
-  .refine((t) => t.startDate <= t.endDate, { path: ["endDate"], message: "The trip can't end before it starts." });
+  .refine((t) => t.startDate <= t.endDate, { path: ["endDate"], message: "The trip can't end before it starts." })
+  .refine(tripLengthOk, tripLengthIssue);
 
 export const tripPatchSchema = z
   .object({
@@ -51,7 +57,8 @@ export const tripPatchSchema = z
     timeDisambiguationByItem: z.record(z.string().uuid(), z.enum(["earlier", "later"])).optional(),
   })
   .strict()
-  .refine((t) => t.startDate <= t.endDate, { path: ["endDate"], message: "The trip can't end before it starts." });
+  .refine((t) => t.startDate <= t.endDate, { path: ["endDate"], message: "The trip can't end before it starts." })
+  .refine(tripLengthOk, tripLengthIssue);
 
 export const tripDeleteSchema = z.object({ confirm: z.literal(true), expectedVersion: z.number().int().min(1) }).strict();
 
