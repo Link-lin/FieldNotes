@@ -1,3 +1,4 @@
+import { appleEnabled } from "@/server/auth/apple";
 import { signIn, signOut } from "@/server/auth/auth";
 import { wechatEnabled } from "@/server/auth/wechat";
 import { getDb } from "@/server/core/db/client";
@@ -17,7 +18,9 @@ export default async function PrivateLayout({ children }: { children: React.Reac
   const user = (await currentSession())?.user;
   const dash = await getDashboard(getDb(), actor);
   // Offer "Sign-in methods" only when there is more than one to choose from.
-  const linked = wechatEnabled() ? new Set((await getDb().selectFrom("Account").select("provider").where("userId", "=", actor.userId).execute()).map((r) => r.provider)) : null;
+  const apple = appleEnabled();
+  const wechat = wechatEnabled();
+  const linked = apple || wechat ? new Set((await getDb().selectFrom("Account").select("provider").where("userId", "=", actor.userId).execute()).map((r) => r.provider)) : null;
 
   async function doSignOut() {
     "use server";
@@ -27,6 +30,11 @@ export default async function PrivateLayout({ children }: { children: React.Reac
   async function connectGoogle() {
     "use server";
     await signIn("google", { redirectTo: "/" });
+  }
+
+  async function connectApple() {
+    "use server";
+    await signIn("apple", { redirectTo: "/" });
   }
 
   async function connectWeChat() {
@@ -45,7 +53,18 @@ export default async function PrivateLayout({ children }: { children: React.Reac
             sharedCount={dash.trips.filter((t) => t.role !== "owner").length}
             signOut={doSignOut}
             connectorUrl={connectorEnabled() ? connectorUrls().resource : null}
-            methods={linked ? { google: linked.has("google"), wechat: linked.has("wechat"), connectGoogle, connectWeChat, hasEmail: Boolean(user?.email) } : null}
+            methods={
+              linked
+                ? {
+                    hasEmail: Boolean(user?.email),
+                    options: [
+                      { name: "Google", connected: linked.has("google"), connect: connectGoogle },
+                      ...(apple ? [{ name: "Apple", connected: linked.has("apple"), connect: connectApple }] : []),
+                      ...(wechat ? [{ name: "WeChat", connected: linked.has("wechat"), connect: connectWeChat }] : []),
+                    ],
+                  }
+                : null
+            }
           />
         }
       >
