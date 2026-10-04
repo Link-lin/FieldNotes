@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { Menu, MenuHeader, MenuItem } from "@/components/ui/Menu/Menu";
 import { TrashIcon } from "@/components/ui/Icon/icons";
 import { initials, plural } from "@/lib/format";
+import { AiConnectorDialog } from "./AiConnectorDialog/AiConnectorDialog";
 import { DeleteAccountDialog } from "./DeleteAccountDialog/DeleteAccountDialog";
 import { SignInMethodsDialog, type SignInMethods } from "./SignInMethodsDialog/SignInMethodsDialog";
 import styles from "./AccountMenu.module.css";
@@ -16,13 +17,16 @@ type Props = {
   signOut: () => Promise<void>;
   /** The ways to sign in, when the host has set up more than one; null hides the menu item. */
   methods: SignInMethods | null;
+  /** The address to add to an AI chat as a connector (CONNECT-1); null when the host turned the connector off. */
+  connectorUrl: string | null;
 };
 
 /** ACCESS-10: account menu with sign out and account deletion. */
-export function AccountMenu({ name, email, ownedCount, sharedCount, signOut, methods }: Props) {
+export function AccountMenu({ name, email, ownedCount, sharedCount, signOut, methods, connectorUrl }: Props) {
   const [open, setOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [choosing, setChoosing] = useState(false);
+  const [connecting, setConnecting] = useState(false);
   const avatar = useRef<HTMLButtonElement | null>(null);
 
   return (
@@ -63,6 +67,16 @@ export function AccountMenu({ name, email, ownedCount, sharedCount, signOut, met
             Sign-in methods
           </MenuItem>
         ) : null}
+        {connectorUrl ? (
+          <MenuItem
+            onClick={() => {
+              setOpen(false);
+              setConnecting(true);
+            }}
+          >
+            AI connector
+          </MenuItem>
+        ) : null}
         <MenuItem
           danger
           icon={<TrashIcon />}
@@ -75,6 +89,7 @@ export function AccountMenu({ name, email, ownedCount, sharedCount, signOut, met
         </MenuItem>
       </Menu>
       {choosing && methods ? <SignInMethodsDialog methods={methods} onClose={() => setChoosing(false)} returnFocus={() => avatar.current} /> : null}
+      {connecting && connectorUrl ? <AiConnectorDialog url={connectorUrl} onClose={() => setConnecting(false)} returnFocus={() => avatar.current} /> : null}
       {confirming ? <DeleteAccountDialog onClose={() => setConfirming(false)} returnFocus={() => avatar.current} /> : null}
     </>
   );

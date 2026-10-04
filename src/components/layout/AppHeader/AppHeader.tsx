@@ -13,10 +13,12 @@ type Props = {
   signOut: () => Promise<void>;
   /** The ways to sign in, when the host has set up more than one. */
   methods: SignInMethods | null;
+  /** The AI connector's address, or null when the host turned it off. */
+  connectorUrl: string | null;
 };
 
 /** Top bar: logo, atlas link and the account menu. Booking work lives inside each trip. */
-export function AppHeader({ name, email, ownedCount, sharedCount, signOut, methods }: Props) {
+export function AppHeader({ name, email, ownedCount, sharedCount, signOut, methods, connectorUrl }: Props) {
   return (
     <header className={styles.header}>
       <Logo href="/" />
@@ -24,7 +26,7 @@ export function AppHeader({ name, email, ownedCount, sharedCount, signOut, metho
         <nav className={`mono ${styles.nav}`} aria-label="Main">
           <Link href="/" className={styles.atlas}>Atlas</Link>
         </nav>
-        <AccountMenu name={name} email={email} ownedCount={ownedCount} sharedCount={sharedCount} signOut={signOut} methods={methods} />
+        <AccountMenu name={name} email={email} ownedCount={ownedCount} sharedCount={sharedCount} signOut={signOut} methods={methods} connectorUrl={connectorUrl} />
       </div>
     </header>
   );

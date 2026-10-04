@@ -1,6 +1,8 @@
 import { signIn, signOut } from "@/server/auth/auth";
 import { wechatEnabled } from "@/server/auth/wechat";
 import { getDb } from "@/server/core/db/client";
+import { connectorEnabled } from "@/server/core/env";
+import { connectorUrls } from "@/server/modules/oauth/oauth.metadata";
 import { currentSession, pageActor } from "@/server/auth/session";
 import { getDashboard } from "@/server/modules/dashboard/dashboard.service";
 import { AppHeader } from "@/components/layout/AppHeader/AppHeader";
@@ -42,6 +44,7 @@ export default async function PrivateLayout({ children }: { children: React.Reac
             ownedCount={dash.trips.filter((t) => t.role === "owner").length}
             sharedCount={dash.trips.filter((t) => t.role !== "owner").length}
             signOut={doSignOut}
+            connectorUrl={connectorEnabled() ? connectorUrls().resource : null}
             methods={linked ? { google: linked.has("google"), wechat: linked.has("wechat"), connectGoogle, connectWeChat, hasEmail: Boolean(user?.email) } : null}
           />
         }
