@@ -2,7 +2,7 @@
 
 A private trip planner: a globe of every trip, and a page per trip with a day-by-day itinerary, an outline map, booking tasks and planned costs. Product scope is in [PRD.md](PRD.md); architecture in [docs/design/technical-design.md](docs/design/technical-design.md).
 
-**Built so far:** Google sign-in with an owner allowlist, trips (create, edit, time-zone change, delete), dashboard globe and list, trip page with an itinerary and a dedicated Bookings view (open an event, mark it booked, set a book-by date), events (add, edit, duplicate, delete with undo), costs and budget, an outline day map with an optional Google road-route view, account deletion, owner-only AI import, read-only viewer invitations, an event side panel (click an event) with an embedded Google map and notes, place-name lookup and coordinate pins, and privacy-safe daily pilot counts. Dashboard cards link to each owned trip's bookings without repeating the task list. The import page provides a conversion prompt for a plan already discussed in an external AI chat, an optional new-trip prompt, JSON v1 validation, a day-by-day editable preview with optional place suggestions, and confirmed atomic creation.
+**Built so far:** Google sign-in with an owner allowlist, trips (create, edit, time-zone change, delete), dashboard globe and list, trip page with an itinerary and a dedicated Bookings view (open an event, mark it booked, set a book-by date), events (add, edit, duplicate, delete with undo), costs and budget, an outline day map with an optional Google road-route view, account deletion, owner-only AI import, read-only viewer invitations, an event side panel (click an event) with an embedded Google map and notes, place-name lookup and coordinate pins, and privacy-safe daily pilot counts. Dashboard cards link to each owned trip's bookings without repeating the task list. The import page provides a conversion prompt for a plan already discussed in an external AI chat, an optional new-trip prompt, JSON v1 validation, a day-by-day editable preview with optional place suggestions, and confirmed atomic creation. Claude or ChatGPT can also be connected to your account as a custom connector, to read your trips and, if you allow it, add and change events (see [below](#using-claude-or-chatgpt-with-field-notes)).
 
 Owners share a trip from its **Share** dialog: invite one email with a role (**viewer** reads, **editor** also changes events, bookings and notes, **owner** also edits the trip, shares it and deletes it), send the one-time link by email (when the server has email set up, see `SMTP_URL` below; otherwise copy it and send it yourself), or invite someone **by link** with just a name or note (for a contact without a Google address; whoever opens the link first joins), and change a role, revoke access or send a new link later. The invitee opens the link, signs in with the matching Google account and gets that role. The person who created a trip is always an owner. When an owner deletes their account, each trip they own stays with another owner, goes to someone they choose (the next person in line is suggested) or is deleted; a trip always keeps an owner.
 
@@ -43,6 +43,7 @@ In `.env.local`:
 - `GEOAPIFY_API_KEY` (optional): looks up place names in an AI import preview or when you choose **Find place on map** in the event editor, then suggests pins for the custom outline map. Create a Geoapify project and key, then add it here; restart `npm run dev`. Only the place name and trip destination go to Geoapify. Clear venue matches are selected for review in import; you can change or remove every match before confirming. Without this key, imports still work but place names alone do not create pins. The Google Maps Embed key cannot perform this lookup.
 - `AUTH_WECHAT_ID`, `AUTH_WECHAT_SECRET` and `AUTH_WECHAT_PLATFORM` (optional; the first two are both needed): add **Continue with WeChat** next to Google on the sign-in screen. See [Signing in with WeChat](#signing-in-with-wechat).
 - `SMTP_URL` and `MAIL_FROM` (optional, both needed): make the Share dialog email each invitation instead of leaving you to copy it. `SMTP_URL` is your mail service's address with its login, for example `smtps://user:password@smtp.example.com:465` (or `smtp://…:587`; percent-encode special characters in the password) and `MAIL_FROM` an address it lets you send from, for example `Field Notes <notes@example.com>`. Any SMTP service works (your mail provider, or Resend, Postmark, Mailgun); send from a domain with SPF and DKIM so invitations don't land in spam. The email holds only the trip title, your name, what the role allows and the link. To try it without sending real mail, run a mail catcher such as Mailpit and use `SMTP_URL=smtp://localhost:1025`. If sending fails, the invitation is kept and the dialog shows the message to copy.
+- `AI_CONNECTOR` (optional): the AI connector for Claude and ChatGPT is on unless this is `off`. See [Using Claude or ChatGPT with Field Notes](#using-claude-or-chatgpt-with-field-notes).
 - `APP_ORIGIN`: `http://localhost:3000` locally; your https origin in production. Every write must come from this origin, and Auth.js uses it for callback URLs unless `AUTH_URL` is set.
 
 ## Signing in with WeChat
@@ -55,6 +56,18 @@ You need a WeChat app that allows your site's host name for web authorization, a
 - **A WeChat Open Platform website app** shows a QR code to scan on a desktop browser (`AUTH_WECHAT_PLATFORM=WebsiteApp`). WeChat approves these only for verified developers, which is generally limited to registered businesses and not open to individuals outside mainland China.
 
 Put the ID and secret in `.env.local` (or `.env` for Docker) and restart. WeChat sign-in is only as private as your site: the same invitation rules apply, and a new WeChat account is admitted only by an invitation link.
+
+## Using Claude or ChatGPT with Field Notes
+
+Field Notes can act as a custom connector, so you can ask Claude or ChatGPT about your trips and have it add or change events. The chat runs on your own subscription with Claude or ChatGPT; Field Notes calls no AI itself.
+
+1. Claude and ChatGPT's servers must be able to reach your install, so `APP_ORIGIN` has to be a public https address (see [Self-hosting with Docker](#self-hosting-with-docker); to try it from your own machine, put a tunnel such as Cloudflare Tunnel or ngrok in front of it and set `APP_ORIGIN` to the tunnel's address).
+2. Open **Account menu** → **AI connector**. It shows the connector address, `<APP_ORIGIN>/mcp`, and the apps you have connected.
+3. In Claude open **Customize** → **Connectors** → **Add custom connector**; in ChatGPT turn on developer mode in settings and create a connector. Paste the address, sign in to Field Notes in the window that opens, and choose what to allow: **Read** your trips (always) and **Make changes** (optional).
+
+The chat then has tools to list your trips, read one, add items, change or delete an item (deletions can be undone for ten minutes) and, if you are on the owner list, create a trip. It acts as you, so your role on each trip limits it: a viewer's chat can only read. Everything it adds is marked as an unverified AI draft with estimate prices; it cannot mark anything booked, set a book-by date, share a trip, change who has access or delete a trip. **Disconnect** in the dialog (or in the chat) ends an app's access on its next request. `AI_CONNECTOR=off` turns the whole feature off. What a connected chat reads goes to that chat's provider, under its privacy policy.
+
+Design and protocol details are in the technical design (**AI connector**).
 
 ## Self-hosting with Docker
 
@@ -136,7 +149,7 @@ src/
   server/
     core/               db client and schema types, env, HTTP helpers and the route() wrapper
     auth/               Auth.js setup, session, actor, sign-in gate, per-trip access checks
-    modules/<feature>/  service (rules), repository (SQL), mapper (DTOs): trips, items, dashboard, account, places, import, invitations, usage
+    modules/<feature>/  service (rules), repository (SQL), mapper (DTOs): trips, items, dashboard, account, places, import, invitations, usage, oauth, connector
   data/                 bundled place and airport lists
 db/migrations/          SQL migrations
 Dockerfile, docker-compose.yml, docker/, docker.env.example   self-hosting with Docker (see above)
