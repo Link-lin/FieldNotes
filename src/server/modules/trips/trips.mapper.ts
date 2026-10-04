@@ -25,6 +25,7 @@ export function tripSummary(trip: TripRow & { owner_name?: string | null }, acce
     role: access.role,
     primaryOwner: access.primaryOwner,
     ownerName: access.primaryOwner ? null : (trip.owner_name ?? null),
+    creatorGone: trip.owner_user_id === null,
     atlasLocation:
       trip.atlas_latitude !== null && trip.atlas_longitude !== null && trip.atlas_source
         ? { latitude: Number(trip.atlas_latitude), longitude: Number(trip.atlas_longitude), source: trip.atlas_source }

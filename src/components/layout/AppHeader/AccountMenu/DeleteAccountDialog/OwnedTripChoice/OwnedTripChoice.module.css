@@ -1,0 +1,5 @@
+.trip { display: grid; gap: var(--space-1); padding: var(--space-3) 0; border-top: 1px solid var(--line); }
+.trip:last-child { border-bottom: 1px solid var(--line); }
+.title { color: var(--ink); font-weight: 600; font-size: var(--text-base); }
+.dates { color: var(--ink-3); font-size: var(--text-sm); }
+.note { margin: 0; color: var(--ink-2); font-size: var(--text-sm); }

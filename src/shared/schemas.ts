@@ -166,8 +166,24 @@ export function toFieldErrors(error: z.ZodError): FieldError[] {
 /** POST /api/trips/{id}/time-zone-preview */
 export const timeZonePreviewSchema = z.object({ timeZone: zone, expectedVersion: z.number().int().min(1) }).strict();
 
-/** DELETE /api/account: the owner typed DELETE. */
-export const accountDeleteSchema = z.object({ confirm: z.literal("DELETE") }).strict();
+/**
+ * DELETE /api/account: the person typed DELETE, and chose what happens to a trip they own that nobody else
+ * owns: delete it, or make someone on it (by grant id) its owner. At most one choice per trip (ACCESS-10).
+ */
+const tripDecision = z.discriminatedUnion("action", [
+  z.object({ tripId: z.string().uuid(), action: z.literal("delete") }).strict(),
+  z.object({ tripId: z.string().uuid(), action: z.literal("transfer"), personId: z.string().uuid() }).strict(),
+]);
+export const accountDeleteSchema = z
+  .object({ confirm: z.literal("DELETE"), trips: z.array(tripDecision).max(200).default([]) })
+  .strict()
+  .superRefine((value, ctx) => {
+    const seen = new Set<string>();
+    value.trips.forEach((d, i) => {
+      if (seen.has(d.tripId)) ctx.addIssue({ code: "custom", path: ["trips", i, "tripId"], message: "Choose one thing for each trip." });
+      seen.add(d.tripId);
+    });
+  });
 
 /** ACCESS-3: invite one email address as a viewer. Stored trimmed and lowercased. */
 const memberRole = z.enum(["viewer", "editor", "owner"], { message: "Choose viewer, editor or owner." });

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { listOwnedTrips } from "@/server/modules/account/account.service";
 import { getDashboard } from "@/server/modules/dashboard/dashboard.service";
 import { listInvitations } from "@/server/modules/invitations/invitations.service";
 import { getTripDetail } from "@/server/modules/trips/trips.service";
@@ -112,6 +113,15 @@ describe("test trips seed", () => {
     const friend = await testDb().selectFrom("User").select(["id", "email"]).where("email", "=", TEST_FRIEND.email).executeTakeFirstOrThrow();
     const asFriend = await getTripDetail(testDb(), actorFor(friend), ids[HAWAII_TITLE]!, NOW);
     expect(asFriend.trip.role).toBe("editor"); // Sam, the made-up friend, edits your Hawaii trip
+
+    // Deleting your account would settle the trips you own three ways: Lisbon stays with its co-owner (Sam), Hawaii
+    // asks who takes over (Sam is next in line), and Kauaʻi and Seoul have nobody else on them, so they would be deleted.
+    const plans = Object.fromEntries((await listOwnedTrips(testDb(), owner)).map((p) => [p.title, p]));
+    expect(Object.keys(plans).sort()).toEqual([HAWAII_TITLE, KAUAI_TITLE, LISBON_TITLE, SEOUL_TITLE].sort());
+    expect(plans[LISBON_TITLE]).toMatchObject({ otherOwners: [TEST_FRIEND.email], people: [{ email: TEST_FRIEND.email, role: "owner" }] });
+    expect(plans[HAWAII_TITLE]).toMatchObject({ otherOwners: [], people: [{ email: TEST_FRIEND.email, role: "editor" }] });
+    expect(plans[KAUAI_TITLE]).toMatchObject({ otherOwners: [], people: [] });
+    expect(plans[SEOUL_TITLE]).toMatchObject({ otherOwners: [], people: [] });
   });
 
   it("replaces its own trips on a re-run and leaves the owner's other trips alone", async () => {

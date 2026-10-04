@@ -19,7 +19,7 @@ export async function makeActor(email: string, name = email.split("@")[0]!): Pro
   return actorFor(u);
 }
 
-export async function grant(tripId: string, viewer: Actor, status: "accepted" | "pending" | "revoked" = "accepted", role: "viewer" | "editor" | "owner" = "viewer") {
+export async function grant(tripId: string, viewer: Actor, status: "accepted" | "pending" | "revoked" = "accepted", role: "viewer" | "editor" | "owner" = "viewer", acceptedAt = new Date()) {
   await testDb()
     .insertInto("trip_viewers")
     .values({
@@ -30,7 +30,7 @@ export async function grant(tripId: string, viewer: Actor, status: "accepted" | 
       status,
       invitation_token_hash: status === "revoked" ? null : Buffer.from(crypto.randomUUID()),
       expires_at: new Date(Date.now() + 7 * 864e5),
-      accepted_at: status === "accepted" ? new Date() : null,
+      accepted_at: status === "accepted" ? acceptedAt : null,
     })
     .execute();
 }

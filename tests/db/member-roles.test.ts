@@ -268,11 +268,13 @@ describe("account-level helpers", () => {
 });
 
 describe("deleting an account", () => {
-  it("removes a member's access but not the trip, and deletes only the trips the creator made", async () => {
+  it("removes a member's access but not the trip, and the trip stays with its other owners when the creator goes", async () => {
     await deleteAccount(db(), editor);
     expect((await getTripDetail(db(), owner, tripId, NOW)).trip.role).toBe("owner");
     expect((await listInvitations(db(), owner, tripId, NOW)).map((e) => e.email)).not.toContain("editor@example.com");
     await deleteAccount(db(), owner);
-    await expectHttp(getTripDetail(db(), coOwner, tripId, NOW), 404); // the creator's trip goes with their account
+    // The co-owner keeps it, now without a creator; the viewer keeps theirs (more in account-deletion.test.ts).
+    expect((await getTripDetail(db(), coOwner, tripId, NOW)).trip).toMatchObject({ role: "owner", primaryOwner: false, creatorGone: true, ownerName: null });
+    expect((await getTripDetail(db(), viewer, tripId, NOW)).trip.role).toBe("viewer");
   });
 });

@@ -8,12 +8,13 @@ import type { Actor } from "@/server/auth/actor";
 
 /**
  * Trips you created (while still on the allowlist) plus trips with an accepted grant, with the creator's
- * name. `member_role` is the highest role of your accepted grant on the trip, or null for your own trips.
+ * name (none once the creator has deleted their account). `member_role` is the highest role of your accepted
+ * grant on the trip, or null for your own trips.
  */
 export async function visibleTrips(db: Conn, actor: Actor): Promise<Array<TripRow & { owner_name: string | null; member_role: "viewer" | "editor" | "owner" | null }>> {
   return db
     .selectFrom("trips")
-    .innerJoin("User", "User.id", "trips.owner_user_id")
+    .leftJoin("User", "User.id", "trips.owner_user_id")
     .selectAll("trips")
     .select("User.name as owner_name")
     .select((eb) =>

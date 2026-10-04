@@ -44,7 +44,8 @@ export interface VerificationTokenTable {
 
 export interface TripsTable {
   id: Generated<string>;
-  owner_user_id: string;
+  /** The creator. Always set when a trip is inserted; null once their account is deleted and the trip stays with other owners. */
+  owner_user_id: ColumnType<string | null, string, string | null>;
   title: string;
   destination: string;
   atlas_latitude: Numeric | null;

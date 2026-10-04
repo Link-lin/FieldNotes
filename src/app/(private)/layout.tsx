@@ -32,8 +32,8 @@ export default async function PrivateLayout({ children }: { children: React.Reac
           <AppHeader
             name={session.user.name ?? session.user.email ?? "You"}
             email={session.user.email ?? ""}
-            ownedTrips={dash.trips.filter((t) => t.primaryOwner).map((t) => t.title)}
-            sharedCount={dash.trips.filter((t) => !t.primaryOwner).length}
+            ownedCount={dash.trips.filter((t) => t.role === "owner").length}
+            sharedCount={dash.trips.filter((t) => t.role !== "owner").length}
             signOut={doSignOut}
           />
         }

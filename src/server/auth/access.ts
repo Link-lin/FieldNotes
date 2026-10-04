@@ -15,15 +15,16 @@ const RANK: Record<Role, number> = { viewer: 0, editor: 1, owner: 2 };
 
 /**
  * The per-trip authorization boundary (technical design: Security and privacy). The creator is an owner
- * only while still on the allowlist. Everyone else needs an accepted grant bound to this user, whose role
- * (viewer, editor or owner) decides what they may do; if there are several, the highest wins.
+ * only while still on the allowlist (and not at all once their account is gone). Everyone else needs an
+ * accepted grant bound to this user, whose role (viewer, editor or owner) decides what they may do; if there
+ * are several, the highest wins.
  * Pass lock=true inside a transaction to lock the trip row.
  */
 export async function tripAccess(db: Conn, actor: Actor, tripId: string, lock = false): Promise<TripAccess | null> {
   if (!isUuid(tripId)) return null;
   let q = db
     .selectFrom("trips")
-    .innerJoin("User", "User.id", "trips.owner_user_id")
+    .leftJoin("User", "User.id", "trips.owner_user_id")
     .selectAll("trips")
     .select("User.name as owner_name")
     .where("trips.id", "=", tripId);

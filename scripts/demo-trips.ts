@@ -552,7 +552,7 @@ export function demoTrips(today: string): TripSpec[] {
     endDate: addDays(today, 206),
     timeZone: "Europe/Lisbon",
     budget: { amount: "3000", currency: "EUR" },
-    viewers: [],
+    viewers: [{ kind: "accepted-friend", role: "owner" }], // a co-owner, so deleting your account shows a trip that stays with another owner
     items: [],
   };
 

@@ -166,7 +166,13 @@ export function ShareDialog({ trip, canEmail, onClose }: Props) {
 
       <section className={styles.people} aria-labelledby="share-people">
         <h3 id="share-people" className={styles.heading}>People and invitations</h3>
-        <p className="note">{trip.primaryOwner ? "You" : (trip.ownerName ?? "Someone else")} created this trip and is always an owner.</p>
+        <p className="note">
+          {trip.primaryOwner
+            ? "You created this trip and are always an owner."
+            : trip.creatorGone
+              ? "The person who created this trip has deleted their account. A trip always keeps at least one owner."
+              : `${trip.ownerName ?? "Someone else"} created this trip and is always an owner.`}
+        </p>
         {loadError ? (
           <div className={styles.loadError}>
             <FormError>{loadError}</FormError>

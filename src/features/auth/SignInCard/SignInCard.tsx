@@ -38,7 +38,7 @@ const COPY: Record<Exclude<SignInState, null> | "ready", Copy> = {
     button: SWITCH,
   },
   error: { title: "Sign in", banner: { tone: "warn", text: "Sign-in didn't finish. Try again." }, button: SIGN_IN },
-  deleted: { title: "Sign in", banner: { tone: "info", text: "Your account and the trips you owned were deleted." }, button: SIGN_IN },
+  deleted: { title: "Sign in", banner: { tone: "info", text: "Your account was deleted. Trips that another owner keeps stay with them; any others you owned were deleted." }, button: SIGN_IN },
   signedOut: { title: "Sign in", banner: { tone: "info", text: "You are signed out." }, button: SIGN_IN },
   invited: {
     title: "You're invited",

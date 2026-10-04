@@ -1,9 +1,9 @@
 import "server-only";
-import type { Kysely } from "kysely";
-import type { DB } from "@/server/core/db/schema";
+import type { Kysely, Transaction } from "kysely";
+import type { DB, TripRow } from "@/server/core/db/schema";
 import type { Actor } from "@/server/auth/actor";
 import { requireTripOwner } from "@/server/auth/access";
-import { appOrigin } from "@/server/core/env";
+import { appOrigin, ownerEmails } from "@/server/core/env";
 import { mailConfigured, sendMail } from "@/server/core/mail";
 import { HttpError, invalid } from "@/server/core/http/errors";
 import { isUuid } from "@/server/core/http/request";
@@ -21,6 +21,7 @@ import {
   revokeInvitationRow,
   setInvitationRole,
   tripInvitations,
+  type InvitationRow,
 } from "./invitations.repository";
 import { hashInvitationToken, INVITATION_TTL_MS, invitationStatus, isInvitationToken, newInvitationToken } from "./invitations.rules";
 
@@ -103,19 +104,44 @@ async function emailInvitation(db: Kysely<DB>, actor: Actor, to: string, role: R
  */
 export async function updateInvitationRole(db: Kysely<DB>, actor: Actor, tripId: string, invitationId: string, role: Role, now = new Date()): Promise<InvitationDTO> {
   return db.transaction().execute(async (tx) => {
-    await requireTripOwner(tx, actor, tripId, true);
+    const { trip } = await requireTripOwner(tx, actor, tripId, true);
     const row = isUuid(invitationId) ? await invitationForUpdate(tx, tripId, invitationId) : undefined;
     if (!row) throw invitationNotFound();
     if (row.status === "revoked") throw new HttpError(409, "invitation_revoked", "This person's access was revoked. Create a new link to invite them again.");
+    if (role !== "owner") await requireAnotherOwner(tx, trip, row);
     return invitationDto(await setInvitationRole(tx, row.id, role), now);
   });
+}
+
+/**
+ * A trip always keeps an owner (ACCESS-5): its creator while they can still act as one, or an accepted owner.
+ * Refuses a change that would take the last one away from `leaving`. The caller holds the trip's lock, so two
+ * owners stepping down at once cannot both pass.
+ */
+async function requireAnotherOwner(tx: Transaction<DB>, trip: TripRow, leaving: InvitationRow): Promise<void> {
+  if (leaving.status !== "accepted" || leaving.role !== "owner") return;
+  const other = await tx
+    .selectFrom("trip_viewers")
+    .select("id")
+    .where("trip_id", "=", trip.id)
+    .where("status", "=", "accepted")
+    .where("role", "=", "owner")
+    .where("id", "<>", leaving.id)
+    .executeTakeFirst();
+  if (other) return;
+  const creator = trip.owner_user_id ? await tx.selectFrom("User").select("email").where("id", "=", trip.owner_user_id).executeTakeFirst() : undefined;
+  if (creator && ownerEmails().has(emailKey(creator.email))) return;
+  throw new HttpError(409, "last_owner", "This is the trip's only owner. Make someone else an owner first, or delete the trip.");
 }
 
 /** ACCESS-6: revoke a pending or accepted entry. The viewer's next request is refused. */
 export async function revokeInvitation(db: Kysely<DB>, actor: Actor, tripId: string, invitationId: string, now = new Date()): Promise<void> {
   await db.transaction().execute(async (tx) => {
-    await requireTripOwner(tx, actor, tripId, true);
-    if (!isUuid(invitationId) || !(await revokeInvitationRow(tx, tripId, invitationId, now))) throw invitationNotFound();
+    const { trip } = await requireTripOwner(tx, actor, tripId, true);
+    const row = isUuid(invitationId) ? await invitationForUpdate(tx, tripId, invitationId) : undefined;
+    if (!row) throw invitationNotFound();
+    await requireAnotherOwner(tx, trip, row);
+    await revokeInvitationRow(tx, tripId, row.id, now);
   });
 }
 

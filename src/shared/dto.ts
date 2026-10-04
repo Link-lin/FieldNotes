@@ -21,6 +21,7 @@ export type TripSummaryDTO = {
   role: Role; // what you may do on this trip
   primaryOwner: boolean; // you created it (a co-owner has the owner role without this)
   ownerName: string | null; // who created it, for everyone else ("shared by")
+  creatorGone: boolean; // the creator deleted their account, so the trip belongs to its owners
   atlasLocation: (LatLon & { source: "catalog" | "owner" }) | null;
 };
 
@@ -133,3 +134,17 @@ export type InvitationDelivery = "sent" | "failed" | "off";
 
 /** Returned once when an invitation is created or given a new link; the URL is never stored or listed. */
 export type InvitationLinkDTO = { invitationId: string; invitationUrl: string; expiresAt: string; invitation: InvitationDTO; delivery: InvitationDelivery };
+
+/**
+ * ACCESS-10: a trip the person owns, for choosing what happens to it when they delete their account.
+ * `otherOwners` names who keeps owning it if they leave (empty when nobody else does); `people` is everyone
+ * else on it, with the `id` to send as `personId`, in the order ownership would pass to them.
+ */
+export type OwnedTripDTO = {
+  id: string;
+  title: string;
+  startDate: string;
+  endDate: string;
+  otherOwners: string[];
+  people: Array<{ id: string; email: string; role: Role }>;
+};
