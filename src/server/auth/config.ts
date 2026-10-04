@@ -19,6 +19,9 @@ import { weChatFetch, wechatEnabled, wechatProvider } from "@/server/auth/wechat
  * staging cookie and the session cookie travel with the sign-in callback).
  */
 export function authConfig(db: Kysely<DB>, cookieHeader: () => Promise<string | null>): NextAuthConfig {
+  // The sign-in callback sees the provider's own claims, but the linkAccount event only gets Auth.js's mapped profile,
+  // which has no `email_verified`. A configuration is built per request, so this carries the claims from one to the other.
+  let claims: { email?: unknown; email_verified?: unknown } = {};
   return {
     adapter: KyselyAdapter(db as unknown as Kysely<AuthDatabase>),
     session: { strategy: "database", maxAge: 30 * 24 * 60 * 60 },
@@ -33,6 +36,7 @@ export function authConfig(db: Kysely<DB>, cookieHeader: () => Promise<string | 
     pages: { signIn: "/sign-in", error: "/sign-in" },
     callbacks: {
       async signIn({ account, profile }) {
+        claims = profile ?? {};
         const origin = appOrigin();
         const cookies = await cookieHeader();
         return allowSignIn(db, {
@@ -50,8 +54,8 @@ export function authConfig(db: Kysely<DB>, cookieHeader: () => Promise<string | 
       },
     },
     events: {
-      async linkAccount({ user, account, profile }) {
-        if (user.id) await adoptVerifiedEmail(db, user.id, account.provider, profile ?? {});
+      async linkAccount({ user, account }) {
+        if (user.id) await adoptVerifiedEmail(db, user.id, account.provider, claims);
       },
     },
   };
