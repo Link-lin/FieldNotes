@@ -1,5 +1,6 @@
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { appleEnabled } from "@/server/auth/apple";
 import { auth, signIn } from "@/server/auth/auth";
 import { wechatEnabled } from "@/server/auth/wechat";
 import { appOrigin } from "@/server/core/env";
@@ -33,6 +34,11 @@ export default async function SignInPage({ searchParams }: { searchParams: Searc
     await signIn("google", { redirectTo: target });
   }
 
+  async function apple() {
+    "use server";
+    await signIn("apple", { redirectTo: target });
+  }
+
   async function wechat() {
     "use server";
     await signIn("wechat", { redirectTo: target });
@@ -50,5 +56,5 @@ export default async function SignInPage({ searchParams }: { searchParams: Searc
       </SignInCard>
     );
   }
-  return <SignInCard state={state} action={google} wechatAction={wechatEnabled() ? wechat : undefined} wechatFirst={inWeChat} />;
+  return <SignInCard state={state} action={google} appleAction={appleEnabled() ? apple : undefined} wechatAction={wechatEnabled() ? wechat : undefined} wechatFirst={inWeChat} />;
 }

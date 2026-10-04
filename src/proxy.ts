@@ -7,14 +7,16 @@ import { NextResponse, type NextRequest } from "next/server";
 export function proxy(request: NextRequest) {
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
   const dev = process.env.NODE_ENV === "development";
-  // Sign-in redirects to Google and, when set up, to WeChat. WECHAT_OPEN_ORIGIN points tests at a stand-in server.
-  let weChatOpen = "https://open.weixin.qq.com";
-  try {
-    weChatOpen = new URL(process.env.WECHAT_OPEN_ORIGIN?.trim() || weChatOpen).origin;
-  } catch {
-    // An unusable override falls back to WeChat's own host.
-  }
-  const signInHosts = ["https://accounts.google.com", weChatOpen];
+  // Sign-in redirects to Google and, when set up, to Apple and WeChat. APPLE_ORIGIN and WECHAT_OPEN_ORIGIN point
+  // tests at stand-in servers; an unusable override falls back to the provider's own host.
+  const hostOf = (override: string | undefined, own: string) => {
+    try {
+      return new URL(override?.trim() || own).origin;
+    } catch {
+      return own;
+    }
+  };
+  const signInHosts = ["https://accounts.google.com", hostOf(process.env.APPLE_ORIGIN, "https://appleid.apple.com"), hostOf(process.env.WECHAT_OPEN_ORIGIN, "https://open.weixin.qq.com")];
   const csp = [
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${dev ? " 'unsafe-eval'" : ""}`,

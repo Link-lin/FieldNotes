@@ -1,5 +1,6 @@
 import { Banner } from "@/components/ui/Banner/Banner";
 import { Button } from "@/components/ui/Button/Button";
+import { AppleIcon } from "@/components/ui/Icon/icons";
 import { Logo } from "@/components/ui/Logo/Logo";
 import styles from "./SignInCard.module.css";
 
@@ -20,6 +21,7 @@ export type SignInState =
 type Copy = { title: string; lead?: string; banner?: { tone: "warn" | "info"; text: string }; button?: string };
 
 const SIGN_IN = "Continue with Google";
+const APPLE = "Continue with Apple";
 const WECHAT = "Continue with WeChat";
 const SWITCH = "Switch Google account";
 
@@ -36,7 +38,7 @@ const COPY: Record<Exclude<SignInState, null> | "ready", Copy> = {
   },
   wrongAccount: {
     title: "Sign in",
-    banner: { tone: "warn", text: "That Google account can't be used here. Switch to the account you normally use for Field Notes." },
+    banner: { tone: "warn", text: "That account can't be used here. Sign in the way you did before, or switch to the account you normally use for Field Notes." },
     button: SWITCH,
   },
   linkFailed: { title: "Sign in", banner: { tone: "warn", text: "That sign-in is already connected to a different Field Notes account, so it wasn't added to this one." } },
@@ -45,12 +47,12 @@ const COPY: Record<Exclude<SignInState, null> | "ready", Copy> = {
   signedOut: { title: "Sign in", banner: { tone: "info", text: "You are signed out." }, button: SIGN_IN },
   invited: {
     title: "You're invited",
-    lead: "You've been invited to a trip on Field Notes. Sign in to join it. If the invitation was sent to your email, use that Google account.",
+    lead: "You've been invited to a trip on Field Notes. Sign in to join it. If the invitation was sent to your email, use the account with that address.",
     button: SIGN_IN,
   },
   inviteWrongAccount: {
     title: "You're invited",
-    banner: { tone: "warn", text: "This invitation is for a different Google account. Switch to the account it was sent to." },
+    banner: { tone: "warn", text: "This invitation is for a different account. Switch to the account it was sent to." },
     button: SWITCH,
   },
   inviteInvalid: {
@@ -61,13 +63,18 @@ const COPY: Record<Exclude<SignInState, null> | "ready", Copy> = {
   inviteError: { title: "Invitation", banner: { tone: "warn", text: "Couldn't reach Field Notes. Check your connection and try again." } },
 };
 
-/** States that offer a way to sign in; the others are about switching Google accounts, or have nothing to sign in to. */
-const OFFERS_WECHAT: ReadonlyArray<SignInState | "ready"> = ["ready", "denied", "error", "deleted", "signedOut", "invited"];
+/** States that offer the other ways to sign in; the rest are about switching Google accounts, or have nothing to sign in to. */
+const OFFERS_OTHERS: ReadonlyArray<SignInState | "ready"> = ["ready", "denied", "wrongAccount", "error", "deleted", "signedOut", "invited"];
+
+/** "Google", "Google or WeChat", "Google, Apple or WeChat". */
+const orList = (names: string[]) => (names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} or ${names[names.length - 1]}`);
 
 type Props = {
   state: SignInState;
   /** The server action behind the Google button; states without a button ignore it. */
   action?: () => Promise<void>;
+  /** The server action behind the Apple button; given only when the host has set Apple up. */
+  appleAction?: () => Promise<void>;
   /** The server action behind the WeChat button; given only when the host has set WeChat up. */
   wechatAction?: () => Promise<void>;
   /** Put WeChat first: the visitor is inside WeChat's own browser, where Google can't be reached. */
@@ -77,11 +84,13 @@ type Props = {
 };
 
 /** ACCESS-9: the public sign-in and invitation screens. They never show trip data. */
-export function SignInCard({ state, action, wechatAction, wechatFirst, children }: Props) {
+export function SignInCard({ state, action, appleAction, wechatAction, wechatFirst, children }: Props) {
   const c = COPY[state ?? "ready"];
-  const google = c.button && action ? { label: c.button, action } : null;
-  const wechat = wechatAction && OFFERS_WECHAT.includes(state ?? "ready") ? { label: WECHAT, action: wechatAction } : null;
-  const buttons = wechatFirst ? [wechat, google] : [google, wechat];
+  const others = OFFERS_OTHERS.includes(state ?? "ready");
+  const google = c.button && action ? { label: c.button, action, icon: null } : null;
+  const apple = appleAction && others ? { label: APPLE, action: appleAction, icon: <AppleIcon /> } : null;
+  const wechat = wechatAction && others ? { label: WECHAT, action: wechatAction, icon: null } : null;
+  const shown = (wechatFirst ? [wechat, google, apple] : [google, apple, wechat]).filter((b) => b !== null);
   return (
     <main className={styles.page}>
       <div className={styles.card} aria-busy={state === "inviteOpening" || undefined}>
@@ -92,16 +101,14 @@ export function SignInCard({ state, action, wechatAction, wechatFirst, children 
         ) : (
           <p className={styles.lead} role={state === "inviteOpening" ? "status" : undefined}>{c.lead}</p>
         )}
-        {buttons.flatMap((b, i) =>
-          b ? (
-            <form key={b.label} action={b.action}>
-              <Button variant={i === 0 || !buttons[0] ? "fill" : "outline"} size="lg" block type="submit">{b.label}</Button>
-            </form>
-          ) : [],
-        )}
+        {shown.map((b, i) => (
+          <form key={b.label} action={b.action}>
+            <Button variant={i === 0 ? "fill" : "outline"} size="lg" block type="submit">{b.icon}{b.label}</Button>
+          </form>
+        ))}
         {children}
         <p className="note">
-          {buttons.some(Boolean) ? (wechatAction ? "Sign in with Google or WeChat. " : "Only Google sign-in is used. ") : ""}Field Notes doesn&apos;t read your email, contacts, calendar or files.
+          {shown.length > 0 ? (appleAction || wechatAction ? `Sign in with ${orList(["Google", ...(appleAction ? ["Apple"] : []), ...(wechatAction ? ["WeChat"] : [])])}. ` : "Only Google sign-in is used. ") : ""}Field Notes doesn&apos;t read your email, contacts, calendar or files.
         </p>
       </div>
     </main>
