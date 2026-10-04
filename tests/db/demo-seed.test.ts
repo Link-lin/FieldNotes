@@ -18,7 +18,7 @@ beforeEach(async () => {
 });
 
 async function seed() {
-  const { trips } = await seedDemoTrips(testDb(), { id: owner.userId, email: owner.email }, NOW);
+  const { trips } = await seedDemoTrips(testDb(), { id: owner.userId, email: owner.email! }, NOW);
   return Object.fromEntries(trips.map((t) => [t.title, t.id]));
 }
 

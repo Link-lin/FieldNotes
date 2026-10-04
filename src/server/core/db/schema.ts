@@ -9,7 +9,8 @@ type Stamp = ColumnType<Date, Date | string | undefined, Date | string>;
 export interface UserTable {
   id: Generated<string>;
   name: string | null;
-  email: string;
+  /** Null for an account that signed in with WeChat only. */
+  email: string | null;
   emailVerified: Date | null;
   image: string | null;
 }

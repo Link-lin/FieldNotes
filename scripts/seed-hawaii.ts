@@ -25,7 +25,7 @@ if (!url || !email) {
 const db = createDb(url);
 try {
   // Gmail addresses match by key, so the allowlist spelling need not equal the address Google signed in with.
-  const you = (await db.selectFrom("User").select(["id", "email"]).execute()).find((u) => u.email && emailKey(u.email) === emailKey(email));
+  const you = (await db.selectFrom("User").select(["id", "email"]).execute()).flatMap((u) => (u.email && emailKey(u.email) === emailKey(email) ? [{ id: u.id, email: u.email }] : []))[0];
   if (!you) {
     console.error(`No account for ${email} yet. Sign in to the app once with that Google account, then run this again.`);
     process.exitCode = 1;

@@ -55,7 +55,7 @@ export async function createInvitation(db: Kysely<DB>, actor: Actor, tripId: str
   const created = await db.transaction().execute(async (tx) => {
     // Locking the trip serializes concurrent invitations for the same new email.
     const { trip } = await requireTripOwner(tx, actor, tripId, true);
-    if (emailKey(email) === emailKey(actor.email)) {
+    if (actor.email !== null && emailKey(email) === emailKey(actor.email)) {
       throw invalid([{ path: "email", code: "own_email", message: "That's your own email. You already own this trip." }], "You can't invite yourself.");
     }
     const token = newInvitationToken();
@@ -87,8 +87,8 @@ async function emailInvitation(db: Kysely<DB>, actor: Actor, to: string, role: R
   if (!mailConfigured()) return "off";
   try {
     const sender = await db.selectFrom("User").select("name").where("id", "=", actor.userId).executeTakeFirst();
-    const mail = invitationEmail({ tripTitle, inviterName: sender?.name?.trim() || actor.email, inviteeEmail: to, role, url, expiresAt });
-    await sendMail({ to, replyTo: actor.email, ...mail });
+    const mail = invitationEmail({ tripTitle, inviterName: sender?.name?.trim() || actor.email || "Someone", inviteeEmail: to, role, url, expiresAt });
+    await sendMail({ to, replyTo: actor.email ?? undefined, ...mail });
     return "sent";
   } catch (err) {
     // The error's name and code only: a mail error's message can contain the address or the server's reply.
@@ -130,7 +130,7 @@ async function requireAnotherOwner(tx: Transaction<DB>, trip: TripRow, leaving: 
     .executeTakeFirst();
   if (other) return;
   const creator = trip.owner_user_id ? await tx.selectFrom("User").select("email").where("id", "=", trip.owner_user_id).executeTakeFirst() : undefined;
-  if (creator && ownerEmails().has(emailKey(creator.email))) return;
+  if (creator?.email && ownerEmails().has(emailKey(creator.email))) return;
   throw new HttpError(409, "last_owner", "This is the trip's only owner. Make someone else an owner first, or delete the trip.");
 }
 
@@ -173,7 +173,7 @@ export async function acceptInvitation(db: Kysely<DB>, actor: Actor, hash: Buffe
       throw invalidInvitation();
     }
     if (invitationStatus(row, now) !== "pending") throw invalidInvitation();
-    if (emailKey(row.invitee_email_normalized) !== emailKey(actor.email)) {
+    if (actor.email === null || emailKey(row.invitee_email_normalized) !== emailKey(actor.email)) {
       throw new HttpError(403, "invitation_wrong_account", "This invitation is for a different Google account. Switch to the account it was sent to.");
     }
     await markAccepted(tx, row.id, actor.userId, now);

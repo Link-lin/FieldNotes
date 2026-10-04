@@ -7,8 +7,8 @@ import { HttpError } from "@/server/core/http/errors";
 export async function currentActor(): Promise<Actor | null> {
   const session = await auth();
   const user = session?.user;
-  if (!user?.id || !user.email) return null;
-  return actorFor({ id: user.id, email: user.email });
+  if (!user?.id) return null;
+  return actorFor({ id: user.id, email: user.email ?? null });
 }
 
 export async function requireActor(): Promise<Actor> {

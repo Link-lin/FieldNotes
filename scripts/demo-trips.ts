@@ -696,9 +696,10 @@ export async function seedDemoTrips(db: Kysely<DB>, you: { id: string; email: st
   const today = dateInZone(HAWAII_ZONE, now.getTime());
   const specs = demoTrips(today);
   return db.transaction().execute(async (tx) => {
-    const friend =
-      (await tx.selectFrom("User").select(["id", "email"]).where("email", "=", TEST_FRIEND.email).executeTakeFirst()) ??
-      (await tx.insertInto("User").values({ email: TEST_FRIEND.email, name: TEST_FRIEND.name, emailVerified: null, image: null }).returning(["id", "email"]).executeTakeFirstOrThrow());
+    const friendRow =
+      (await tx.selectFrom("User").select("id").where("email", "=", TEST_FRIEND.email).executeTakeFirst()) ??
+      (await tx.insertInto("User").values({ email: TEST_FRIEND.email, name: TEST_FRIEND.name, emailVerified: null, image: null }).returning("id").executeTakeFirstOrThrow());
+    const friend = { id: friendRow.id, email: TEST_FRIEND.email };
 
     const old = await tx
       .selectFrom("trips")

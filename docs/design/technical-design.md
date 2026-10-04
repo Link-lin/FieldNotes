@@ -159,7 +159,7 @@ Columns are listed in the tables below; `usage_counts` stands alone. Flight fiel
 
 #### Auth.js tables
 
-`User`, `Account`, `Session` and `VerificationToken` use the Kysely adapter's default names and camel-case columns (`userId`, `sessionToken`). Do not rename them without a deliberate adapter mapping. `User` is the app's user identity; there is no profile table. The Google provider subject is the stable identity; email is normalized for invitation matching and is not a key. The Google provider's `account()` callback returns `{}`, so no access or refresh token is stored (see the [Auth.js provider reference](https://authjs.dev/reference/core/providers)).
+`User`, `Account`, `Session` and `VerificationToken` use the Kysely adapter's default names and camel-case columns (`userId`, `sessionToken`). Do not rename them without a deliberate adapter mapping. `User` is the app's user identity; there is no profile table. A sign-in provider's subject is the stable identity (`Account.provider` and `providerAccountId`); email is normalized for invitation matching and is not a key. `User.email` is optional, because an account that signed in with WeChat has none; it stays unique, and Postgres lets any number of accounts hold NULL. Such an account is never on the owner allowlist, cannot accept an email invitation and has no address to reply to. The Google provider's `account()` callback returns `{}`, so no access or refresh token is stored (see the [Auth.js provider reference](https://authjs.dev/reference/core/providers)).
 
 #### `trips`
 
@@ -248,6 +248,7 @@ Migrations are TypeScript modules of raw SQL in `db/migrations`, listed explicit
 - `0003_usage_counts`: the pilot counts table.
 - `0004_member_roles`: adds `trip_viewers.role` (`viewer`, `editor` or `owner`, default `viewer`, so every existing entry stays a viewer).
 - `0005_creator_may_leave`: makes `trips.owner_user_id` nullable and its foreign key `ON DELETE SET NULL`, so deleting a creator's account no longer deletes trips other owners keep. It has no rollback: restoring `NOT NULL` would mean deleting or reassigning those trips.
+- `0006_accounts_without_email`: makes `User.email` nullable. It has no rollback: restoring `NOT NULL` would mean inventing an address for each such account.
 
 Deployment runs `npm run db:migrate` with a schema-owner credential (`MIGRATION_DATABASE_URL`); the runtime credential cannot run DDL. Migrating on `npm run dev` is for local development only. Take a provider snapshot before a production migration. Write a rollback only when it cannot destroy user data; otherwise use a forward corrective migration. Never seed production trips.
 

@@ -38,7 +38,7 @@ export function AccountMenu({ name, email, ownedCount, sharedCount, signOut }: P
       >
         <MenuHeader>
           <b>{name}</b>
-          <span>{email}</span>
+          {email ? <span>{email}</span> : null}
           <span className="mono">Owner of {plural(ownedCount, "trip")} · invited to {sharedCount}</span>
         </MenuHeader>
         <form action={signOut}>
