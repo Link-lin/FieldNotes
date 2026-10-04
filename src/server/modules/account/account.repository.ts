@@ -46,6 +46,33 @@ export async function ownedTripRows(db: Conn, userId: string, lock = false): Pro
   return q.execute();
 }
 
+/**
+ * Locks the account's own row. Creating a trip for them (through its foreign key) and being made an owner
+ * (see `promoteToOwner`) both need a lock on this row that conflicts with this one, so nothing can be handed to
+ * an account while it is being deleted, and a deletion waits for what is already in flight. False if the
+ * account is already gone.
+ */
+export async function lockUserForDeletion(tx: Transaction<DB>, userId: string): Promise<boolean> {
+  return Boolean(await tx.selectFrom("User").select("id").where("id", "=", userId).forUpdate().executeTakeFirst());
+}
+
+/**
+ * Makes an accepted person an owner: share-locks their account row, so they can't finish deleting their account
+ * between now and commit, and changes the grant only while it is still theirs and accepted. False if it isn't.
+ */
+export async function promoteToOwner(tx: Transaction<DB>, grantId: string, userId: string): Promise<boolean> {
+  await tx.selectFrom("User").select("id").where("id", "=", userId).forShare().execute();
+  const row = await tx
+    .updateTable("trip_viewers")
+    .set({ role: "owner" })
+    .where("id", "=", grantId)
+    .where("viewer_user_id", "=", userId)
+    .where("status", "=", "accepted")
+    .returning("id")
+    .executeTakeFirst();
+  return Boolean(row);
+}
+
 /** The accepted grants on these trips other than the given account's, with who and since when. */
 export async function acceptedPeople(db: Conn, tripIds: string[], exceptUserId: string): Promise<Array<Person & { tripId: string }>> {
   if (!tripIds.length) return [];

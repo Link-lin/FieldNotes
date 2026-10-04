@@ -167,10 +167,12 @@ export function toFieldErrors(error: z.ZodError): FieldError[] {
 export const timeZonePreviewSchema = z.object({ timeZone: zone, expectedVersion: z.number().int().min(1) }).strict();
 
 /**
- * DELETE /api/account: the person typed DELETE, and chose what happens to a trip they own that nobody else
- * owns: delete it, or make someone on it (by grant id) its owner. At most one choice per trip (ACCESS-10).
+ * DELETE /api/account: the person typed DELETE, and chose what happens to a trip they own: keep it with its
+ * other owners, delete it, or make someone on it (by grant id) its owner. At most one choice per trip
+ * (ACCESS-10). A trip with no choice stays with its other owners, or is deleted when nobody else is on it.
  */
 const tripDecision = z.discriminatedUnion("action", [
+  z.object({ tripId: z.string().uuid(), action: z.literal("keep") }).strict(),
   z.object({ tripId: z.string().uuid(), action: z.literal("delete") }).strict(),
   z.object({ tripId: z.string().uuid(), action: z.literal("transfer"), personId: z.string().uuid() }).strict(),
 ]);

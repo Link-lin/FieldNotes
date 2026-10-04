@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { event, grant, makeActor, NOW, reset, testDb, tripInput } from "./helpers";
 import type { Actor } from "@/server/auth/actor";
 import { HttpError } from "@/server/core/http/errors";
+import * as accountRepo from "@/server/modules/account/account.repository";
 import { deleteAccount, listOwnedTrips } from "@/server/modules/account/account.service";
 import { revokeInvitation, updateInvitationRole } from "@/server/modules/invitations/invitations.service";
 import { createItem } from "@/server/modules/items/items.service";
@@ -47,7 +48,10 @@ beforeEach(async () => {
   other = await makeActor("other@example.com", "Eve");
   session.actor = null;
 });
-afterEach(() => vi.unstubAllEnvs());
+afterEach(() => {
+  vi.unstubAllEnvs();
+  vi.restoreAllMocks();
+});
 
 const newTrip = async (creator: Actor, title: string = tripInput.title) => (await createTrip(db(), creator, { ...tripInput, title }, NOW)).id;
 /** A trip made by someone who can't create trips (not on the allowlist), which only a direct write can produce. */
@@ -65,6 +69,36 @@ const grantOf = async (tripId: string, who: Actor) =>
 const tripRow = (tripId: string) => db().selectFrom("trips").selectAll().where("id", "=", tripId).executeTakeFirst();
 const userRow = (who: Actor) => db().selectFrom("User").select("id").where("id", "=", who.userId).executeTakeFirst();
 const roleOn = async (who: Actor, tripId: string) => (await getTripDetail(db(), who, tripId, NOW)).trip.role;
+
+/** Trips with no creator and no owner grant: nobody can open them, so they must never exist. */
+const ownerless = () =>
+  db()
+    .selectFrom("trips")
+    .select("id")
+    .where("owner_user_id", "is", null)
+    .where((eb) => eb.not(eb.exists(eb.selectFrom("trip_viewers").select("id").whereRef("trip_viewers.trip_id", "=", "trips.id").where("status", "=", "accepted").where("role", "=", "owner"))))
+    .execute();
+
+/** Time for a competing request, started while a deletion is held, to finish or to be seen waiting on its locks. */
+const settle = () => new Promise((resolve) => setTimeout(resolve, 250));
+
+/** Holds a person's own deletion, after it has locked and read what they own, until `resume` is called. */
+function pauseAfterOwnedRead(userId: string) {
+  let reached!: () => void;
+  let resume!: () => void;
+  const atRead = new Promise<void>((resolve) => (reached = resolve));
+  const released = new Promise<void>((resolve) => (resume = resolve));
+  const original = accountRepo.ownedTripRows;
+  vi.spyOn(accountRepo, "ownedTripRows").mockImplementation(async (conn, id, lock) => {
+    const rows = await original(conn, id, lock);
+    if (id === userId && lock) {
+      reached();
+      await released;
+    }
+    return rows;
+  });
+  return { atRead, resume };
+}
 
 describe("what the account-deletion dialog offers", () => {
   it("lists the people on a trip you created in the order ownership would pass, and who would keep it", async () => {
@@ -191,6 +225,23 @@ describe("deleting an account", () => {
     await expectHttp(getTripDetail(db(), coOwner, t, NOW), 404);
   });
 
+  it("keeps a trip with its other owners when the person says keep", async () => {
+    const t = await newTrip(owner);
+    await grant(t, coOwner, "accepted", "owner");
+    await deleteAccount(db(), owner, [{ tripId: t, action: "keep" }]);
+    expect(await roleOn(coOwner, t)).toBe("owner");
+  });
+
+  it("refuses to keep a trip whose other owner has since left, instead of deleting it", async () => {
+    const t = await newTrip(owner);
+    await grant(t, coOwner, "accepted", "owner");
+    expect((await listOwnedTrips(db(), owner))[0]).toMatchObject({ otherOwners: ["coowner@example.com"] }); // the dialog says "Keep it"
+    await deleteAccount(db(), coOwner);
+    await expectHttp(deleteAccount(db(), owner, [{ tripId: t, action: "keep" }]), 409, "account_decision_needed");
+    expect(await tripRow(t)).toBeDefined();
+    expect(await userRow(owner)).toBeDefined();
+  });
+
   it("rejects choices that are out of date, and changes nothing", async () => {
     const t = await newTrip(owner);
     await grant(t, editor, "accepted", "editor");
@@ -254,6 +305,61 @@ describe("deleting an account", () => {
     await deleteAccount(db(), owner);
     expect(await tripRow(theirs)).toBeDefined();
     expect(await db().selectFrom("trip_viewers").selectAll().execute()).toEqual([]);
+  });
+});
+
+describe("changes made while an account is being deleted", () => {
+  it("won't strand a trip created for an account that is being deleted", async () => {
+    const pause = pauseAfterOwnedRead(owner.userId);
+    const deleting = deleteAccount(db(), owner);
+    await pause.atRead;
+    // The insert waits for the deletion's lock on the account, then is refused once the account is gone.
+    const creating = createTrip(db(), owner, tripInput, NOW).then(() => "created", () => "refused");
+    await settle(); // without that lock the trip would be created here, before the deletion carries on
+    pause.resume();
+    await deleting;
+    await creating;
+    expect(await ownerless()).toEqual([]);
+  });
+
+  it("refuses a handover to someone who is deleting their own account at the same moment", async () => {
+    const t = await newTrip(owner);
+    await grant(t, editor, "accepted", "editor", day(1));
+    await grant(t, viewer, "accepted", "viewer", day(2));
+    const person = await grantOf(t, editor);
+    const pause = pauseAfterOwnedRead(editor.userId);
+    const leaving = deleteAccount(db(), editor);
+    await pause.atRead;
+    const handing = deleteAccount(db(), owner, [{ tripId: t, action: "transfer", personId: person }]).then(() => null, (e: unknown) => e);
+    await settle(); // without the lock on the new owner the handover would complete here
+    pause.resume();
+    await leaving;
+    const err = await handing;
+    expect(err).toBeInstanceOf(HttpError);
+    expect(err).toMatchObject({ status: 422, fields: [{ path: `trips.${t}`, code: "person_unavailable" }] });
+    expect(await ownerless()).toEqual([]);
+    expect(await userRow(owner)).toBeDefined(); // nothing of the owner's was deleted
+    expect(await roleOn(owner, t)).toBe("owner");
+  });
+
+  it("lets only one of two co-owners leave at the same moment, so the trip keeps an owner", async () => {
+    const t = await newTrip(owner);
+    await grant(t, coOwner, "accepted", "owner", day(1));
+    await grant(t, other, "accepted", "owner", day(2));
+    await grant(t, viewer, "accepted", "viewer", day(3));
+    await deleteAccount(db(), owner); // the creator goes first; the co-owners keep it
+    const pause = pauseAfterOwnedRead(coOwner.userId);
+    const first = deleteAccount(db(), coOwner);
+    await pause.atRead;
+    const second = deleteAccount(db(), other).then(() => null, (e: unknown) => e);
+    await settle(); // without the trip lock the second would leave here too
+    pause.resume();
+    await first;
+    const err = await second;
+    expect(err).toMatchObject({ status: 409, code: "account_decision_needed" });
+    expect(await ownerless()).toEqual([]);
+    expect(await userRow(other)).toBeDefined();
+    expect(await roleOn(other, t)).toBe("owner");
   });
 });
 
@@ -325,7 +431,7 @@ describe("the account routes", () => {
     const t = await newTrip(owner);
     session.actor = owner;
     const send = (body: unknown) => accountRoute.DELETE(req("DELETE", body));
-    expect((await send({ confirm: "DELETE", trips: [{ tripId: t, action: "keep" }] })).status).toBe(422);
+    expect((await send({ confirm: "DELETE", trips: [{ tripId: t, action: "archive" }] })).status).toBe(422);
     expect((await send({ confirm: "DELETE", trips: [{ tripId: t, action: "delete" }, { tripId: t, action: "delete" }] })).status).toBe(422);
     expect((await send({ confirm: "DELETE", trips: [{ tripId: "nope", action: "delete" }] })).status).toBe(422);
     expect((await send({ trips: [] })).status).toBe(422);

@@ -30,8 +30,10 @@ describe("whether a choice still fits", () => {
 });
 
 describe("what is sent", () => {
-  it("sends nothing for a trip other owners keep, or one nobody else is on", () => {
-    expect(toDecision(trip({ otherOwners: ["Jordan"] }), "keep")).toBeNull();
+  it("sends keep for a trip other owners keep, so it is refused rather than deleted if they have gone", () => {
+    expect(toDecision(trip({ otherOwners: ["Jordan"] }), "keep")).toEqual({ tripId: "t1", action: "keep" });
+  });
+  it("sends nothing for a trip nobody else is on", () => {
     expect(toDecision(trip(), "delete")).toBeNull();
   });
   it("sends a delete for a trip that has other people, or other owners", () => {
