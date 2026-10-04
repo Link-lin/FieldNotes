@@ -303,6 +303,24 @@ describe("connecting Google to an account that signed in with WeChat", () => {
     expect(await emailOf(id)).toBeNull();
   });
 
+  it("does so through Auth.js's own callback and event, which see the provider's claims and a mapped profile without them", async () => {
+    const connect = async (userId: string, claims: Record<string, unknown>) => {
+      const token = crypto.randomUUID();
+      await db().insertInto("Session").values({ userId, sessionToken: token, expires: new Date(Date.now() + 864e5) }).execute();
+      const config = authConfig(db(), async () => `authjs.session-token=${token}`);
+      const account = { provider: "google", providerAccountId: `g-${userId}`, type: "oidc" };
+      // Auth.js runs the sign-in callback with the claims, then the event with the mapped profile: no `email_verified`.
+      expect(await config.callbacks!.signIn!({ user: { id: userId }, account, profile: claims } as never)).toBe(true);
+      await config.events!.linkAccount!({ user: { id: userId }, account, profile: { id: "x", email: String(claims.email).toLowerCase() } } as never);
+    };
+    const verified = await mei();
+    await connect(verified, { sub: "g-1", email: "Mei@Example.com", email_verified: true });
+    expect(await emailOf(verified)).toBe("mei@example.com");
+    const unverified = await mei();
+    await connect(unverified, { sub: "g-2", email: "other@example.com", email_verified: false });
+    expect(await emailOf(unverified)).toBeNull();
+  });
+
   it("leaves an address another account holds alone, without failing", async () => {
     await makeActor("taken@example.com");
     const id = await mei();
