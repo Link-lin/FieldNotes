@@ -7,5 +7,6 @@
 .permission:last-child { border-bottom: 1px solid var(--line); }
 .permissionTitle { margin: 0; font-weight: 600; color: var(--ink); }
 .always { margin-left: var(--space-2); font-size: var(--text-2xs); font-weight: 400; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
+.host { font-family: var(--mono); font-size: var(--text-md); font-weight: 600; }
 .where { margin: 0; font-size: var(--text-md); color: var(--ink-2); overflow-wrap: anywhere; }
 .actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2); }

@@ -79,7 +79,7 @@ export function ConsentPage({ appName, returnHost, runsLocally, wantsChanges, ac
         </ul>
         <p className="note">It can&apos;t mark a booking confirmed, share a trip, change who has access, or delete a trip. Those stay in Field Notes.</p>
         <p className={styles.where}>
-          After you choose, you are sent back to <b className="mono">{returnHost}</b>
+          After you choose, you are sent back to <b className={styles.host}>{returnHost}</b>
           {runsLocally ? ", an app running on this computer" : ""}. The name above is the one the app gave itself. What {appName} reads goes to its provider, under that provider&apos;s privacy policy. You can disconnect it at any time from the account menu, under AI connector.
         </p>
         {error ? <FormError>{error}</FormError> : null}

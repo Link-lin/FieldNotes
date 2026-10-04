@@ -78,7 +78,8 @@ export function AiConnectorDialog({ url, onClose, returnFocus }: { url: string; 
       </div>
       <ol className={styles.steps}>
         <li><b>Claude:</b> open <i>Customize</i>, then <i>Connectors</i>, choose <i>Add custom connector</i> and paste the address.</li>
-        <li><b>ChatGPT:</b> turn on developer mode in settings, then create a connector with the address.</li>
+        <li><b>ChatGPT:</b> in <i>Settings</i>, <i>Security and login</i>, turn on <i>Developer mode</i>, then create an app for a remote MCP server with the address and OAuth sign-in.</li>
+        <li><b>Claude Code:</b> run <code className={styles.command}>claude mcp add --transport http field-notes {url}</code>, then <code className={styles.command}>/mcp</code> to sign in.</li>
         <li>Sign in to Field Notes in the window that opens and choose what to allow.</li>
       </ol>
       {!url.startsWith("https://") ? (
