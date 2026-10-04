@@ -11,9 +11,9 @@ This document describes the system as built. Requirement IDs such as TRIP-10 ref
 
 ### Purpose and scope
 
-Travel Planner is one TypeScript web application with a server-side data-access layer (DAL) and one managed PostgreSQL database. Users sign in with Google through Auth.js, and sessions are stored in the database. All trip reads and writes run on the server. The browser never connects to PostgreSQL.
+Travel Planner is one TypeScript web application with a server-side data-access layer (DAL) and one PostgreSQL database. Users sign in with Google through Auth.js, and sessions are stored in the database. All trip reads and writes run on the server. The browser never connects to PostgreSQL.
 
-Built: sign-in, the dashboard and globe, trips, the trip page with events, costs and day map, the event side panel, account deletion, owner-only AI import into a new trip with optional owner-reviewed place lookup, read-only viewer invitations, pasted-coordinate pins and pilot counts. Not built: importing into an existing trip (TRIP-7, proposed; see [Open questions](#open-questions)) and ATLAS-4's click-the-globe point picker (owners set a point through catalog search only); no health-check route or structured request logging yet (see [Observability](#observability)).
+Built: sign-in, the dashboard and globe, trips, the trip page with events, costs and day map, the event side panel, account deletion, owner-only AI import into a new trip with optional owner-reviewed place lookup, read-only viewer invitations, pasted-coordinate pins and pilot counts. Not built: importing into an existing trip (TRIP-7, proposed; see [Open questions](#open-questions)) and ATLAS-4's click-the-globe point picker (owners set a point through catalog search only); no structured request logging yet (see [Observability](#observability)).
 
 Out of scope, per the PRD's MVP scope: in-app AI, weather, live flight status, email or push reminders, booking and payment, currency conversion, paid-spend accounting, packing lists, attachments, offline use, collaborative editing, and any app-owned street basemap, tiles, routing engine or background geocoding outside an owner-triggered import preview or event edit. The dataset is personal: a modest number of trips, at most 250 items each, and a few invited viewers.
 
@@ -27,7 +27,7 @@ All dependencies are pinned exactly.
 |---|---|
 | Web and server | Next.js 16.3 (App Router, Node.js runtime; `src/proxy.ts` replaces middleware), React 19.3, TypeScript 5.9 strict |
 | Authentication | next-auth 5.0.0-beta.32 (Auth.js v5) with `@auth/kysely-adapter` 1.11 and database sessions |
-| Database | PostgreSQL through Kysely 0.28.17 (the adapter's peer range excludes 0.29) and `pg` 8. Managed Supabase Postgres is the initial hosting target. |
+| Database | PostgreSQL through Kysely 0.28.17 (the adapter's peer range excludes 0.29) and `pg` 8. The default deployment is the owner's own server in Docker, with PostgreSQL 17 in a container ([Container deployment](#container-deployment)); any PostgreSQL 16 or 17 reachable through `DATABASE_URL` works. |
 | Validation | zod 4; `jsonc-parser` 3.3 for import parsing |
 | Maps | `d3-geo`, `world-atlas` and `topojson-client`; bundled Natural Earth and OurAirports data |
 | Tests and local database | Vitest 3.2 (4.x hit an npm install bug in this environment); `embedded-postgres` (PostgreSQL 17) |
@@ -62,7 +62,7 @@ flowchart LR
     W --> AUTH[Auth.js session and authorization layer]
     AUTH <-->|OAuth/OIDC| G[Google sign-in]
     W --> DAL[Server-only data access layer]
-    DAL -->|Kysely over TLS| DB[(Managed PostgreSQL)]
+    DAL -->|Kysely| DB[(PostgreSQL)]
     W -->|bundled assets and catalog| GEO[World geometry and place index]
     B -. user copies prompt/response .-> AI[External AI chat]
     B -->|explicit external link| MAP[Maps website/app]
@@ -124,6 +124,7 @@ sequenceDiagram
 | Styles | `src/styles` (tokens, base, utilities, motion) plus one `.module.css` per component. |
 | Tests | `tests/unit` (pure logic) and `tests/db` (DAL, route handlers, sign-in gate and the test-trip seed against embedded PostgreSQL). |
 | Configuration | `.env.example` lists variable names only; the README covers Google OAuth setup. |
+| Container | `Dockerfile`, `.dockerignore`, `docker-compose.yml`, `docker/Caddyfile` and `docker.env.example` (see [Container deployment](#container-deployment)); the health route is `src/app/api/health/route.ts` with `src/server/core/health.ts`. |
 
 Code rules:
 
@@ -248,14 +249,14 @@ Deployment runs `npm run db:migrate` with a schema-owner credential (`MIGRATION_
 - **Trip deletion** is owner-only and transactional: lock the trip and its import receipts, set each receipt's `trip_id` and `payload_hash` to null, then delete the trip. Items and viewer rows cascade. The trip disappears from owner and viewer queries at once. There is no undo.
 - **Item deletion** is a soft delete with a 10-minute restore (TRIP-8); see `plan_items`.
 - **Account deletion** removes the `User` row and, by cascade, every owned trip (with the trip-deletion effects), session, account, viewer grant and import receipt (ACCESS-10).
-- **Backups** may keep deleted rows until the provider's retention window ends. "Delete" means removed from the live app at once. Record the chosen plan's backup retention and restore behavior before launch.
+- **Backups** are the owner's: a `pg_dump` taken with the container setup (see the README), or a managed provider's retention window, keeps deleted rows until that backup is deleted or expires. "Delete" means removed from the live app at once. Tell the people you share a trip with how long you keep backups.
 - There is no audit-history table. `created_at`/`updated_at`, Auth.js sessions and provider logs are enough for debugging.
 
 ## 4. API and interfaces
 
 ### API conventions
 
-All routes are same-origin HTTPS Route Handlers built on `route()` in `server/core/http/route.ts`. It checks `Origin` against `APP_ORIGIN` on every state-changing method first (missing or mismatched is 403, even without a session), then resolves the session (401 without one) and applies `requireOwnerAccount` when a route is owner-only, enforces the 1 MiB limit on the raw UTF-8 body bytes before parsing (not only on `Content-Length`; hosting ingress needs a compatible cap), validates the body, maps errors to the stable body below and marks every response `Cache-Control: private, no-store`. `POST /api/invitations/stage` is the one route without a session; it uses `publicRoute()`, which keeps every other rule.
+All routes are same-origin HTTPS Route Handlers built on `route()` in `server/core/http/route.ts`. It checks `Origin` against `APP_ORIGIN` on every state-changing method first (missing or mismatched is 403, even without a session), then resolves the session (401 without one) and applies `requireOwnerAccount` when a route is owner-only, enforces the 1 MiB limit on the raw UTF-8 body bytes before parsing (not only on `Content-Length`; hosting ingress needs a compatible cap), validates the body, maps errors to the stable body below and marks every response `Cache-Control: private, no-store`. `POST /api/invitations/stage` is the one route without a session that takes input; it uses `publicRoute()`, which keeps every other rule. `GET /api/health` also needs no session but takes no input and returns only up or down.
 
 ```json
 {
@@ -290,6 +291,7 @@ Responses never include SQL, stack traces, session or invitation tokens, or othe
 | `PATCH /api/trips/{tripId}/items/{itemId}/notes` | `{ "notes": string \| null, "expectedVersion": 3 }` (TRIP-10). | Owner. Stores trimmed notes only (blank is null, at most 5,000 characters) with the same lock, purge and version rules as a full edit. |
 | `PATCH /api/trips/{tripId}/items/{itemId}/booking` | `{ "bookingStatus": "needs_booking" \| "booked", "bookingDueDate": "2026-10-03" \| null, "expectedVersion": 3 }` (BOOK-3, BOOK-4). | Owner. Changes only the booking state and book-by date, with the same lock, purge and version rules as a full edit. **Booked** clears the date; it is 422 `flight_incomplete` for a flight without its FLIGHT-2 fields, and a date sent with **Booked** is 422. |
 | `POST /api/trips/{tripId}/items/{itemId}/restore` | Undo a deletion. | Owner. Clears `deleted_at` on the same row and bumps the trip version. 410 after 10 minutes; 409 if the cap is full; 409 `restore_time_invalid` if the local time no longer exists or is now ambiguous in the trip zone. |
+| `GET /api/health` | None. | No session, no input, no trip data: 200 `{"status":"ok"}` when the database answers `select 1` within two seconds, otherwise 503 `{"status":"unhealthy"}`. Used by the container's health check. |
 | `GET /api/import/schema` | The JSON v1 schema. | Allowlisted owner. Serves `docs/design/json-v1.schema.json` unchanged. |
 | `POST /api/import/preview` | `{ "responseText": "...", "ownerProvidedBudget": MoneyDTO \| null }`. | Allowlisted owner. See [JSON v1 contract](#json-v1-contract). Writes only a pilot count. |
 | `POST /api/import/commit` | Normalized trip and included items, optional owner-selected `confirmedMapUrls` parallel to items, `ownerProvidedBudget`, `Idempotency-Key` UUID header, `expectedFormatVersion: 1`, optional `previewSkipped` (0–250). | Allowlisted owner. See [Import](#import). `trip.budget` must equal `ownerProvidedBudget`. Map choices are validated and included in the idempotency hash; `previewSkipped` feeds only the pilot count and is not hashed. |
@@ -722,11 +724,26 @@ The default is a public HTTPS sign-in shell. No unauthenticated page, metadata, 
 - Invitation tokens are random, short-lived, hashed at rest, carried in the fragment and never logged; see [Sharing and invitations](#sharing-and-invitations).
 - Headers (set in `src/proxy.ts`): HTTPS and HSTS in production; a global `Referrer-Policy: no-referrer`; frame denial; MIME-sniffing protection; a restrictive CSP compatible with Google OAuth, with self-hosted fonts, no third-party font, style or script origin, and `frame-src https://www.google.com` only (for the Maps Embed API). Final CSP origins are set at deployment. Embedded Google frames set `referrerpolicy="origin"` so the key's site restriction works.
 
+### Container deployment
+
+`docker compose up -d` is the supported way to self-host. One image holds the web server and the migration command, built in three stages: dependencies (`npm ci --ignore-scripts`), a build stage that runs `next build` with `BUILD_STANDALONE=1` and bundles `scripts/migrate.ts` into one file (`migrate.mjs`, with a `require` shim because `pg` is CommonJS), and a small runtime stage that holds only Next's standalone output, its static files and `migrate.mjs`. It runs as the unprivileged `node` user, needs no secrets at build time and is about 360 MB.
+
+`docker-compose.yml` defines four services:
+
+| Service | Role |
+|---|---|
+| `db` | `postgres:17-alpine` on a named volume. It publishes no host port, and its health check gates the others. |
+| `migrate` | A one-shot run of `node migrate.mjs` on every `up`, so an update migrates itself before the app starts. A failed migration stops the app from starting and shows in `docker compose logs migrate`. |
+| `app` | The web server, started only after `migrate` succeeds. It listens on `127.0.0.1:${APP_PORT:-3000}` only, drops all Linux capabilities and sets `no-new-privileges`. Its `HEALTHCHECK` calls `/api/health`. |
+| `caddy` | Optional (`--profile https`): `caddy:2-alpine` obtains and renews a certificate for `APP_DOMAIN` and proxies to `app:3000`. It refuses to start with a clear message when `APP_DOMAIN` is empty. |
+
+Required settings (`APP_ORIGIN`, `AUTH_SECRET`, the Google client, `TRIP_OWNER_EMAILS`, `POSTGRES_PASSWORD`) fail `docker compose` with a named message when missing; the optional keys default to empty. The compose file builds `DATABASE_URL` from `POSTGRES_PASSWORD`, so the password should be hex or base64 without URL-reserved characters (`openssl rand -hex 24`). Without the `https` profile the app speaks plain HTTP on localhost, so a public deployment needs the profile or your own HTTPS proxy: Google sign-in and the secure-cookie settings assume an `https` origin. Backups and restore use `pg_dump` and `psql` through the `db` container (see the README).
+
 ### Secrets and configuration
 
 Server-only variables: `AUTH_SECRET`, `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, `DATABASE_URL`, `MIGRATION_DATABASE_URL` (optional, schema-owner, migrations only), `TRIP_OWNER_EMAILS`, `APP_ORIGIN`, optional `AUTH_URL`, and optional `GEOAPIFY_API_KEY`. The lookup key stays on the server; only the owner's bounded location query goes to Geoapify. `GOOGLE_MAPS_EMBED_API_KEY` is optional and is a browser key (it appears in the embed address); restrict it in Google Cloud to the Maps Embed API and the site's address. The server passes it to the trip page. No secret uses a `NEXT_PUBLIC_` prefix. Use separate development and production OAuth credentials and callback URIs, and rotate anything exposed.
 
-The database connection uses TLS. The runtime role has CRUD on app tables and cannot alter the schema; no superuser or service-role key is in app code. No Supabase Data API key reaches the browser; if the provider's Data API is enabled it must have no permissive anon policy, or it should be disabled. Choose the Supabase pooler that fits the app host and check driver compatibility before deployment ([connection options](https://supabase.com/docs/guides/database/connecting-to-postgres), [pooling guidance](https://supabase.com/docs/guides/database/connecting-to-postgres/pooling-and-limits)).
+Over a network the database connection uses TLS. In the container setup the database sits on a private Compose network, publishes no host port and is reachable only by the app and migration containers, so it does not use TLS. The runtime role has CRUD on app tables and cannot alter the schema; no superuser or service-role key is in app code. No Supabase Data API key reaches the browser; if the provider's Data API is enabled it must have no permissive anon policy, or it should be disabled. Choose the Supabase pooler that fits the app host and check driver compatibility before deployment ([connection options](https://supabase.com/docs/guides/database/connecting-to-postgres), [pooling guidance](https://supabase.com/docs/guides/database/connecting-to-postgres/pooling-and-limits)).
 
 ### Privacy and logging
 
@@ -735,7 +752,7 @@ The database connection uses TLS. The runtime role has CRUD on app tables and ca
 - Tokens have 256 bits of randomness; invitation actions need an authenticated owner. No separate rate-limit service is used.
 - Never log request bodies, pasted responses, normalized drafts, trip titles, destinations, notes, place names, map links, coordinates, prices, emails, invitation tokens or URLs, OAuth codes or tokens, or session IDs. Unexpected route errors log only the error class and a generated request ID, because database and provider messages can contain submitted values.
 - No analytics SDK. Pilot measurement uses aggregate counts that cannot reconstruct a trip (see [Pilot counts](#pilot-counts)).
-- Deletion removes live data at once; backup retention depends on the database plan and must be disclosed before launch.
+- Deletion removes live data at once; backup retention depends on how backups are taken and must be disclosed to anyone you share a trip with.
 
 ## 7. Reliability, performance and observability
 
@@ -762,8 +779,8 @@ No scale infrastructure for the personal dataset: no Redis, search engine, backg
 
 - Built: an unexpected route error logs one line, `[requestId] ErrorName` (`src/server/core/http/respond.ts`), and a failed pilot count logs `[usage] ErrorName`. Nothing else is logged, under the never-log rules in [Privacy and logging](#privacy-and-logging).
 - Before launch (not built): structured request logs (route, status, duration, sanitized error code) under the same rules.
-- The host dashboard and the database provider's health, connection and backup views are enough for the MVP; no paid APM.
-- Before launch (not built): an internal health check reporting only healthy or unhealthy after a short database check; no credentials, SQL, provider detail or user state.
+- `docker compose ps` and `docker compose logs` (or the host's and database provider's own health, connection and backup views) are enough for the MVP; no paid APM.
+- Built: `GET /api/health` reports only healthy or unhealthy after a short database check, with no credentials, SQL, provider detail or user state; a failed check logs only its error class. The container's `HEALTHCHECK` uses it.
 
 ### Pilot counts
 
@@ -866,12 +883,12 @@ Vitest runs `unit` and `db` projects (`npm run test:unit`, `npm run test:db`, or
 ### Open questions
 
 1. Does "not expose the full webpage directly on the internet" mean private trip data only, or no internet-reachable route? The default is the allowlisted public sign-in shell; choose VPN or private ingress for the latter.
-2. Which managed PostgreSQL plan, and what backup retention applies after deletion? Confirm and document before launch.
+2. What backup schedule and retention will you keep (the README shows `pg_dump`), and will you tell people you share trips with? Deleted trips stay in any backup until it is deleted.
 3. Is TRIP-7 (import into an existing trip) approved? If so, the proposal is: add `targetTripId` to `POST /api/import/preview` and a `POST /api/trips/{tripId}/import/commit` route with `expectedVersion` and `Idempotency-Key` that appends items with `source = 'ai'` under the owner check and the 250-item cap (trip row lock). Trip-block errors become warnings, a different `timeZone` warns before commit, and out-of-range items get the DASH-6 warning. The import flow gains an "Append preview" state with the same no-write-before-confirm rule.
 4. Is the paper-and-ink visual direction, including the forest accent, approved ([Trip page v1](trip-page-v1.md))?
 5. Does a broader pilot across multiple trips and external AI tools confirm the single successful 36-item import result, that invitees accept Google sign-in, and that an in-app due list is enough without reminders?
 
-Before launch: production OAuth credentials and callback URLs, the migration role, TLS, final CSP origins, the no-store check, a privacy and backup note, and a production smoke test.
+Before launch: production OAuth credentials and callback URLs, a public HTTPS address (the `https` profile or your own proxy), final CSP origins, the no-store check, a privacy and backup note, and a production smoke test.
 
 ### Risks
 
@@ -881,7 +898,7 @@ Before launch: production OAuth credentials and callback URLs, the migration rol
 - Time-zone and DST mistakes misplace items; conversion is centralized and tested.
 - A public sign-in shell is reachable even though data is protected; VPN ingress costs viewers convenience.
 - The allowlist needs a configuration change when an owner's identity changes or a second owner is added.
-- Provider backups can delay physical erasure; choose a plan and disclose it.
+- Backups can delay physical erasure; decide how long you keep them and say so.
 - Auth.js (a beta release), Next.js and the host may change APIs; keep versions pinned, update deliberately and keep OAuth and database smoke tests.
 
 ## 12. References

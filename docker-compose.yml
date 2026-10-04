@@ -1,0 +1,91 @@
+# Field Notes on your own server:
+#   cp docker.env.example .env      (then fill it in)
+#   docker compose up -d            (add --profile https for automatic HTTPS)
+# See "Self-hosting with Docker" in the README.
+
+name: fieldnotes
+
+x-image: &image
+  image: fieldnotes:latest
+  build: .
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: fieldnotes
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: fieldnotes
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fieldnotes -d fieldnotes"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # Applies any new database migrations, then exits. Runs on every `up`, so an update migrates itself.
+  migrate:
+    <<: *image
+    command: ["node", "migrate.mjs"]
+    restart: "no"
+    environment:
+      DATABASE_URL: postgres://fieldnotes:${POSTGRES_PASSWORD}@db:5432/fieldnotes
+    depends_on:
+      db:
+        condition: service_healthy
+
+  app:
+    <<: *image
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://fieldnotes:${POSTGRES_PASSWORD}@db:5432/fieldnotes
+      APP_ORIGIN: ${APP_ORIGIN:?Set APP_ORIGIN in .env (the address people open, for example https://notes.example.com)}
+      AUTH_SECRET: ${AUTH_SECRET:?Set AUTH_SECRET in .env (openssl rand -base64 33)}
+      AUTH_GOOGLE_ID: ${AUTH_GOOGLE_ID:?Set AUTH_GOOGLE_ID in .env}
+      AUTH_GOOGLE_SECRET: ${AUTH_GOOGLE_SECRET:?Set AUTH_GOOGLE_SECRET in .env}
+      TRIP_OWNER_EMAILS: ${TRIP_OWNER_EMAILS:?Set TRIP_OWNER_EMAILS in .env (your Google address)}
+      GOOGLE_MAPS_EMBED_API_KEY: ${GOOGLE_MAPS_EMBED_API_KEY:-}
+      GEOAPIFY_API_KEY: ${GEOAPIFY_API_KEY:-}
+    # Reachable only from this machine; the https profile or your own reverse proxy serves the public.
+    ports:
+      - "127.0.0.1:${APP_PORT:-3000}:3000"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  # Optional: `docker compose --profile https up -d`. Automatic HTTPS for APP_DOMAIN.
+  caddy:
+    image: caddy:2-alpine
+    profiles: ["https"]
+    restart: unless-stopped
+    # Stops with a clear message if APP_DOMAIN is missing, instead of Caddy's cryptic config error.
+    command:
+      - sh
+      - -c
+      - 'test -n "$$APP_DOMAIN" || { echo "Set APP_DOMAIN in .env to use the https profile." >&2; exit 1; }; exec caddy run --config /etc/caddy/Caddyfile --adapter caddyfile'
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:-}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      app:
+        condition: service_healthy
+
+volumes:
+  db-data:
+  caddy-data:
+  caddy-config:

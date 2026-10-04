@@ -195,10 +195,10 @@ The booking list is derived from plan items marked **Needs booking**; it is not 
 - The MVP does not send prompts or imported responses to an AI provider. The user chooses an external AI tool and copies the trip brief there; explain that the external provider’s data policies apply.
 - Do not collect passport or payment-card data. Warn against sending booking codes to external AI tools. All trip data fields in the MVP are visible to invited viewers.
 - Validate URLs (imported and item links http or https; map links https only; bounded length; no user information) and render user-provided text safely. Do not log map links or coordinates. The event view's embedded Google map (MAP-8) sends that event's place or airports to Google when it opens. The optional road view (MAP-9) sends its selected segment’s pinned coordinates to Google only after the user opens it. No other trip content is sent. Open external links in a new tab with `noopener noreferrer`, and never fetch them server-side. Do not expose trip content in anonymous routes, public metadata, search indexes, or shared caches.
-- If hosted at a public address, only sign-in is public. A VPN-only deployment is optional and requires each viewer to connect to the private network.
+- If hosted at a public address, only sign-in is public. A VPN-only deployment is optional and requires each viewer to connect to the private network. The app and its database run as containers on the owner's own server (`docker compose`, see the README); the health check reveals only whether the database answers.
 - Google sign-in unavailability must not expose trip data. Import validation errors must preserve the pasted response in the current session so the owner can retry; save failures must preserve unsaved edits and provide a retry path. The app has no AI or email provider dependency in the MVP.
 - Core trip viewing and editing must work on current mobile and desktop browsers, with keyboard-accessible forms, controls, and error messages.
-- Define account/trip deletion and backup retention before launch.
+- Define account/trip deletion and backup retention before launch. For a self-hosted install the owner takes the backups (the README shows `pg_dump`); deleted trips and accounts leave the live database at once but stay in any backup until that backup is deleted, which the owner tells the people they share trips with.
 
 ## 8. Validation and MVP acceptance
 

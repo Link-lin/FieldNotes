@@ -8,6 +8,18 @@ Owners share a trip from its **Share** dialog: invite one email, copy the one-ti
 
 **Not built yet:** Importing into an existing trip (proposed TRIP-7).
 
+## Demo
+
+To see every screen without entering anything, load the demo trips into a local copy (what they hold is described under [Test trips](#test-trips)):
+
+```sh
+npm install && cp .env.example .env.local   # fill in the values under Setup
+npm run dev                                 # open http://localhost:3000 and sign in once
+npm run db:seed:hawaii                      # in a second terminal: loads the four demo trips
+```
+
+The loader is a development tool and refuses to run in production, so a Docker install starts empty. To look around the demo, run it locally as above.
+
 ## Requirements
 
 Node.js 22 or later and npm. PostgreSQL 16 or 17 is optional: `npm run dev` runs a local embedded server for you.
@@ -30,6 +42,33 @@ In `.env.local`:
 - `GOOGLE_MAPS_EMBED_API_KEY` (optional): shows a Google map in each event's side panel and enables **Road route** on a day tab. In Google Cloud Console, enable the **Maps Embed API**, create an API key, and restrict it to **Maps Embed API only** and to your site (for example `http://localhost:3000/*`). The road iframe loads only after a user selects it and sends that segment's pinned coordinates to Google. Without the key the local outline map and external Google Maps links still work. You do not need to enable Maps JavaScript or Routes API for this feature.
 - `GEOAPIFY_API_KEY` (optional): looks up place names in an AI import preview or when you choose **Find place on map** in the event editor, then suggests pins for the custom outline map. Create a Geoapify project and key, then add it here; restart `npm run dev`. Only the place name and trip destination go to Geoapify. Clear venue matches are selected for review in import; you can change or remove every match before confirming. Without this key, imports still work but place names alone do not create pins. The Google Maps Embed key cannot perform this lookup.
 - `APP_ORIGIN`: `http://localhost:3000` locally; your https origin in production. Every write must come from this origin, and Auth.js uses it for callback URLs unless `AUTH_URL` is set.
+
+## Self-hosting with Docker
+
+Run Field Notes on your own server with Docker Compose: the app, its own PostgreSQL 17 database and, if you want it, automatic HTTPS. You need Docker with the Compose plugin and a Google OAuth client (see [Setup](#setup)).
+
+```sh
+git clone https://github.com/Link-lin/FieldNotes.git && cd FieldNotes
+cp docker.env.example .env     # fill it in; the file explains each value
+docker compose up -d           # builds the image, starts the database, migrates it, starts the app
+```
+
+The first start builds the image, which takes a few minutes. The app then listens on `127.0.0.1:3000` only (change the port with `APP_PORT`). Choose how people reach it:
+
+- **Automatic HTTPS:** point a DNS name at the server and open ports 80 and 443. In `.env` set `APP_ORIGIN=https://that-name` and `APP_DOMAIN=that-name`, then run `docker compose --profile https up -d`. Caddy gets and renews the certificate by itself.
+- **Your own reverse proxy:** proxy your HTTPS address to `127.0.0.1:3000` and set `APP_ORIGIN` to that address.
+- **Trying it on the same machine:** use `APP_ORIGIN=http://localhost:3000` (Google allows plain http only for localhost).
+
+In Google Cloud Console add `<APP_ORIGIN>/api/auth/callback/google` as an authorized redirect URI, then open the address and sign in with an address from `TRIP_OWNER_EMAILS`. `docker compose ps` shows the app as healthy once it can reach the database (it checks `/api/health`).
+
+| Task | Command |
+| --- | --- |
+| Update | `git pull && docker compose up -d --build` (new migrations run before the app starts) |
+| Logs | `docker compose logs -f app` |
+| Stop | `docker compose down` (your data stays in the `db-data` volume) |
+| Back up | `docker compose exec -T db pg_dump -U fieldnotes fieldnotes \| gzip > fieldnotes-$(date +%F).sql.gz` |
+
+To restore a backup into an empty database (this deletes the data now in the database), use the same `--profile` flags you start with: `docker compose down`, `docker volume rm fieldnotes_db-data`, `docker compose up -d db`, then `gunzip -c fieldnotes-….sql.gz | docker compose exec -T db psql -U fieldnotes fieldnotes`, then `docker compose up -d`. Deleting a trip or account removes it from the live database at once, but any backup you've kept still contains it until you delete that backup.
 
 ## Checks
 
@@ -86,6 +125,7 @@ src/
     modules/<feature>/  service (rules), repository (SQL), mapper (DTOs): trips, items, dashboard, account, places, import, invitations, usage
   data/                 bundled place and airport lists
 db/migrations/          SQL migrations
+Dockerfile, docker-compose.yml, docker/, docker.env.example   self-hosting with Docker (see above)
 scripts/                dev start, dev database, test trips, data build and pilot report
 tests/unit, tests/db    Vitest projects
 ```

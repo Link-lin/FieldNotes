@@ -1,0 +1,6 @@
+# Used by the optional "https" profile: Caddy gets and renews a certificate for APP_DOMAIN by itself
+# (the name must point at this server, with ports 80 and 443 open) and passes requests to the app.
+{$APP_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy app:3000
+}

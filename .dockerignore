@@ -1,0 +1,28 @@
+# Keeps secrets, local data and build output out of the image build.
+.git
+.github
+node_modules
+.next
+.pgdata
+.e2e
+coverage
+tests
+*.tsbuildinfo
+next-env.d.ts
+
+# Environment files: values reach the container through docker-compose.yml, never the image.
+.env
+.env.*
+docker.env.example
+
+# Not needed to build, so editing them never invalidates the cached build.
+Dockerfile
+docker-compose.yml
+docker
+.codex
+*.md
+docs/**/*.md
+
+# iCloud conflict copies ("name 2.ts") are not part of the project.
+**/* 2
+**/* 2.*

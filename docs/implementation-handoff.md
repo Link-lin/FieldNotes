@@ -1,15 +1,17 @@
 # Field Notes: implementation handoff
 
-Last updated 2 Oct 2026. Read this first, then [AGENTS.md](../AGENTS.md). Keep this file to about one page: replace sections rather than adding to them; history is in git.
+Last updated 3 Oct 2026. Read this first, then [AGENTS.md](../AGENTS.md). Keep this file to about one page: replace sections rather than adding to them; history is in git.
 
 ## Where things stand
 
-- **Validation:** lint, typecheck, all 208 tests and the production build pass. Work on a branch and keep iCloud conflict copies out of commits.
+- **Validation:** lint, typecheck, all 221 tests and the production build pass. Work on a branch and keep iCloud conflict copies out of commits.
 - **Built:** everything listed under "Built so far" in the [README](../README.md): sign-in with an owner allowlist, trips and the globe dashboard, the trip page (itinerary, a dedicated Bookings view, day tabs, events, costs, outline day map with optional Google road route), the event view and editor with an embedded Google map, AI import from an external chat with optional owner-reviewed place lookup in the preview and event editor, read-only viewer invitations, account deletion, pilot counts, and test trips. Dashboard cards show a compact per-trip booking shortcut instead of a cross-trip task list.
-- **Not built:** TRIP-7 (import into an existing trip, proposed) and ATLAS-4's click-the-globe point picker (catalog search only).
+- **Not built:** TRIP-7 (import into an existing trip, proposed) and ATLAS-4's click-the-globe point picker (catalog search only). Wanted next, not yet in the PRD or design: editor and co-owner roles for shared trips, invitation emails sent by the app, an in-app AI chat, and WeChat sign-in.
+- **Self-hosting:** `docker compose up -d` runs the app, PostgreSQL 17 and a one-shot migration, with an optional Caddy profile for automatic HTTPS (README, "Self-hosting with Docker"; technical design, "Container deployment"). It was built and run locally on Docker 29: migrations, `/api/health`, a session-backed dashboard, trip and flight creation (bundled place and airport data), cross-origin writes refused, backup and restore, restart, a non-root image with no baked-in secrets, and Caddy over its local certificate. It has not run on your server with your Google OAuth client and a real DNS name.
 - **Dashboard layout:** returning users see a compact heading, create actions and current/next-trip links before the filters and trip list; the larger introduction appears when no trips exist. The trip-list pane starts wider on desktop and has a draggable, keyboard-operable divider. Its width is saved on this browser; Enter or double-click resets it. On phones with trips, the list comes before the globe. The globe redraws when the stage changes width. Browser-checked at desktop and 390 px phone widths for the compact view; earlier divider and responsive checks remain valid.
 - **Trip layout:** the trip page uses the full viewport width inside side margins that grow to 72 px on wide screens. Two quiet itinerary highlights show timing and planned cost beside the Itinerary/Bookings switch; counts stay in day tabs, and distances in the map stop list. The header has an **Up next** card (from 1,280 px) and the stamp at its right edge. From 1,061 px the map column is 30% of the window (340 to 560 px), with its day, map kind, **Outline / Road route** and **Google Maps ↗** in one row. Timeline rows show a short summary and one map action; full notes and other links remain in the event view. A selected-day map is sticky and never taller than the window. Bookings uses a descriptive rail plus two-column task lists. The highlights, desktop event panel and phone return to a selected day were browser-checked; the margins and map card have not been checked at every breakpoint.
 - **Not yet verified by hand:**
+  - The Docker setup on your own server: your Google redirect URI (`<APP_ORIGIN>/api/auth/callback/google`), the `https` profile with a real DNS name, a first sign-in, and one backup restore.
   - Viewer invitations with two real Google accounts: the sign-in round trip after opening a link, a brand-new invitee passing the sign-in gate, and **Switch Google account**. Also invite one Gmail account with an extra dot or a `+tag` to see the match.
   - After the last change, that the Road route on Hawaii day 1 starts at the airport by name. Re-run the seed first.
   - The import preview's one-line card summaries (time, place, price), **Expand all** / **Collapse all**, and its date and time pickers (paste a response with an invalid date to see the text field, then fix it).
@@ -38,7 +40,7 @@ Last updated 2 Oct 2026. Read this first, then [AGENTS.md](../AGENTS.md). Keep t
 
 ## Open decisions for the owner
 
-- **Before launch:** hosting (public sign-in or VPN-only) and backup retention.
+- **Before launch:** public sign-in or VPN-only (the Docker setup works behind either), and your backup schedule and retention.
 - **Pilot:** which AI tools, and how many trips.
 - **Later scope:** TRIP-7; owner-only fields, which conflict with ACCESS-8; the currency-conversion option.
 
