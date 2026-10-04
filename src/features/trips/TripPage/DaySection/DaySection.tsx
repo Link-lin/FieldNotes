@@ -14,15 +14,17 @@ type Props = {
   /** Shows the dashed "Add an event to this day" row (people who can edit). */
   onAdd?: () => void;
   addKey?: string;
+  /** The date this section is for; hovering or focusing its heading points the map at that day. */
+  highlightDay?: string;
   className?: string;
   children?: React.ReactNode;
 };
 
 /** One day of the itinerary, or the Undated / Undated flights / Recently deleted blocks after the last day. */
-export function DaySection({ title, titleId, meta, outside, empty, note, onAdd, addKey, className, children }: Props) {
+export function DaySection({ title, titleId, meta, outside, empty, note, onAdd, addKey, highlightDay, className, children }: Props) {
   return (
     <section className={cx(styles.day, className)} data-empty={empty} data-outside={outside} aria-label={titleId ? undefined : title} aria-labelledby={titleId}>
-      <div className={styles.head}>
+      <div className={styles.head} data-hl-day={highlightDay}>
         <h2 id={titleId}>{title}</h2>
         <span className={cx("mono", styles.meta)}>{meta}</span>
       </div>

@@ -1,7 +1,7 @@
 .wrap { position: relative; }
 .map { width: 100%; height: auto; display: block; border-radius: var(--radius-md); background: var(--land); cursor: grab; touch-action: pan-y; user-select: none; }
 .map:active { cursor: grabbing; }
-.grid path { fill: none; stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 5; opacity: 0.5; }
+.grid path { fill: none; stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 5; opacity: 0.5; vector-effect: non-scaling-stroke; }
 /* D3's clipped land path includes the exterior ring: paint that complement as water. */
 .land { fill: var(--ocean-a); fill-rule: evenodd; stroke: var(--land-line); stroke-width: 1.4; vector-effect: non-scaling-stroke; }
 .borders { fill: none; stroke: var(--land-line); stroke-width: 1; vector-effect: non-scaling-stroke; opacity: 0.7; }

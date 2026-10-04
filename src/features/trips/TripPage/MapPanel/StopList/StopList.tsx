@@ -23,7 +23,7 @@ export function StopList({ legs }: { legs: Leg[] }) {
 function StopRow({ s, same, d, chip }: Leg) {
   return (
     <>
-      {chip ? <li className={styles.dayChip} aria-hidden="true">{s.dayLabel}</li> : null}
+      {chip ? <li className={styles.dayChip} aria-hidden="true" data-hl-day={s.day}>{s.dayLabel}</li> : null}
       <li className={styles.stop} data-hl={s.id}>
         <StopNumber n={s.n} need={s.need} />
         <span>{s.name}</span>

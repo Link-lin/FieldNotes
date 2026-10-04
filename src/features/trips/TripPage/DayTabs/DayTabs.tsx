@@ -71,7 +71,7 @@ export function DayTabs({ trip, days, byDate, eventCount, pinCount, selected, on
 
 function Tab({ id, selected, outside = false, onSelect, top, mid, bottom }: { id: string; selected: boolean; outside?: boolean; onSelect: () => void; top: React.ReactNode; mid: string; bottom: string }) {
   return (
-    <button type="button" role="tab" id={`tab-${id}`} className={styles.tab} aria-selected={selected} aria-controls="trip-panel" tabIndex={selected ? 0 : -1} data-outside={outside} onClick={onSelect}>
+    <button type="button" role="tab" id={`tab-${id}`} className={styles.tab} aria-selected={selected} aria-controls="trip-panel" tabIndex={selected ? 0 : -1} data-outside={outside} data-hl-day={id === "all" ? undefined : id} onClick={onSelect}>
       <span className={cx("mono", styles.top)}>{top}</span>
       <b>{mid}</b>
       <small>{bottom}</small>

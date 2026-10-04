@@ -1,25 +1,44 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { flushSync } from "react-dom";
 import { cx as cn } from "@/lib/cx";
+import { prefersReducedMotion } from "../../day-motion";
 import type { Stop } from "../../trip-days";
 import { StopNumber } from "../../StopNumber/StopNumber";
+import type { MapFocus, MapFocusStore } from "../map-focus";
+import { clampView, fitView, H0, PAD, viewOnDay, viewOnStop, W0, type Framing, type View } from "./camera";
+import { createCameraDirector, type CameraDirector } from "./camera-director";
 import { MAP_CITIES, outlinePaths, outlineProjection } from "./geography";
 import styles from "./DayMap.module.css";
 
-const W0 = 400;
-const H0 = 340;
-const PAD = 56;
+/** How wide, in kilometres, the view is when the map looks at one stop, at most; and the narrowest view the map zooms to. */
+const EVENT_SPAN_KM = 20;
+const MIN_SPAN_KM = 4;
+/** Coordinates in the SVG keep four decimals, which is still a fraction of a pixel when zoomed in a few hundred times. */
+const u = (n: number) => Math.round(n * 1e4) / 1e4;
 const NICE = [10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000, 1000000, 2000000, 5000000];
 const short = (s: string, n = 24) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 
 /**
  * Outline day map (MAP-3 to MAP-5): bundled coastlines, country borders and city labels, with
- * no network requests. Pins use a local equirectangular fit; lines join same-day stops.
+ * no network requests. Pins use a local equirectangular fit; lines join same-day stops. When the page
+ * highlights a stop or a day (`focus`), the camera flies there and back (`camera-director.ts`).
  */
-export function DayMap({ stops, onPin }: { stops: Stop[]; onPin: (id: string) => void }) {
+export function DayMap({ stops, focus, onPin }: { stops: Stop[]; focus: MapFocusStore; onPin: (id: string) => void }) {
   const svg = useRef<SVGSVGElement>(null);
-  const [vb, setVb] = useState({ x: 0, y: 0, w: W0, h: H0 });
+  const [vb, setVb] = useState<View>({ x: 0, y: 0, w: W0, h: H0 });
+  const vbRef = useRef(vb);
+  useLayoutEffect(() => {
+    vbRef.current = vb;
+  }, [vb]);
+  // The map is showing a highlight rather than where the person left it.
+  const [previewing, setPreviewing] = useState(false);
+  const director = useRef<CameraDirector | null>(null);
+  const resolveRef = useRef<(f: MapFocus, rest: View) => View | null>(() => null);
+  // The stop the page is highlighting. The marker that holds it lights, however the markers regroup as the camera moves.
+  const focused = useSyncExternalStore(focus.subscribe, focus.get, () => null);
+  const litId = focused?.kind === "event" ? focused.id : null;
   const [screenW, setScreenW] = useState(0);
   const drag = useRef<{ x: number; y: number; vx: number; vy: number; id: number; moved: boolean } | null>(null);
   const ptrs = useRef(new Map<number, { x: number; y: number }>());
@@ -65,6 +84,10 @@ export function DayMap({ stops, onPin }: { stops: Stop[]; onPin: (id: string) =>
   });
   const pr = stops.length > 5 ? 11 : 14;
   const z = W0 / vb.w;
+  // Kilometres in map units (sc is units per degree of latitude). The view may zoom in to a few kilometres across, or to 12
+  // times the starting view when that is tighter, so a trip across an ocean can still be zoomed into a city.
+  const span = (EVENT_SPAN_KM * sc) / 111.32;
+  const minW = Math.min(W0 / 12, (MIN_SPAN_KM * sc) / 111.32);
   const k = screenW ? screenW / W0 : 1;
 
   // Merge pins closer than 14 screen pixels; hide labels that collide.
@@ -158,16 +181,14 @@ export function DayMap({ stops, onPin }: { stops: Stop[]; onPin: (id: string) =>
   let pick = NICE[0]!;
   for (const n of NICE) if (n / mpx <= 90) pick = n;
 
-  function clampVb(v: typeof vb) {
-    return { ...v, x: Math.max(-W0 * 0.5, Math.min(W0 * 1.5 - v.w, v.x)), y: Math.max(-H0 * 0.5, Math.min(H0 * 1.5 - v.h, v.y)) };
-  }
   function zoomTo(ux: number, uy: number, nw: number): boolean {
     const cur = vb;
-    const w = Math.max(W0 / 12, Math.min(W0 * 2, nw));
-    if (Math.abs(w - cur.w) < 0.01) return false;
+    const w = Math.max(minW, Math.min(W0 * 2, nw));
+    if (Math.abs(w - cur.w) < cur.w * 1e-4) return false;
     const h = (w * H0) / W0;
+    director.current?.takeOver();
     setOpenLead(null); // the list would no longer sit beside its marker
-    setVb(clampVb({ x: ux - ((ux - cur.x) * w) / cur.w, y: uy - ((uy - cur.y) * h) / cur.h, w, h }));
+    setVb(clampView({ x: ux - ((ux - cur.x) * w) / cur.w, y: uy - ((uy - cur.y) * h) / cur.h, w, h }));
     return true;
   }
   function toUser(clientX: number, clientY: number): [number, number] {
@@ -175,6 +196,47 @@ export function DayMap({ stops, onPin }: { stops: Stop[]; onPin: (id: string) =>
     const cur = vb;
     return [cur.x + ((clientX - r.left) / r.width) * cur.w, cur.y + ((clientY - r.top) / r.height) * cur.h];
   }
+
+  // Where to look for what the page highlights; read through a ref so the director outlives re-renders.
+  useLayoutEffect(() => {
+    resolveRef.current = (f, rest) => {
+      if (!pts.length) return null;
+      const framing: Framing = { home: fitView(pts), span, floor: minW, pixels: screenW || W0 };
+      if (f.kind === "event") {
+        const at = pts.find((q) => q.s.id === f.id);
+        return at ? viewOnStop(at, rest, framing, pts.filter((q) => q !== at)) : null;
+      }
+      return viewOnDay(pts.filter((q) => q.s.day === f.day), rest, framing);
+    };
+  });
+  useEffect(() => {
+    const d = createCameraDirector({
+      clock: {
+        now: () => performance.now(),
+        setTimeout: (fn, ms) => window.setTimeout(fn, ms),
+        clearTimeout: (id) => window.clearTimeout(id as number),
+        requestFrame: (fn) => requestAnimationFrame(fn),
+        cancelFrame: (id) => cancelAnimationFrame(id as number),
+      },
+      view: () => vbRef.current,
+      // Each frame is committed before the browser paints, so the pins and labels keep step with the map.
+      show: (v) => flushSync(() => { setOpenLead(null); setVb(clampView(v)); }),
+      resolve: (f, rest) => resolveRef.current(f, rest),
+      instant: prefersReducedMotion,
+      visible: () => {
+        const r = svg.current?.getBoundingClientRect();
+        return !!r && r.width > 0 && r.bottom > 0 && r.top < window.innerHeight;
+      },
+      previewing: setPreviewing,
+    });
+    director.current = d;
+    const stopWatching = focus.subscribe(() => d.point(focus.get()));
+    return () => {
+      stopWatching();
+      d.dispose();
+      director.current = null;
+    };
+  }, [focus]);
 
   useEffect(() => {
     const el = svg.current;
@@ -189,6 +251,7 @@ export function DayMap({ stops, onPin }: { stops: Stop[]; onPin: (id: string) =>
   });
 
   function onDown(e: React.PointerEvent) {
+    director.current?.takeOver();
     ptrs.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (ptrs.current.size === 2) {
       const [a, b] = [...ptrs.current.values()] as [{ x: number; y: number }, { x: number; y: number }];
@@ -221,7 +284,7 @@ export function DayMap({ stops, onPin }: { stops: Stop[]; onPin: (id: string) =>
       const r = svg.current!.getBoundingClientRect();
       const cur = vb;
       setOpenLead(null);
-      setVb(clampVb({ ...cur, x: d.vx - (dx / r.width) * cur.w, y: d.vy - (dy / r.height) * cur.h }));
+      setVb(clampView({ ...cur, x: d.vx - (dx / r.width) * cur.w, y: d.vy - (dy / r.height) * cur.h }));
     }
   }
   function onUp(e: React.PointerEvent) {
@@ -257,7 +320,7 @@ export function DayMap({ stops, onPin }: { stops: Stop[]; onPin: (id: string) =>
   if (run.length > 1) runs.push(run);
 
   return (
-      <div className={styles.wrap}>
+      <div className={styles.wrap} onPointerEnter={() => director.current?.keep()}>
         <svg
           ref={svg}
           className={styles.map}
@@ -281,14 +344,14 @@ export function DayMap({ stops, onPin }: { stops: Stop[]; onPin: (id: string) =>
               <path d="M40 0H0V40" />
             </pattern>
           </defs>
-          <rect x={-2000} y={-2000} width={4400} height={4340} fill="url(#map-grid)" />
+          {z < 16 ? <rect x={-2000} y={-2000} width={4400} height={4340} fill="url(#map-grid)" /> : null}
           <path className={styles.land} d={outline.land} />
           <path className={styles.borders} d={outline.borders} />
           {runs.map((r, i) => (
-            <polyline key={i} className={styles.route} points={r.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ")} />
+            <polyline key={i} className={styles.route} points={r.map((p) => `${u(p.x)},${u(p.y)}`).join(" ")} />
           ))}
           {cityLabels.map((city) => (
-            <g key={`${city.name}-${city.x}-${city.y}`} className={styles.city} transform={`translate(${city.x.toFixed(1)} ${city.y.toFixed(1)}) scale(${1 / z})`} aria-hidden="true">
+            <g key={`${city.name}-${city.x}-${city.y}`} className={styles.city} transform={`translate(${u(city.x)} ${u(city.y)}) scale(${1 / z})`} aria-hidden="true">
               <circle r={2} />
               <text x={5} y={-3}>{city.name}</text>
             </g>
@@ -298,7 +361,9 @@ export function DayMap({ stops, onPin }: { stops: Stop[]; onPin: (id: string) =>
               key={d.p.s.id}
               className={styles.pin}
               data-hl={d.p.s.id}
-              transform={`translate(${d.p.x.toFixed(1)} ${d.p.y.toFixed(1)}) scale(${1 / z})`}
+              data-hl-also={d.group.length > 1 ? d.together.slice(1).map((s) => s.id).join(" ") : undefined}
+              data-lit={litId !== null && d.together.some((s) => s.id === litId) ? "" : undefined}
+              transform={`translate(${u(d.p.x)} ${u(d.p.y)}) scale(${1 / z})`}
               data-pin={d.p.s.id}
               tabIndex={0}
               role="button"
@@ -362,7 +427,7 @@ export function DayMap({ stops, onPin }: { stops: Stop[]; onPin: (id: string) =>
         ) : null}
         <div className={styles.controls}>
           <span className={styles.zoom}>
-            <button type="button" aria-label="Zoom in on the map" disabled={z > 11.9} onClick={() => zoomTo(vb.x + vb.w / 2, vb.y + vb.h / 2, vb.w / 1.5)}>+</button>
+            <button type="button" aria-label="Zoom in on the map" disabled={vb.w < minW * 1.01} onClick={() => zoomTo(vb.x + vb.w / 2, vb.y + vb.h / 2, vb.w / 1.5)}>+</button>
             <button type="button" aria-label="Zoom out on the map" disabled={z < 0.51} onClick={() => zoomTo(vb.x + vb.w / 2, vb.y + vb.h / 2, vb.w * 1.5)}>−</button>
           </span>
           <span className={styles.scale}>
@@ -373,8 +438,8 @@ export function DayMap({ stops, onPin }: { stops: Stop[]; onPin: (id: string) =>
             <path d="M11 30V6M5 13l6-8 6 8" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             <text x="11" y="40" textAnchor="middle" fontFamily="var(--mono)" fontSize="10" fill="currentColor">N</text>
           </svg>
-          {Math.abs(z - 1) > 0.02 ? (
-            <button className={cn("mono", styles.reset)} type="button" onClick={() => { setOpenLead(null); setVb({ x: 0, y: 0, w: W0, h: H0 }); }}>Reset view</button>
+          {Math.abs(z - 1) > 0.02 && !previewing ? (
+            <button className={cn("mono", styles.reset)} type="button" onClick={() => { director.current?.takeOver(); setOpenLead(null); setVb({ x: 0, y: 0, w: W0, h: H0 }); }}>Reset view</button>
           ) : null}
         </div>
       </div>

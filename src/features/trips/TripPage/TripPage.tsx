@@ -19,6 +19,7 @@ import { EventPanel } from "./EventPanel/EventPanel";
 import { DayTabs } from "./DayTabs/DayTabs";
 import { GlobeLocation } from "./GlobeLocation/GlobeLocation";
 import { MapPanel } from "./MapPanel/MapPanel";
+import { createMapFocus, type MapFocus } from "./MapPanel/map-focus";
 import { RecentlyDeleted } from "./RecentlyDeleted/RecentlyDeleted";
 import { ShareDialog } from "./ShareDialog/ShareDialog";
 import { Timeline } from "./Timeline/Timeline";
@@ -111,20 +112,40 @@ export function TripPage({ data, initialDay, initialEvent, initialView, mapsKey,
     return () => document.removeEventListener("keydown", onKey);
   }, [router]);
 
-  // Linked highlight: hovering or focusing a row, a stop line or a pin lights all three (MAP-5).
+  // Linked highlight: hovering or focusing a row, a stop line or a pin lights all three (MAP-5). The same events,
+  // on a row, a stop line, a day heading, a day label in the stop list or a day tab, point the map at that stop or day.
   const root = useRef<HTMLDivElement>(null);
+  const [mapFocus] = useState(createMapFocus);
   useEffect(() => {
     const el = root.current;
     if (!el) return;
-    const set = (id: string, on: boolean) => el.querySelectorAll(`[data-hl="${CSS.escape(id)}"]`).forEach((x) => x.toggleAttribute(LIT, on));
+    // A marker for several stops at nearly one place also lights for each of them (data-hl-also).
+    const set = (id: string, on: boolean) => el.querySelectorAll(`[data-hl="${CSS.escape(id)}"], [data-hl-also~="${CSS.escape(id)}"]`).forEach((x) => x.toggleAttribute(LIT, on));
     const over = (e: Event) => {
-      const t = (e.target as Element).closest?.("[data-hl]");
-      if (t) set(t.getAttribute("data-hl")!, e.type === "mouseover" || e.type === "focusin");
+      const on = e.type === "mouseover" || e.type === "focusin";
+      const from = e.target as Element;
+      const aim = (host: Element, at: MapFocus) => {
+        // A touch screen's tap sends a mouseover that stays until the next tap; it shouldn't move the map.
+        if (e.type.startsWith("mouse") && !window.matchMedia("(any-hover: hover)").matches) return;
+        if (on) mapFocus.set(at);
+        // Moving from one part of an element to another isn't leaving it.
+        else if (!host.contains((e as MouseEvent | FocusEvent).relatedTarget as Node | null)) mapFocus.set(null);
+      };
+      const t = from.closest?.("[data-hl]");
+      if (t) {
+        const id = t.getAttribute("data-hl")!;
+        set(id, on);
+        // A pin is on the map already: lighting it is enough, and moving the map from under the pointer isn't wanted.
+        if (!t.closest("svg")) aim(t, { kind: "event", id });
+        return;
+      }
+      const d = from.closest?.("[data-hl-day]");
+      if (d) aim(d, { kind: "day", day: d.getAttribute("data-hl-day")! });
     };
     const kinds = ["mouseover", "mouseout", "focusin", "focusout"];
     kinds.forEach((t) => el.addEventListener(t, over));
     return () => kinds.forEach((t) => el.removeEventListener(t, over));
-  }, []);
+  }, [mapFocus]);
 
   const rowOf = (id: string) => root.current?.querySelector<HTMLElement>(`[data-timeline] [data-hl="${CSS.escape(id)}"]`) ?? null;
 
@@ -252,6 +273,7 @@ export function TripPage({ data, initialDay, initialEvent, initialView, mapsKey,
                         empty={!list.length}
                         onAdd={canEdit ? () => openAdd(d, `[data-add-day="${d}"]`) : undefined}
                         addKey={d}
+                        highlightDay={d}
                       >
                         {list.length ? (
                           <>
@@ -284,7 +306,7 @@ export function TripPage({ data, initialDay, initialEvent, initialView, mapsKey,
                 <CostsSection data={data} canManage={canManage} />
                 <div className={styles.location}><GlobeLocation trip={trip} canManage={canManage} /></div>
               </div>
-              <MapPanel key={day} day={day} stops={stops} onPin={goToEvent} mapsKey={mapsKey} />
+              <MapPanel key={day} day={day} stops={stops} focus={mapFocus} onPin={goToEvent} mapsKey={mapsKey} />
             </div>
           </>
         )}

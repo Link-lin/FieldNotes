@@ -7,11 +7,12 @@ import { fmtDay } from "@/lib/format";
 import type { Stop } from "../trip-days";
 import { DayMap } from "./DayMap/DayMap";
 import { GoogleRoadMap } from "./GoogleRoadMap/GoogleRoadMap";
+import type { MapFocusStore } from "./map-focus";
 import { km, StopList } from "./StopList/StopList";
 import styles from "./MapPanel.module.css";
 
 /** The sticky map column: bundled outline, plus an opt-in Google road route on a day tab. */
-export function MapPanel({ day, stops, onPin, mapsKey }: { day: string; stops: Stop[]; onPin: (id: string) => void; mapsKey: string | null }) {
+export function MapPanel({ day, stops, focus, onPin, mapsKey }: { day: string; stops: Stop[]; focus: MapFocusStore; onPin: (id: string) => void; mapsKey: string | null }) {
   const all = day === "all";
   // TripPage keys this component by day, so changing days restores the local view.
   const [showRoad, setShowRoad] = useState(false);
@@ -45,7 +46,7 @@ export function MapPanel({ day, stops, onPin, mapsKey }: { day: string; stops: S
             </div>
           ) : null}
         </div>
-        {road && mapsKey ? <GoogleRoadMap key={day} stops={stops} apiKey={mapsKey} /> : <DayMap key={day} stops={stops} onPin={onPin} />}
+        {road && mapsKey ? <GoogleRoadMap key={day} stops={stops} apiKey={mapsKey} /> : <DayMap key={day} stops={stops} focus={focus} onPin={onPin} />}
         <StopList legs={legs} />
         {total > 0 ? <p className="note">About {km(total)} in straight lines between stops on the same day. Flights are not counted.</p> : null}
         {!all && stops.length ? <p className="note">Google Maps opens with this day&apos;s pinned locations{stops.length > 10 ? ", the first 10 stops only" : ""}.</p> : null}
