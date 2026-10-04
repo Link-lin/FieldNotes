@@ -14,9 +14,9 @@ export type Clock = {
 export const TIMING = {
   /** Resting on something this long starts the first flight, so a pointer passing over rows doesn't. */
   intent: 200,
-  /** Moving between things while the map is already looking at one, which should feel quick. */
+  /** Moving between things while the camera is already looking at one, which should feel quick. */
   retarget: 120,
-  /** Leaving everything this long sends the map back; moving to the next row before then doesn't. */
+  /** Leaving everything this long eases the map out a little; moving to the next row before then doesn't. */
   leave: 320,
   /** A flight lasts base + perLength × how far it goes, between min and max. */
   base: 420,
@@ -25,49 +25,61 @@ export const TIMING = {
   max: 1000,
 };
 
+/** What `resolve` answers when the stop or day is already well framed by the view the camera has. */
+export const FRAMED = "framed";
+
 type Options = {
   clock: Clock;
   /** The view on screen now. */
   view: () => View;
   /** Shows one frame of a flight. */
   show: (view: View) => void;
-  /** Where to look for a highlight, given the view to return to; null when there is nowhere to go. */
-  resolve: (focus: MapFocus, rest: View) => View | null;
+  /**
+   * Where to look for a highlight, given the view the camera has (or is flying to): a view to fly to, FRAMED when that
+   * view already shows it, or null when there is nothing to look at (a stop with no pin).
+   */
+  resolve: (focus: MapFocus, now: View) => View | typeof FRAMED | null;
+  /** Where to ease out to once a highlight has ended, from the view it showed. */
+  relax: (shown: View) => View;
   /** Reduced motion: jump instead of flying. */
   instant: () => boolean;
   /** Whether the map is on screen; one out of sight stays where it is. */
   visible: () => boolean;
-  /** The map is showing a highlight (true), or is back where the person left it (false). */
-  previewing?: (on: boolean) => void;
   timing?: Partial<typeof TIMING>;
 };
 
 export type CameraDirector = {
   /** The page is pointing at this (or at nothing). */
   point: (focus: MapFocus | null) => void;
-  /** The person is using the map themselves: stop, and don't go back. */
+  /** The person is using the map themselves: stop, and leave the view as it is. */
   takeOver: () => void;
   /** The pointer is on the map: what it shows stays while the pointer does. */
   hold: () => void;
-  /** The pointer left the map: what it was showing for a highlight goes back, after the usual pause. */
+  /** The pointer left the map: what it showed for a highlight eases out, after the usual pause. */
   release: () => void;
+  /** Fly to this view at the person's request (Reset view); nothing eases out afterwards. */
+  glide: (view: View) => void;
   dispose: () => void;
 };
 
 /**
- * Moves the map to what the page highlights, and back when the highlight ends, with a smooth flight each way. Resting
- * on something starts it; moving on to the next thing retargets from where the camera is; leaving everything returns it to
- * the view the person had, all the way. The pointer going onto the map to look at what it shows holds the view while it
- * stays there (`hold`) and sends it back once it leaves (`release`). Using the map takes over for good (`takeOver`).
+ * Moves the map to what the page highlights, with a smooth flight. Resting on something starts it; moving on to the next
+ * thing flies on from where the camera is, with no step back in between, however far away it is. When everything has been
+ * left the map eases out a little around where it was and stays there: it doesn't go back to the whole trip on its own
+ * (Reset view does, by `glide`). The pointer going onto the map to look at what it shows holds the view while it stays there
+ * (`hold`) and the easing out happens once it leaves (`release`). Using the map takes over for good (`takeOver`).
  */
 export function createCameraDirector(o: Options): CameraDirector {
   const t = { ...TIMING, ...o.timing };
-  let rest: View | null = null;
+  /** The camera, not the person, set the view: a highlight has moved it since they last used the map. */
+  let ours = false;
+  /** Where the flight under way is heading, so that what comes next starts from there. */
+  let aim: View | null = null;
   let timer: unknown = null;
-  let waiting: "go" | "back" | null = null;
+  let waiting: "go" | "relax" | null = null;
   let frame: unknown = null;
   let flight = 0;
-  let returning = false;
+  let easing = false;
   let held = false;
   let pointed: MapFocus | null = null;
 
@@ -78,16 +90,12 @@ export function createCameraDirector(o: Options): CameraDirector {
   };
   const stopFlight = () => {
     flight += 1;
-    returning = false;
+    easing = false;
+    aim = null;
     if (frame !== null) o.clock.cancelFrame(frame);
     frame = null;
   };
-  const remember = (view: View | null) => {
-    const was = rest !== null;
-    rest = view;
-    if ((view !== null) !== was) o.previewing?.(view !== null);
-  };
-  const later = (ms: number, kind: "go" | "back", fn: () => void) => {
+  const later = (ms: number, kind: "go" | "relax", fn: () => void) => {
     clearTimer();
     waiting = kind;
     timer = o.clock.setTimeout(() => {
@@ -96,15 +104,18 @@ export function createCameraDirector(o: Options): CameraDirector {
       fn();
     }, ms);
   };
-  /** Whether a highlight that has ended should send the map back now: not while the pointer is on it or it is already going. */
-  const returnsNow = () => rest !== null && !held && !returning;
+  /** Whether a highlight that has ended should ease the map out now: not while the pointer is on it or it is already easing. */
+  const relaxes = () => ours && !held && !easing;
 
-  function fly(to: View, home = false) {
+  function fly(to: View, kind: "go" | "relax" | "glide") {
     stopFlight();
-    returning = home;
+    aim = to;
+    easing = kind === "relax";
+    ours = kind !== "glide";
     const arrived = () => {
-      returning = false;
-      if (home) remember(null);
+      aim = null;
+      easing = false;
+      if (kind === "relax") ours = false;
     };
     const from = o.view();
     if (o.instant() || sameView(from, to)) {
@@ -132,41 +143,44 @@ export function createCameraDirector(o: Options): CameraDirector {
     frame = o.clock.requestFrame(step);
   }
 
-  function back() {
-    if (rest) fly(rest, true);
+  function relax() {
+    if (ours) fly(o.relax(aim ?? o.view()), "relax");
   }
 
   function go(focus: MapFocus) {
     if (!o.visible()) return;
-    const from = rest ?? o.view();
-    const to = o.resolve(focus, from);
-    if (!to) {
-      if (returnsNow()) later(t.leave, "back", back);
+    const to = o.resolve(focus, aim ?? o.view());
+    if (to === FRAMED) return;
+    if (to === null) {
+      if (relaxes()) later(t.leave, "relax", relax);
       return;
     }
-    if (!rest) remember(from);
-    fly(to);
+    fly(to, "go");
   }
 
   return {
     point(focus) {
       pointed = focus;
-      if (focus) later(rest ? t.retarget : t.intent, "go", () => go(focus));
-      else if (returnsNow()) later(t.leave, "back", back);
+      if (focus) later(ours ? t.retarget : t.intent, "go", () => go(focus));
+      else if (relaxes()) later(t.leave, "relax", relax);
       else if (waiting === "go") clearTimer();
     },
     takeOver() {
       clearTimer();
       stopFlight();
-      remember(null);
+      ours = false;
     },
     hold() {
       held = true;
-      if (waiting === "back") clearTimer();
+      if (waiting === "relax") clearTimer();
     },
     release() {
       held = false;
-      if (!pointed && returnsNow()) later(t.leave, "back", back);
+      if (!pointed && relaxes()) later(t.leave, "relax", relax);
+    },
+    glide(view) {
+      clearTimer();
+      fly(view, "glide");
     },
     dispose() {
       clearTimer();

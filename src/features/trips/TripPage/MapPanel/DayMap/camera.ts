@@ -43,7 +43,13 @@ export function fitView(points: readonly Point[], minW = 0): View {
 
 export const easeInOutCubic = (t: number): number => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
 
-const RHO = Math.SQRT2;
+/**
+ * How much a flight zooms out over a long way. The paper's suggestion is the square root of two, which for a move of
+ * a given length zooms out until that whole length is in view; a smaller value keeps the view tighter and the flight
+ * faster across the map. Here the view zooms out to about 40% of the length instead, so a flight to somewhere far off
+ * (an airport on the other side of an ocean) doesn't take the map out to the whole trip on the way.
+ */
+const RHO = 0.9;
 const cosh = (x: number) => (Math.exp(x) + Math.exp(-x)) / 2;
 const sinh = (x: number) => (Math.exp(x) - Math.exp(-x)) / 2;
 const tanh = (x: number) => {
@@ -54,8 +60,8 @@ const tanh = (x: number) => {
 /**
  * A flight from one view to another that keeps its bearings: van Wijk and Nuij's "Smooth and efficient zooming and
  * panning". Over a long way it zooms out a little and back in rather than sliding across the map at one scale, and
- * the picture moves at a steady rate. `at(t)` gives the view for t from 0 to 1 (ease it for the feel); `length` is
- * how far the camera travels, pan and zoom together, for choosing a duration.
+ * the picture moves at a steady rate (see `RHO` for how much it zooms out). `at(t)` gives the view for t from 0 to 1
+ * (ease it for the feel); `length` is how far the camera travels, pan and zoom together, for choosing a duration.
  */
 export function zoomPath(from: View, to: View): { length: number; at: (t: number) => View } {
   const a = centerOf(from);
@@ -121,23 +127,37 @@ function clearWidth(at: Point, others: readonly Point[], f: Framing): number {
 
 /**
  * Where to look to show one stop: centred on it and zoomed in to its neighbourhood, close enough that its marker stands
- * apart from the places around it where the map allows, but never zoomed out from the view the person had (`rest`) if
- * that was already tighter. null when that view already shows it near its middle.
+ * apart from the places around it where the map allows, but never zoomed out from the view the camera has (`now`) if that
+ * is already tighter. null when that view already shows it near its middle, so stops close together don't move the map.
  */
-export function viewOnStop(at: Point, rest: View, f: Framing, others: readonly Point[] = []): View | null {
+export function viewOnStop(at: Point, now: View, f: Framing, others: readonly Point[] = []): View | null {
   const want = Math.max(f.floor, Math.min(stopWidth(f), clearWidth(at, others, f)));
-  const c = centerOf(rest);
-  const calm = rest.w <= want * 1.05 && Math.abs(at.x - c.x) < rest.w * 0.25 && Math.abs(at.y - c.y) < rest.h * 0.25;
-  return calm ? null : viewAround(at.x, at.y, Math.min(want, rest.w));
+  const c = centerOf(now);
+  const calm = now.w <= want * 1.05 && Math.abs(at.x - c.x) < now.w * 0.25 && Math.abs(at.y - c.y) < now.h * 0.25;
+  return calm ? null : viewAround(at.x, at.y, Math.min(want, now.w));
 }
 
 /**
  * Where to look to show a day: the view that holds its stops, at least a stop's neighbourhood wide. null when the view the
- * person had (`rest`) already holds them and isn't much wider than that.
+ * camera has (`now`) already holds them and isn't much wider than that.
  */
-export function viewOnDay(points: readonly Point[], rest: View, f: Framing): View | null {
+export function viewOnDay(points: readonly Point[], now: View, f: Framing): View | null {
   if (!points.length) return null;
   const fit = fitView(points, stopWidth(f));
-  const holds = points.every((p) => p.x > rest.x && p.x < rest.x + rest.w && p.y > rest.y && p.y < rest.y + rest.h);
-  return holds && fit.w >= rest.w * 0.8 ? null : fit;
+  const holds = points.every((p) => p.x > now.x && p.x < now.x + now.w && p.y > now.y && p.y < now.y + now.h);
+  return holds && fit.w >= now.w * 0.8 ? null : fit;
+}
+
+/** How much wider the view eases out once a highlight has ended. */
+export const RELAX = 2.5;
+
+/**
+ * Where the view eases out to when a highlight ends: the same place, a little wider (never wider than the view the map
+ * starts from, and never narrower than it was), so the area stays in sight. The map doesn't go back to the whole trip
+ * on its own; that is what Reset view is for.
+ */
+export function relaxView(shown: View, home: View): View {
+  if (shown.w >= home.w) return shown;
+  const c = centerOf(shown);
+  return clampView(viewAround(c.x, c.y, Math.min(home.w, shown.w * RELAX)));
 }

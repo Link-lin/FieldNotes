@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { centerOf, clampView, easeInOutCubic, fitView, H0, sameView, viewAround, viewOnDay, viewOnStop, W0, zoomPath, type Framing, type View } from "@/features/trips/TripPage/MapPanel/DayMap/camera";
-import { createCameraDirector, TIMING, type Clock } from "@/features/trips/TripPage/MapPanel/DayMap/camera-director";
+import { centerOf, clampView, easeInOutCubic, fitView, H0, relaxView, sameView, viewAround, viewOnDay, viewOnStop, W0, zoomPath, type Framing, type View } from "@/features/trips/TripPage/MapPanel/DayMap/camera";
+import { createCameraDirector, FRAMED, TIMING, type Clock } from "@/features/trips/TripPage/MapPanel/DayMap/camera-director";
 import { createMapFocus, type MapFocus } from "@/features/trips/TripPage/MapPanel/map-focus";
 
 const HOME: View = { x: 0, y: 0, w: W0, h: H0 };
@@ -205,6 +205,30 @@ describe("where to look", () => {
   });
 });
 
+describe("easing out after a highlight", () => {
+  it("widens the view a little around the same place, and no further than the start view", () => {
+    const shown = viewAround(100, 100, 10);
+    const eased = relaxView(shown, HOME);
+    expect(eased.w).toBeCloseTo(25, 9);
+    expect(centerOf(eased).x).toBeCloseTo(100, 9);
+    expect(centerOf(eased).y).toBeCloseTo(100, 9);
+    expect(relaxView(viewAround(100, 100, 300), HOME).w).toBe(400);
+  });
+
+  it("leaves a view that is already as wide as the start view, or wider, as it is", () => {
+    expect(relaxView(HOME, HOME)).toBe(HOME);
+    const wider = viewAround(200, 170, 700);
+    expect(relaxView(wider, HOME)).toBe(wider);
+  });
+
+  it("keeps the eased view within the map's pan limits", () => {
+    const edge = viewAround(390, 330, 40);
+    const eased = relaxView(edge, HOME);
+    expect(eased.x + eased.w).toBeLessThanOrEqual(W0 * 1.5 + 1e-9);
+    expect(eased.y + eased.h).toBeLessThanOrEqual(H0 * 1.5 + 1e-9);
+  });
+});
+
 describe("what the page points the map at", () => {
   it("tells watchers when the focus changes, not when it is set to what it already is", () => {
     const store = createMapFocus();
@@ -229,8 +253,13 @@ describe("what the page points the map at", () => {
 describe("the camera director", () => {
   const A = viewAround(100, 100, 10);
   const B = viewAround(200, 120, 10);
+  const FAR = viewAround(390, 330, 10);
   const DAY = viewAround(150, 110, 40);
-  const where = (f: MapFocus, rest: View): View | null => (f.kind === "event" ? (f.id === "a" ? A : f.id === "b" ? B : null) : f.day === "d1" ? DAY : rest.w < 0 ? null : null);
+  const where = (f: MapFocus): View | typeof FRAMED | null => {
+    if (f.kind === "day") return f.day === "d1" ? DAY : null;
+    return f.id === "a" ? A : f.id === "b" ? B : f.id === "far" ? FAR : f.id === "framed" ? FRAMED : null;
+  };
+  const eased = (v: View) => relaxView(v, HOME);
 
   /** A director on a fake clock and a fake frame loop that steps 16 ms at a time. */
   function rig(over: Partial<Parameters<typeof createCameraDirector>[0]> = {}, hooks: { onShow?: (count: number) => void; stubbornFrames?: boolean } = {}) {
@@ -254,7 +283,6 @@ describe("the camera director", () => {
     };
     let view = HOME;
     const shown: View[] = [];
-    const events: string[] = [];
     const director = createCameraDirector({
       clock,
       view: () => view,
@@ -264,9 +292,9 @@ describe("the camera director", () => {
         hooks.onShow?.(shown.length);
       },
       resolve: where,
+      relax: eased,
       instant: () => false,
       visible: () => true,
-      previewing: (on) => events.push(on ? "preview" : "rest"),
       ...over,
     });
     const advance = (ms: number) => {
@@ -284,11 +312,16 @@ describe("the camera director", () => {
         for (const [, fn] of due) fn(now);
       }
     };
-    return { director, advance, shown, events, now: () => now, view: () => view, waiting: () => timers.size };
+    return { director, advance, shown, now: () => now, view: () => view, waiting: () => timers.size };
   }
   const event = (id: string): MapFocus => ({ kind: "event", id });
+  /** Rests on `id` until the camera has arrived. */
+  const arriveAt = (r: ReturnType<typeof rig>, id: string) => {
+    r.director.point(event(id));
+    r.advance(TIMING.intent + TIMING.max + 100);
+  };
 
-  it("flies to what the page highlights after a short pause, and back to where the person was after leaving it", () => {
+  it("flies to what the page highlights after a short pause", () => {
     const r = rig();
     r.director.point(event("a"));
     r.advance(TIMING.intent - 50);
@@ -297,16 +330,9 @@ describe("the camera director", () => {
     expect(r.shown.length).toBeGreaterThan(0);
     r.advance(TIMING.max + 100);
     near(r.view(), A);
-    expect(r.events).toEqual(["preview"]);
-    r.director.point(null);
-    r.advance(TIMING.leave - 50);
-    near(r.view(), A); // not yet
-    r.advance(100 + TIMING.max + 100);
-    near(r.view(), HOME);
-    expect(r.events).toEqual(["preview", "rest"]);
   });
 
-  it("waits a moment before the first flight, and before going back, whatever the timings are set to", () => {
+  it("waits a moment before the first flight, and before easing out, whatever the timings are set to", () => {
     const r = rig();
     r.director.point(event("a"));
     r.advance(120);
@@ -325,27 +351,55 @@ describe("the camera director", () => {
     r.director.point(null);
     r.advance(3000);
     expect(r.shown).toHaveLength(0);
-    expect(r.events).toEqual([]);
   });
 
-  it("goes from one thing to the next without returning in between, and back only after the last", () => {
+  it("eases out a little when the highlight ends, around the same place, and stays there: not back to the whole trip", () => {
+    const r = rig();
+    arriveAt(r, "a");
+    r.director.point(null);
+    r.advance(TIMING.leave - 50);
+    near(r.view(), A); // not yet
+    r.advance(100 + TIMING.max + 100);
+    near(r.view(), eased(A));
+    expect(r.view().w).toBeGreaterThan(A.w);
+    expect(r.view().w).toBeLessThan(HOME.w / 4);
+    const frames = r.shown.length;
+    r.advance(10_000);
+    expect(r.shown).toHaveLength(frames); // and that is where it stays
+    near(r.view(), eased(A));
+  });
+
+  it("eases out from where a flight was heading when the highlight ends before it arrives", () => {
     const r = rig();
     r.director.point(event("a"));
-    r.advance(TIMING.intent + TIMING.max + 100);
-    near(r.view(), A);
-    r.director.point(null);
-    r.advance(TIMING.leave - 100); // the pointer is already on the next row
-    r.director.point(event("b"));
-    const before = r.shown.length;
-    r.advance(160); // moving on while looking at something takes less of a pause than the first look did
-    expect(r.shown.length).toBeGreaterThan(before);
-    r.advance(TIMING.retarget + TIMING.max + 100);
-    near(r.view(), B);
-    expect(r.events).toEqual(["preview"]); // never back at rest in between
+    r.advance(TIMING.intent + 300);
     r.director.point(null);
     r.advance(TIMING.leave + TIMING.max + 100);
-    near(r.view(), HOME);
-    expect(r.events).toEqual(["preview", "rest"]);
+    near(r.view(), eased(A));
+  });
+
+  it("doesn't ease out between one thing and the next", () => {
+    const r = rig();
+    arriveAt(r, "a");
+    r.director.point(null);
+    r.advance(TIMING.leave - 100); // the pointer is already on the next row
+    const before = r.shown.length;
+    r.director.point(event("b"));
+    r.advance(TIMING.retarget - 20);
+    expect(r.shown).toHaveLength(before); // nothing moved in between
+    r.advance(TIMING.max + 100);
+    near(r.view(), B);
+  });
+
+  it("flies on from where the camera is to somewhere far off without going out to the whole trip on the way", () => {
+    const r = rig();
+    arriveAt(r, "a");
+    const first = r.shown.length;
+    arriveAt(r, "far");
+    near(r.view(), FAR);
+    const widest = Math.max(...r.shown.slice(first).map((v) => v.w));
+    expect(widest).toBeGreaterThan(A.w * 4); // it does zoom out to carry it across...
+    expect(widest).toBeLessThan(HOME.w * 0.5); // ...but nowhere near the start view
   });
 
   it("changes course in the middle of a flight from where the camera is, with no jump", () => {
@@ -366,17 +420,43 @@ describe("the camera director", () => {
     }
   });
 
-  it("flies a day's view the same way, and a return from it", () => {
+  it("moves between things in the same way after it has eased out, with the longer pause of a first look", () => {
+    const r = rig();
+    arriveAt(r, "a");
+    r.director.point(null);
+    r.advance(TIMING.leave + TIMING.max + 100); // eased out
+    const settled = r.shown.length;
+    r.director.point(event("b"));
+    r.advance(150);
+    expect(r.shown).toHaveLength(settled); // a first look waits as long as ever
+    r.advance(TIMING.intent + TIMING.max + 100);
+    near(r.view(), B);
+  });
+
+  it("flies a day's view the same way, and eases out from it", () => {
     const r = rig();
     r.director.point({ kind: "day", day: "d1" });
     r.advance(TIMING.intent + TIMING.max + 100);
     near(r.view(), DAY);
     r.director.point(null);
     r.advance(TIMING.leave + TIMING.max + 100);
-    near(r.view(), HOME);
+    near(r.view(), eased(DAY));
   });
 
-  it("stops when the person uses the map, and doesn't go back", () => {
+  it("leaves a stop that is already framed alone, and doesn't ease out while it stays highlighted", () => {
+    const r = rig();
+    arriveAt(r, "a");
+    const frames = r.shown.length;
+    r.director.point(event("framed"));
+    r.advance(5000);
+    expect(r.shown).toHaveLength(frames);
+    near(r.view(), A);
+    r.director.point(null);
+    r.advance(TIMING.leave + TIMING.max + 100);
+    near(r.view(), eased(A));
+  });
+
+  it("stops when the person uses the map, and leaves the view as they made it", () => {
     const r = rig();
     r.director.point(event("a"));
     r.advance(TIMING.intent + 300);
@@ -389,45 +469,21 @@ describe("the camera director", () => {
     r.advance(3000);
     expect(r.shown).toHaveLength(stopped);
     expect(r.view()).toBe(where);
-    expect(r.events).toEqual(["preview", "rest"]);
   });
 
-  it("stops a flight when the person takes over while a frame is being shown", () => {
-    const holder: { director?: ReturnType<typeof createCameraDirector> } = {};
-    const r = rig({}, { onShow: (count) => count === 5 && holder.director!.takeOver() });
-    holder.director = r.director;
-    r.director.point(event("a"));
-    r.advance(TIMING.intent + TIMING.max + 200);
-    expect(r.shown).toHaveLength(5);
-    expect(r.events).toEqual(["preview", "rest"]);
-  });
-
-  it("ignores a frame it could not cancel", () => {
-    const r = rig({}, { stubbornFrames: true });
-    r.director.point(event("a"));
-    r.advance(TIMING.intent + 300);
-    r.director.takeOver();
-    const stopped = r.shown.length;
-    r.advance(2000);
-    expect(r.shown).toHaveLength(stopped);
-  });
-
-  it("holds what it shows while the pointer is on the map, and sends it all the way back once the pointer leaves", () => {
+  it("holds what it shows while the pointer is on the map, and eases out once the pointer leaves", () => {
     const r = rig();
-    r.director.point(event("a"));
-    r.advance(TIMING.intent + TIMING.max + 100);
+    arriveAt(r, "a");
     r.director.point(null); // the pointer leaves the row...
     r.advance(100);
     r.director.hold(); // ...and reaches the map before the pause is up
     r.advance(5000);
     near(r.view(), A); // it stays for as long as the pointer does
-    expect(r.events).toEqual(["preview"]);
     r.director.release();
     r.advance(TIMING.leave - 50);
     near(r.view(), A); // the usual pause first
     r.advance(100 + TIMING.max + 100);
-    near(r.view(), HOME); // and then all the way, not to wherever it was
-    expect(r.events).toEqual(["preview", "rest"]);
+    near(r.view(), eased(A));
   });
 
   it("lets a flight that is already under way finish when the pointer reaches the map", () => {
@@ -440,10 +496,10 @@ describe("the camera director", () => {
     near(r.view(), A);
     r.director.release();
     r.advance(TIMING.leave + TIMING.max + 100);
-    near(r.view(), HOME);
+    near(r.view(), eased(A));
   });
 
-  it("doesn't go back while the pointer is on the map even if a highlight ends there", () => {
+  it("doesn't ease out while the pointer is on the map even if a highlight ends there", () => {
     const r = rig();
     r.director.hold();
     r.director.point(event("a")); // by keyboard, say
@@ -454,13 +510,12 @@ describe("the camera director", () => {
     near(r.view(), A);
     r.director.release();
     r.advance(TIMING.leave + TIMING.max + 100);
-    near(r.view(), HOME);
+    near(r.view(), eased(A));
   });
 
-  it("goes from the map to the next row without returning in between", () => {
+  it("goes from the map to the next row without easing out in between", () => {
     const r = rig();
-    r.director.point(event("a"));
-    r.advance(TIMING.intent + TIMING.max + 100);
+    arriveAt(r, "a");
     r.director.point(null);
     r.director.hold();
     r.advance(1000);
@@ -468,16 +523,11 @@ describe("the camera director", () => {
     r.director.point(event("b"));
     r.advance(TIMING.retarget + TIMING.max + 100);
     near(r.view(), B);
-    expect(r.events).toEqual(["preview"]);
-    r.director.point(null);
-    r.advance(TIMING.leave + TIMING.max + 100);
-    near(r.view(), HOME);
   });
 
   it("doesn't lose a highlight that arrives just before the pointer leaves the map", () => {
     const r = rig();
-    r.director.point(event("a"));
-    r.advance(TIMING.intent + TIMING.max + 100);
+    arriveAt(r, "a");
     r.director.point(null);
     r.director.hold();
     r.advance(500);
@@ -485,51 +535,48 @@ describe("the camera director", () => {
     r.director.release(); // ...and then the map lets go
     r.advance(TIMING.retarget + TIMING.max + 100);
     near(r.view(), B);
-    expect(r.events).toEqual(["preview"]);
   });
 
-  it("goes all the way back after any number of visits to the map and the rows, not just to where it was last", () => {
+  it("never goes back to the whole trip, however many visits to the map and the rows", () => {
     const r = rig();
-    for (const id of ["a", "b", "a"]) {
-      r.director.point(event(id));
-      r.advance(TIMING.intent + TIMING.max + 100);
+    arriveAt(r, "a"); // the first flight starts from the whole trip
+    const first = r.shown.length;
+    for (const id of ["a", "b", "a", "far", "a"]) {
+      arriveAt(r, id);
       r.director.point(null);
       r.director.hold();
       r.advance(800);
       r.director.release();
       r.advance(TIMING.leave + TIMING.max + 100);
-      near(r.view(), HOME);
+      near(r.view(), eased(where(event(id)) as View));
     }
-    expect(r.events).toEqual(["preview", "rest", "preview", "rest", "preview", "rest"]);
+    expect(r.shown.slice(first).every((v) => v.w < HOME.w * 0.5)).toBe(true);
   });
 
   it("leaves the view alone, on the map or off it, once the person has used the map themselves", () => {
     const r = rig();
-    r.director.point(event("a"));
-    r.advance(TIMING.intent + TIMING.max + 100);
+    arriveAt(r, "a");
     r.director.point(null);
     r.director.hold();
     r.director.takeOver(); // they zoomed, dragged or clicked
     r.director.release();
     r.advance(5000);
     near(r.view(), A);
-    expect(r.events).toEqual(["preview", "rest"]);
   });
 
-  it("doesn't start a second return when the pointer touches the map during one that is already under way", () => {
+  it("doesn't start a second easing out when the pointer touches the map during one that is already under way", () => {
     const r = rig();
-    r.director.point(event("a"));
-    r.advance(TIMING.intent + TIMING.max + 100);
+    arriveAt(r, "a");
     r.director.point(null);
-    r.advance(TIMING.leave + 200); // the return has begun
+    r.advance(TIMING.leave + 100); // the easing out has begun
     const mid = r.view();
-    expect(mid.w).toBeGreaterThan(A.w);
+    expect(mid.w).toBeGreaterThanOrEqual(A.w);
     r.director.hold();
     r.director.release();
     expect(r.waiting()).toBe(0); // nothing is scheduled: it is already on its way
     r.advance(TIMING.max + 100);
-    near(r.view(), HOME);
-    // One continuous return: it never turns back.
+    near(r.view(), eased(A));
+    // One continuous move: it never turns back.
     const after = r.shown.slice(r.shown.indexOf(mid));
     for (let i = 1; i < after.length; i++) expect(after[i]!.w).toBeGreaterThanOrEqual(after[i - 1]!.w - 1e-9);
   });
@@ -539,17 +586,14 @@ describe("the camera director", () => {
     r.director.point(event("a"));
     r.advance(3000);
     expect(r.shown).toHaveLength(0);
-    expect(r.events).toEqual([]);
   });
 
-  it("goes back when what the page highlights has nowhere to look at", () => {
+  it("eases out when what the page highlights has nowhere to look at", () => {
     const r = rig();
-    r.director.point(event("a"));
-    r.advance(TIMING.intent + TIMING.max + 100);
+    arriveAt(r, "a");
     r.director.point(event("nowhere")); // an event with no pin
     r.advance(TIMING.retarget + TIMING.leave + TIMING.max + 200);
-    near(r.view(), HOME);
-    expect(r.events).toEqual(["preview", "rest"]);
+    near(r.view(), eased(A));
   });
 
   it("does nothing for something it has nowhere to look at when nothing was shown", () => {
@@ -557,18 +601,37 @@ describe("the camera director", () => {
     r.director.point(event("nowhere"));
     r.advance(3000);
     expect(r.shown).toHaveLength(0);
-    expect(r.events).toEqual([]);
   });
 
-  it("jumps instead of flying for reduced motion, and back the same way", () => {
+  it("jumps instead of flying for reduced motion, and eases out the same way", () => {
     const r = rig({ instant: () => true });
     r.director.point(event("a"));
     r.advance(TIMING.intent + 50);
     expect(r.shown).toEqual([A]);
     r.director.point(null);
     r.advance(TIMING.leave + 50);
-    expect(r.shown).toEqual([A, HOME]);
-    expect(r.events).toEqual(["preview", "rest"]);
+    expect(r.shown).toEqual([A, eased(A)]);
+  });
+
+  it("flies to a view for the person on request, and nothing eases out afterwards", () => {
+    const r = rig();
+    arriveAt(r, "a");
+    r.director.glide(HOME);
+    r.advance(TIMING.max + 100);
+    near(r.view(), HOME);
+    const frames = r.shown.length;
+    r.director.point(null);
+    r.advance(5000);
+    expect(r.shown).toHaveLength(frames);
+  });
+
+  it("lets a request to fly somewhere take over a flight to a highlight", () => {
+    const r = rig();
+    r.director.point(event("a"));
+    r.advance(TIMING.intent + 300);
+    r.director.glide(HOME);
+    r.advance(TIMING.max + 100);
+    near(r.view(), HOME);
   });
 
   it("keeps a flight within its limits, however far it goes", () => {
@@ -590,6 +653,25 @@ describe("the camera director", () => {
     r.director.dispose();
     const stopped = r.shown.length;
     r.advance(3000);
+    expect(r.shown).toHaveLength(stopped);
+  });
+
+  it("stops a flight when the person takes over while a frame is being shown", () => {
+    const holder: { director?: ReturnType<typeof createCameraDirector> } = {};
+    const r = rig({}, { onShow: (count) => count === 5 && holder.director!.takeOver() });
+    holder.director = r.director;
+    r.director.point(event("a"));
+    r.advance(TIMING.intent + TIMING.max + 200);
+    expect(r.shown).toHaveLength(5);
+  });
+
+  it("ignores a frame it could not cancel", () => {
+    const r = rig({}, { stubbornFrames: true });
+    r.director.point(event("a"));
+    r.advance(TIMING.intent + 300);
+    r.director.takeOver();
+    const stopped = r.shown.length;
+    r.advance(2000);
     expect(r.shown).toHaveLength(stopped);
   });
 

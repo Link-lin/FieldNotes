@@ -7,8 +7,8 @@ import { prefersReducedMotion } from "../../day-motion";
 import type { Stop } from "../../trip-days";
 import { StopNumber } from "../../StopNumber/StopNumber";
 import type { MapFocus, MapFocusStore } from "../map-focus";
-import { clampView, fitView, H0, PAD, viewOnDay, viewOnStop, W0, type Framing, type View } from "./camera";
-import { createCameraDirector, type CameraDirector } from "./camera-director";
+import { clampView, fitView, H0, PAD, relaxView, viewOnDay, viewOnStop, W0, type Framing, type View } from "./camera";
+import { createCameraDirector, FRAMED, type CameraDirector } from "./camera-director";
 import { MAP_CITIES, outlinePaths, outlineProjection } from "./geography";
 import styles from "./DayMap.module.css";
 
@@ -23,7 +23,8 @@ const short = (s: string, n = 24) => (s.length > n ? `${s.slice(0, n - 1)}…` :
 /**
  * Outline day map (MAP-3 to MAP-5): bundled coastlines, country borders and city labels, with
  * no network requests. Pins use a local equirectangular fit; lines join same-day stops. When the page
- * highlights a stop or a day (`focus`), the camera flies there and back (`camera-director.ts`).
+ * highlights a stop or a day (`focus`), the camera flies there, and eases out a little when the highlight ends
+ * (`camera-director.ts`); Reset view flies back to the whole trip.
  */
 export function DayMap({ stops, focus, onPin }: { stops: Stop[]; focus: MapFocusStore; onPin: (id: string) => void }) {
   const svg = useRef<SVGSVGElement>(null);
@@ -32,10 +33,9 @@ export function DayMap({ stops, focus, onPin }: { stops: Stop[]; focus: MapFocus
   useLayoutEffect(() => {
     vbRef.current = vb;
   }, [vb]);
-  // The map is showing a highlight rather than where the person left it.
-  const [previewing, setPreviewing] = useState(false);
   const director = useRef<CameraDirector | null>(null);
-  const resolveRef = useRef<(f: MapFocus, rest: View) => View | null>(() => null);
+  const resolveRef = useRef<(f: MapFocus, now: View) => View | typeof FRAMED | null>(() => null);
+  const relaxRef = useRef<(shown: View) => View>((shown) => shown);
   // The stop the page is highlighting. The marker that holds it lights, however the markers regroup as the camera moves.
   const focused = useSyncExternalStore(focus.subscribe, focus.get, () => null);
   const litId = focused?.kind === "event" ? focused.id : null;
@@ -197,17 +197,20 @@ export function DayMap({ stops, focus, onPin }: { stops: Stop[]; focus: MapFocus
     return [cur.x + ((clientX - r.left) / r.width) * cur.w, cur.y + ((clientY - r.top) / r.height) * cur.h];
   }
 
-  // Where to look for what the page highlights; read through a ref so the director outlives re-renders.
+  // Where to look for what the page highlights, and how far to ease out after it; read through refs so the director
+  // outlives re-renders.
   useLayoutEffect(() => {
-    resolveRef.current = (f, rest) => {
+    resolveRef.current = (f, now) => {
       if (!pts.length) return null;
       const framing: Framing = { home: fitView(pts), span, floor: minW, pixels: screenW || W0 };
       if (f.kind === "event") {
         const at = pts.find((q) => q.s.id === f.id);
-        return at ? viewOnStop(at, rest, framing, pts.filter((q) => q !== at)) : null;
+        return at ? (viewOnStop(at, now, framing, pts.filter((q) => q !== at)) ?? FRAMED) : null;
       }
-      return viewOnDay(pts.filter((q) => q.s.day === f.day), rest, framing);
+      const day = pts.filter((q) => q.s.day === f.day);
+      return day.length ? (viewOnDay(day, now, framing) ?? FRAMED) : null;
     };
+    relaxRef.current = (shown) => (pts.length ? relaxView(shown, fitView(pts)) : shown);
   });
   useEffect(() => {
     const d = createCameraDirector({
@@ -221,13 +224,13 @@ export function DayMap({ stops, focus, onPin }: { stops: Stop[]; focus: MapFocus
       view: () => vbRef.current,
       // Each frame is committed before the browser paints, so the pins and labels keep step with the map.
       show: (v) => flushSync(() => { setOpenLead(null); setVb(clampView(v)); }),
-      resolve: (f, rest) => resolveRef.current(f, rest),
+      resolve: (f, now) => resolveRef.current(f, now),
+      relax: (shown) => relaxRef.current(shown),
       instant: prefersReducedMotion,
       visible: () => {
         const r = svg.current?.getBoundingClientRect();
         return !!r && r.width > 0 && r.bottom > 0 && r.top < window.innerHeight;
       },
-      previewing: setPreviewing,
     });
     director.current = d;
     const stopWatching = focus.subscribe(() => d.point(focus.get()));
@@ -438,8 +441,8 @@ export function DayMap({ stops, focus, onPin }: { stops: Stop[]; focus: MapFocus
             <path d="M11 30V6M5 13l6-8 6 8" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             <text x="11" y="40" textAnchor="middle" fontFamily="var(--mono)" fontSize="10" fill="currentColor">N</text>
           </svg>
-          {Math.abs(z - 1) > 0.02 && !previewing ? (
-            <button className={cn("mono", styles.reset)} type="button" onClick={() => { director.current?.takeOver(); setOpenLead(null); setVb({ x: 0, y: 0, w: W0, h: H0 }); }}>Reset view</button>
+          {Math.abs(z - 1) > 0.02 ? (
+            <button className={cn("mono", styles.reset)} type="button" onClick={() => director.current?.glide({ x: 0, y: 0, w: W0, h: H0 })}>Reset view</button>
           ) : null}
         </div>
       </div>
