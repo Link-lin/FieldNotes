@@ -1,8 +1,8 @@
 # Travel Planner — Product Requirements Document
 
-**Status:** MVP implementation baseline (v1.2)
+**Status:** MVP implementation baseline (v1.3)
 
-Last revised 1 Oct 2026. Change history is in git.
+Last revised 3 Oct 2026. Change history is in git.
 
 **Product:** Private multi-trip dashboard with editable itineraries imported from external AI plans
 
@@ -12,7 +12,7 @@ This document states what the product must do and why. Layout, visual style, mot
 
 Travel Planner lets a traveler manage multiple trips from one private dashboard and see their destinations on an interactive globe. For each trip, the owner can use an AI tool outside the app to draft an itinerary, then import the response into a structured, editable trip page. The app helps track items that still need booking, planned item prices, and trip budgets.
 
-The MVP does not generate or repair plans with an AI model inside the webpage. It provides a short trip brief and a copyable prompt/schema, then validates, previews, and imports the external AI response.
+The MVP does not generate or repair plans with an AI model inside the webpage. It provides a short trip brief and a copyable prompt/schema, then validates, previews, and imports the external AI response. A person can also add Field Notes to the AI chat they already use as a connector, so that chat can read their trips and, if they allow it, add and change events directly (CONNECT-1 to CONNECT-8). The planning still happens in the external chat; the app calls no AI provider.
 
 **Primary job:** “Help me get an AI-created trip plan into an editable place, keep track of what I still need to book, and find my trips later.”
 
@@ -27,6 +27,7 @@ The PRD assumes, but has not yet validated, that:
 - The owner wants one dashboard for upcoming, ongoing, and past trips.
 - Sharing a trip with a role (view, edit or co-own) covers how a family or friends plan together; people edit one at a time and see each other's changes on reload.
 - Booking due dates are useful even before email notifications are added.
+- People who already pay for Claude or ChatGPT would rather ask it about a trip, and have it add events, than copy responses back and forth.
 
 Validate these assumptions with real trips before adding native AI, live data, or more integrations.
 
@@ -38,6 +39,7 @@ Validate these assumptions with real trips before adding native AI, live data, o
 - A dashboard of owned and shared trips by date status, with a globe of approximate destinations and a trip list that works without it.
 - Manual trip creation, and owner editing and permanent deletion of trips.
 - Copyable prompts for an external AI chat, and import of one supported, versioned JSON response after validation, preview and owner approval.
+- An AI connector: Field Notes can be added to Claude or ChatGPT as a custom connector. After the person approves it, the chat can read their trips and, if they allow it, add events or whole trips and change events within their role, as unverified AI drafts (CONNECT-1 to CONNECT-8).
 - Manual itinerary editing, including booked flight segments. Order follows item times; unbooked flights stay booking tasks.
 - Planned item prices, a trip budget, same-currency totals, and amount left or over in the budget's currency.
 - Booking tasks with owner-set due dates in an in-app list, not notifications.
@@ -70,6 +72,8 @@ These summaries show how the requirements fit together. The rules are in the fun
 **Repair an import.** Invalid JSON or an unsupported version shows the errors, with **Copy errors only** or **Copy response and errors for repair** for a retry in the external AI (IMPORT-5, IMPORT-10). A correctable item error is fixed in the preview form or the item is skipped (IMPORT-6). The owner never edits raw JSON, and a failed attempt creates nothing (IMPORT-8).
 
 **Add to an existing trip.** On an owned trip, **Add to itinerary** opens the item form with the date of the day in view (TRIP-3, TRIP-9). Importing an AI plan into the trip is proposed (TRIP-7).
+
+**Talk to an AI about a trip.** The person adds the connector address, shown in the account menu, to Claude or ChatGPT, signs in to Field Notes in the window that opens and approves what the chat may do. They can then ask the chat about their trips, or to add a day's plan, move an event or create a trip; the chat asks them to confirm each change. What it adds appears in the trip as unverified AI drafts. The account menu lists the connected chats and disconnects any of them (CONNECT-1 to CONNECT-8).
 
 **Create and share trips manually.** **New trip** creates an empty trip from its required details (DASH-3). To share, an owner enters an email and a role and the app emails the invitation (where the server can't send email, the owner copies the invitation and sends it themselves); or creates a link to send themselves (for someone without a Google address, such as a WeChat contact); the invitee signs in with the matching Google account, or opens the link (ACCESS-3 to ACCESS-6, ACCESS-11). An owner can change anyone's role, revoke access or delete the trip (DASH-5).
 
@@ -126,6 +130,19 @@ These summaries show how the requirements fit together. The rules are in the fun
 - **IMPORT-10:** Before copying a repair prompt containing the submitted response, the app shows the exact content and requires explicit user action. The owner can copy errors without the response instead.
 
 **Format rules:** ISO dates (`YYYY-MM-DD`), 24-hour local times, ISO 4217 currency codes, and IANA time-zone names. A non-flight item uses its own time zone when supplied and otherwise the trip's. A flight's `plannedDepartureDate` is date-only in the trip time zone and used only for display; exact departure date-time and airport time zone, when present, are authoritative and decide order. A complete example and schema must be published before implementation. Only the current schema version is accepted.
+
+### AI connector
+
+Besides pasting a response, a person can add Field Notes to Claude or ChatGPT as a custom connector and work on their trips by chatting there. Field Notes is only the data source: the chat, its model and its cost stay with the person's own AI subscription, and the app calls no AI provider and holds no AI account or key.
+
+- **CONNECT-1:** Field Notes can be added as a custom connector in an AI chat that supports remote connectors (Claude and ChatGPT are the pilot). The account menu shows the connector address and how to add it. The connector needs a public https address the chat's provider can reach, and the host can turn it off. It adds nothing for a person who never connects a chat.
+- **CONNECT-2:** A chat gets access only after the signed-in person approves it on a Field Notes page (ACCESS-1 applies first). The page names the app as it names itself, says where it will send the person back to, shows which account they are approving as, and offers two permissions: **Read** their trips (always) and **Make changes** (only if the app asks for it, and the person can leave it off). Cancelling, or a request the app got wrong, sends nothing and grants nothing.
+- **CONNECT-3:** A connected chat acts as the person who approved it, and can do only what that person's role allows on each trip (ACCESS-5), checked on every request. With **Read** it sees the trips they can see. With **Make changes**, an owner or editor can add events and change or delete the ones on their trips (a deletion can be undone for 10 minutes, as TRIP-8), and a person on the owner allowlist can create trips. It never edits a trip's details, shares or unshares a trip, changes roles, or deletes a trip or an account; those stay in the app. A role change or revocation applies on its next request.
+- **CONNECT-4:** What a chat adds is tagged as an unverified AI draft (IMPORT-7) and its prices as unverified estimates (BUDGET-4), and it follows the same item rules as an import: invalid input is refused with the reason and nothing is partly saved, never repaired or silently dropped (IMPORT-5, IMPORT-8). A chat can say an event needs booking or does not, but it cannot mark one **Booked**, set a quote or a book-by date, or change the booking state of an event a person marked **Booked**; it cannot save map links or coordinates, and changing an event's place clears its map pin (MAP-2). Editing an event keeps its origin tag, and a price the chat sets or changes is marked as its estimate.
+- **CONNECT-5:** An approval belongs to one person and one app. The account menu lists each connected app with what it may do, when it was connected and when it was last used, and **Disconnect** ends it on the app's next request. An approval also ends when the app asks to disconnect, when the person deletes their account, and after 60 days without use.
+- **CONNECT-6:** Access is bounded. The credentials an app holds are short-lived and renew only while it keeps using its approval; a connection can make only a limited number of requests a minute; results are limited in size (long notes are shortened in lists, with a way to read one in full); and every existing limit still applies, including the 250-event cap and each field's length.
+- **CONNECT-7:** What a connected chat reads is sent to that chat's provider under the provider's own policy, which the connection screen says. Field Notes sends nothing to a provider itself, shows the chat only what the person's role can see, answers an unauthenticated request with nothing about any trip (ACCESS-7), and never logs what a chat sends or receives.
+- **CONNECT-8:** A change made through the connector is the person's own instruction to their chat, and chat apps ask them to confirm changes; Field Notes supports that by declaring each action as reading or changing data. The in-app preview and owner confirmation (IMPORT-6) apply to a pasted response, not to a change a connected chat makes; a person can edit or delete anything it added, and a chat approved without **Make changes** cannot change anything.
 
 ### Itinerary and flights
 
@@ -184,6 +201,7 @@ These summaries show how the requirements fit together. The rules are in the fun
 
 - **User:** a Google or WeChat identity (or both) and, for Google, a verified email. A WeChat identity has a nickname and no email.
 - **Trip:** creator (none once they delete their account; the trip then belongs to the people given the owner role), title, destination, start/end dates (start <= end), IANA time zone, optional nonnegative budget and currency, and optional approximate globe point with automatic/owner-set provenance.
+- **AI connection:** one person's approval of one AI app: the name it gave itself and where it sends the person back to, the access approved (read, or read and change), when it was approved and last used, and whether it has ended. The app's access is held as short-lived credentials stored only as hashes.
 - **TripViewer** (each person a trip is shared with, whatever their role): trip, invitee email (or, for an invitation by link, a label), role (viewer, editor or owner), accepted Google user and verified email (when applicable), invitation status, invitation expiry, grant/revocation timestamps, and a single-use invitation token stored only as a cryptographic hash.
 - **PlanItem:** trip, type, title, optional non-flight local date/time and time zone, location (place name), optional https map link, optional coordinates read from that link, notes, links, origin (external AI or owner), booking state and optional date-only due date, and optional planned amount/currency/estimate-or-quote label with price provenance (AI or owner). Flight items use structured `flightDetails` instead of generic date/time: optional planned departure date; airline; flight number; departure/arrival airport codes; and each airport's local date-time and IANA time zone. The trip's IANA time zone determines booking due/overdue state.
 
@@ -193,7 +211,7 @@ The booking list is derived from plan items marked **Needs booking**; it is not 
 
 - Deny access by default. Check authentication and trip ownership or membership and role on the server for every protected page, API request, and dashboard aggregate.
 - Use HTTPS and secure `HttpOnly` session cookies. Keep OAuth secrets server-side and out of the browser bundle and local storage.
-- The MVP does not send prompts or imported responses to an AI provider. The user chooses an external AI tool and copies the trip brief there; explain that the external provider’s data policies apply.
+- The MVP does not send prompts or imported responses to an AI provider. The user chooses an external AI tool and copies the trip brief there; explain that the external provider’s data policies apply. The connector (CONNECT-1 to CONNECT-8) adds a second path: once a person has connected an AI chat, what it reads goes to that chat's provider under its policy, limited to what the person's role can see, and nothing goes before they approve it.
 - Do not collect passport or payment-card data. Warn against sending booking codes to external AI tools. All trip data fields in the MVP are visible to everyone invited.
 - Validate URLs (imported and item links http or https; map links https only; bounded length; no user information) and render user-provided text safely. Do not log map links or coordinates. The event view's embedded Google map (MAP-8) sends that event's place or airports to Google when it opens. The optional road view (MAP-9) sends its selected segment’s pinned coordinates to Google only after the user opens it. No other trip content is sent. Open external links in a new tab with `noopener noreferrer`, and never fetch them server-side. Do not expose trip content in anonymous routes, public metadata, search indexes, or shared caches.
 - If hosted at a public address, only sign-in is public. A VPN-only deployment is optional and requires each viewer to connect to the private network. The app and its database run as containers on the owner's own server (`docker compose`, see the README); the health check reveals only whether the database answers.
@@ -222,6 +240,7 @@ The MVP is acceptable when:
 - A saved Google Maps, Apple Maps or OpenStreetMap link with coordinates, pasted decimal coordinates, or an owner-selected import lookup result pins its stop. A shortened, Amap or Baidu link, or one the app cannot read, leaves the item unpinned with a clear message. A look-alike host is labeled by its real host. A successful import preview may send each place name and trip destination to the configured lookup provider; it never sends raw JSON, notes, or prices. The trip page makes no map, tile, geocoding or font request to a third party, except the Google Maps Embed frame once an event view (MAP-8) or the road view (MAP-9) is opened.
 - Whole trip and per-day views show the same items and numbering, and a single-day view can open that day in Google Maps on click.
 - Booking tasks with date-only due dates appear as due on that date and overdue from the next date in the trip time zone; they clear when marked booked. The owner can mark a task booked or set its due date in that trip's **Bookings** view, reached directly from its dashboard card.
+- A person can add the connector to Claude or ChatGPT, approve it, and have the chat list their trips, read one, and add or change events within their role. A chat approved without **Make changes**, and a viewer's chat, changes nothing. Everything a chat adds is an unverified AI draft with estimate prices; no chat can mark an event **Booked**, share a trip or delete one; and disconnecting stops the chat on its next request.
 - An unauthenticated visitor cannot retrieve trip content; a person can see only trips they created or were invited to; viewers cannot change them, editors cannot change the trip's settings or sharing, and a role change or revocation takes effect on the next request.
 
 ## 9. Roadmap and decisions
@@ -252,3 +271,4 @@ Generate and refine plans in the webpage, and add the in-page AI copilot, after 
 6. Approve or drop TRIP-7 (import an AI plan into an existing trip).
 7. Approve the visual direction in [`trip-page-v1.md`](docs/design/trip-page-v1.md), including the forest accent for Booked and under budget.
 8. Choose the later currency-conversion option (owner-entered rate or server-side live rates).
+9. Choose which AI chat to pilot the connector with first (the design targets the custom connectors of Claude and ChatGPT), and whether it is on for your install (`AI_CONNECTOR`).
