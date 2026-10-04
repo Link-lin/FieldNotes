@@ -3,7 +3,10 @@ import { fileURLToPath } from "node:url";
 
 const serverOnly = fileURLToPath(new URL("./tests/server-only-stub.ts", import.meta.url));
 
-const alias = { "@": fileURLToPath(new URL("./src", import.meta.url)), "server-only": serverOnly };
+// next-auth imports "next/server" without its extension, which Node alone can't resolve (Next's bundler can).
+// Tests that load it (the sign-in flow) have vite process next-auth and point that import at the real file.
+const nextServer = fileURLToPath(new URL("./node_modules/next/server.js", import.meta.url));
+const alias = { "@": fileURLToPath(new URL("./src", import.meta.url)), "server-only": serverOnly, "next/server": nextServer };
 
 export default defineConfig({
   resolve: { alias },
@@ -22,6 +25,7 @@ export default defineConfig({
           setupFiles: ["tests/db/setup.ts"],
           testTimeout: 30000,
           hookTimeout: 120000,
+          server: { deps: { inline: ["next-auth"] } },
         },
       },
     ],

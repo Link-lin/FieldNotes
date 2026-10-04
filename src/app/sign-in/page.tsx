@@ -1,8 +1,10 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth, signIn } from "@/server/auth/auth";
+import { wechatEnabled } from "@/server/auth/wechat";
 import { appOrigin } from "@/server/core/env";
 import { stageCookieName } from "@/server/modules/invitations/invitations.rules";
+import { ButtonLink } from "@/components/ui/Button/Button";
 import { SignInCard, type SignInState } from "@/features/auth/SignInCard/SignInCard";
 import { safePath } from "@/shared/safe-path";
 
@@ -16,6 +18,8 @@ export default async function SignInPage({ searchParams }: { searchParams: Searc
   const sp = await searchParams;
   const session = await auth();
   if (session?.user && !sp.error) redirect(safePath(sp.callbackUrl));
+  // Someone already signed in who lands here with an error was connecting another sign-in method.
+  const connecting = Boolean(session?.user);
   const denied = sp.error === "AccessDenied";
   // A staged invitation (only the cookie's presence is checked) turns a denied sign-in into the
   // invitation's wrong-account state, and switching accounts returns to the invitation.
@@ -29,6 +33,22 @@ export default async function SignInPage({ searchParams }: { searchParams: Searc
     await signIn("google", { redirectTo: target });
   }
 
-  const state: SignInState = denied ? (invited ? "inviteWrongAccount" : "denied") : wrongAccount ? "wrongAccount" : otherError ? "error" : sp.deleted ? "deleted" : sp.signedOut ? "signedOut" : null;
-  return <SignInCard state={state} action={google} />;
+  async function wechat() {
+    "use server";
+    await signIn("wechat", { redirectTo: target });
+  }
+
+  // WeChat's own browser can't reach Google, so a visitor inside it sees WeChat first.
+  const inWeChat = /MicroMessenger/i.test((await headers()).get("user-agent") ?? "");
+  const state: SignInState = connecting
+    ? wrongAccount ? "linkFailed" : "error"
+    : denied ? (invited ? "inviteWrongAccount" : "denied") : wrongAccount ? "wrongAccount" : otherError ? "error" : sp.deleted ? "deleted" : sp.signedOut ? "signedOut" : null;
+  if (connecting) {
+    return (
+      <SignInCard state={state}>
+        <ButtonLink block href="/">Back to Field Notes</ButtonLink>
+      </SignInCard>
+    );
+  }
+  return <SignInCard state={state} action={google} wechatAction={wechatEnabled() ? wechat : undefined} wechatFirst={inWeChat} />;
 }

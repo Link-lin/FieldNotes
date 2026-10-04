@@ -1,4 +1,6 @@
+import { headers } from "next/headers";
 import { auth, signIn, signOut } from "@/server/auth/auth";
+import { wechatEnabled } from "@/server/auth/wechat";
 import { InvitePage } from "@/features/invitations/InvitePage/InvitePage";
 
 export const dynamic = "force-dynamic";
@@ -13,11 +15,18 @@ export default async function InviteRoute() {
     await signIn("google", { redirectTo: "/invite" });
   }
 
+  async function wechat() {
+    "use server";
+    await signIn("wechat", { redirectTo: "/invite" });
+  }
+
   async function switchAccount() {
     "use server";
     await signOut({ redirect: false });
     await signIn("google", { redirectTo: "/invite" });
   }
 
-  return <InvitePage signedIn={Boolean(session?.user)} signIn={google} switchAccount={switchAccount} />;
+  // WeChat's own browser can't reach Google, so a visitor inside it sees WeChat first.
+  const inWeChat = /MicroMessenger/i.test((await headers()).get("user-agent") ?? "");
+  return <InvitePage signedIn={Boolean(session?.user)} signIn={google} signInWeChat={wechatEnabled() ? wechat : undefined} wechatFirst={inWeChat} switchAccount={switchAccount} />;
 }

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Logo } from "@/components/ui/Logo/Logo";
 import { AccountMenu } from "./AccountMenu/AccountMenu";
+import type { SignInMethods } from "./AccountMenu/SignInMethodsDialog/SignInMethodsDialog";
 import styles from "./AppHeader.module.css";
 
 type Props = {
@@ -10,10 +11,12 @@ type Props = {
   ownedCount: number;
   sharedCount: number;
   signOut: () => Promise<void>;
+  /** The ways to sign in, when the host has set up more than one. */
+  methods: SignInMethods | null;
 };
 
 /** Top bar: logo, atlas link and the account menu. Booking work lives inside each trip. */
-export function AppHeader({ name, email, ownedCount, sharedCount, signOut }: Props) {
+export function AppHeader({ name, email, ownedCount, sharedCount, signOut, methods }: Props) {
   return (
     <header className={styles.header}>
       <Logo href="/" />
@@ -21,7 +24,7 @@ export function AppHeader({ name, email, ownedCount, sharedCount, signOut }: Pro
         <nav className={`mono ${styles.nav}`} aria-label="Main">
           <Link href="/" className={styles.atlas}>Atlas</Link>
         </nav>
-        <AccountMenu name={name} email={email} ownedCount={ownedCount} sharedCount={sharedCount} signOut={signOut} />
+        <AccountMenu name={name} email={email} ownedCount={ownedCount} sharedCount={sharedCount} signOut={signOut} methods={methods} />
       </div>
     </header>
   );

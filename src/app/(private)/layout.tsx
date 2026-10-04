@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
-import { auth, signOut } from "@/server/auth/auth";
+import { auth, signIn, signOut } from "@/server/auth/auth";
+import { wechatEnabled } from "@/server/auth/wechat";
 import { getDb } from "@/server/core/db/client";
 import { currentActor } from "@/server/auth/session";
 import { getDashboard } from "@/server/modules/dashboard/dashboard.service";
@@ -19,10 +20,22 @@ export default async function PrivateLayout({ children }: { children: React.Reac
     redirect(`/sign-in?callbackUrl=${encodeURIComponent(path)}`);
   }
   const dash = await getDashboard(getDb(), actor);
+  // Offer "Sign-in methods" only when there is more than one to choose from.
+  const linked = wechatEnabled() ? new Set((await getDb().selectFrom("Account").select("provider").where("userId", "=", actor.userId).execute()).map((r) => r.provider)) : null;
 
   async function doSignOut() {
     "use server";
     await signOut({ redirectTo: "/sign-in?signedOut=1" });
+  }
+
+  async function connectGoogle() {
+    "use server";
+    await signIn("google", { redirectTo: "/" });
+  }
+
+  async function connectWeChat() {
+    "use server";
+    await signIn("wechat", { redirectTo: "/" });
   }
 
   return (
@@ -35,6 +48,7 @@ export default async function PrivateLayout({ children }: { children: React.Reac
             ownedCount={dash.trips.filter((t) => t.role === "owner").length}
             sharedCount={dash.trips.filter((t) => t.role !== "owner").length}
             signOut={doSignOut}
+            methods={linked ? { google: linked.has("google"), wechat: linked.has("wechat"), connectGoogle, connectWeChat, hasEmail: Boolean(session.user.email) } : null}
           />
         }
       >

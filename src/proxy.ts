@@ -7,6 +7,14 @@ import { NextResponse, type NextRequest } from "next/server";
 export function proxy(request: NextRequest) {
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
   const dev = process.env.NODE_ENV === "development";
+  // Sign-in redirects to Google and, when set up, to WeChat. WECHAT_OPEN_ORIGIN points tests at a stand-in server.
+  let weChatOpen = "https://open.weixin.qq.com";
+  try {
+    weChatOpen = new URL(process.env.WECHAT_OPEN_ORIGIN?.trim() || weChatOpen).origin;
+  } catch {
+    // An unusable override falls back to WeChat's own host.
+  }
+  const signInHosts = ["https://accounts.google.com", weChatOpen];
   const csp = [
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${dev ? " 'unsafe-eval'" : ""}`,
@@ -19,7 +27,7 @@ export function proxy(request: NextRequest) {
     "frame-src https://www.google.com",
     "object-src 'none'",
     "base-uri 'self'",
-    "form-action 'self' https://accounts.google.com",
+    `form-action 'self' ${signInHosts.join(" ")}`,
     "frame-ancestors 'none'",
     ...(dev ? [] : ["upgrade-insecure-requests"]),
   ].join("; ");

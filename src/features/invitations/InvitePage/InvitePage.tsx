@@ -10,6 +10,10 @@ type Props = {
   signedIn: boolean;
   /** Google sign-in that returns to this page. */
   signIn: () => Promise<void>;
+  /** WeChat sign-in that returns to this page; given only when the host has set WeChat up. */
+  signInWeChat?: () => Promise<void>;
+  /** Show WeChat first (the visitor is inside WeChat's own browser). */
+  wechatFirst?: boolean;
   /** Sign out, then Google sign-in with the account chooser, returning to this page. */
   switchAccount: () => Promise<void>;
 };
@@ -20,7 +24,7 @@ type Props = {
  * short-lived HttpOnly cookie. A signed-in visitor then accepts; others sign in and come back here.
  * No state shows the trip, its owner or the invited email.
  */
-export function InvitePage({ signedIn, signIn, switchAccount }: Props) {
+export function InvitePage({ signedIn, signIn, signInWeChat, wechatFirst, switchAccount }: Props) {
   const router = useRouter();
   const [state, setState] = useState<SignInState>("inviteOpening");
   const token = useRef<string | null>(null);
@@ -64,7 +68,7 @@ export function InvitePage({ signedIn, signIn, switchAccount }: Props) {
 
   const action = state === "inviteWrongAccount" ? switchAccount : signIn;
   return (
-    <SignInCard state={state} action={action}>
+    <SignInCard state={state} action={action} wechatAction={signInWeChat} wechatFirst={wechatFirst}>
       {state === "inviteError" ? (
         <Button block onClick={() => void run()}>Try again</Button>
       ) : state === "inviteInvalid" ? (
