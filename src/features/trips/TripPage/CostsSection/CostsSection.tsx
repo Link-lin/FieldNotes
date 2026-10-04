@@ -6,9 +6,6 @@ import { cx } from "@/lib/cx";
 import { plural, TYPE_LABEL } from "@/lib/format";
 import styles from "./CostsSection.module.css";
 
-/** Neutral hues per event type for the stacked bar and its key. */
-const TYPE_COLOR: Record<string, string> = { flight: "#3a3026", lodging: "#5e8fa0", activity: "#9a8c70", meal: "#c9b48a", transport: "#23414b", other: "#b8ab8c" };
-
 /**
  * BUDGET-6 and 7: one card per currency (never added or converted), the budget bar in the
  * budget's currency only, a breakdown by type, and a note while AI estimates remain.
@@ -45,12 +42,12 @@ export function CostsSection({ data, owner }: { data: TripDetailDTO; owner: bool
                   <>
                     <div className={styles.stack} aria-hidden="true">
                       {t.byType.map((b) => (
-                        <i key={b.type} style={{ flex: `${Math.max(Number(b.amount), 0.0001)} 1 0`, background: TYPE_COLOR[b.type] }} />
+                        <i key={b.type} data-type={b.type} style={{ flex: `${Math.max(Number(b.amount), 0.0001)} 1 0` }} />
                       ))}
                     </div>
                     <ul className={styles.breakdown}>
                       {t.byType.map((b) => (
-                        <li key={b.type}><i style={{ background: TYPE_COLOR[b.type] }} aria-hidden="true" /><span>{TYPE_LABEL[b.type]}</span><b>{formatMoney(b.amount, t.currency)}</b></li>
+                        <li key={b.type}><i data-type={b.type} aria-hidden="true" /><span>{TYPE_LABEL[b.type]}</span><b>{formatMoney(b.amount, t.currency)}</b></li>
                       ))}
                     </ul>
                   </>

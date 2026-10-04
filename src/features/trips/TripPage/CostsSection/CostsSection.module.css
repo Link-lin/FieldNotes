@@ -12,4 +12,11 @@
 .breakdown { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
 .breakdown li { display: flex; align-items: center; gap: 10px; font-size: var(--text-md); }
 .breakdown li i { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+/* Event-type hues for the stacked bar and its key (tokens: --cost-*). */
+.stack i[data-type="flight"], .breakdown i[data-type="flight"] { background: var(--cost-flight); }
+.stack i[data-type="lodging"], .breakdown i[data-type="lodging"] { background: var(--cost-lodging); }
+.stack i[data-type="activity"], .breakdown i[data-type="activity"] { background: var(--cost-activity); }
+.stack i[data-type="meal"], .breakdown i[data-type="meal"] { background: var(--cost-meal); }
+.stack i[data-type="transport"], .breakdown i[data-type="transport"] { background: var(--cost-transport); }
+.stack i[data-type="other"], .breakdown i[data-type="other"] { background: var(--cost-other); }
 .breakdown li b { margin-left: auto; font-weight: 600; font-variant-numeric: tabular-nums; }
