@@ -4,10 +4,12 @@ import type { DB } from "@/server/core/db/schema";
 import type { Actor } from "@/server/auth/actor";
 import { requireTripOwner } from "@/server/auth/access";
 import { appOrigin } from "@/server/core/env";
+import { mailConfigured, sendMail } from "@/server/core/mail";
 import { HttpError, invalid } from "@/server/core/http/errors";
 import { isUuid } from "@/server/core/http/request";
-import type { InvitationDTO, InvitationLinkDTO, Role } from "@/shared/dto";
+import type { InvitationDelivery, InvitationDTO, InvitationLinkDTO, Role } from "@/shared/dto";
 import { emailKey } from "@/shared/email";
+import { invitationEmail } from "./invitations.email";
 import { invitationDto } from "./invitations.mapper";
 import {
   insertInvitation,
@@ -26,6 +28,12 @@ import { hashInvitationToken, INVITATION_TTL_MS, invitationStatus, isInvitationT
 export const invalidInvitation = () =>
   new HttpError(404, "invitation_invalid", "This invitation link isn't valid any more. Ask the person who shared the trip for a new link.");
 
+/**
+ * With email on, a new link for a pending person within this long of the last one is refused, so an
+ * owner's second click can't replace the link in the email that has just been sent.
+ */
+export const EMAIL_COOLDOWN_MS = 60_000;
+
 const invitationNotFound = () => new HttpError(404, "not_found", "That invitation doesn't exist.");
 
 /** ACCESS-11: the owners' list of the people a trip is shared with and their invitations, oldest first. */
@@ -38,12 +46,14 @@ export async function listInvitations(db: Kysely<DB>, actor: Actor, tripId: stri
  * ACCESS-3/6: create an invitation for one email with a role (viewer unless the owner chose otherwise), or
  * give a pending, expired or revoked one a new link and the chosen role. The raw token is returned once and
  * only its hash is stored; a new link invalidates the previous one. Someone who has already accepted keeps
- * their entry: change their role, or revoke them, instead.
+ * their entry: change their role, or revoke them, instead. When email is configured the invitation is also
+ * emailed, after the change is committed; if that fails the invitation still exists and the link is
+ * returned to copy (`delivery: "failed"`).
  */
 export async function createInvitation(db: Kysely<DB>, actor: Actor, tripId: string, email: string, now = new Date(), role: Role = "viewer"): Promise<InvitationLinkDTO> {
-  return db.transaction().execute(async (tx) => {
+  const created = await db.transaction().execute(async (tx) => {
     // Locking the trip serializes concurrent invitations for the same new email.
-    await requireTripOwner(tx, actor, tripId, true);
+    const { trip } = await requireTripOwner(tx, actor, tripId, true);
     if (emailKey(email) === emailKey(actor.email)) {
       throw invalid([{ path: "email", code: "own_email", message: "That's your own email. You already own this trip." }], "You can't invite yourself.");
     }
@@ -54,14 +64,37 @@ export async function createInvitation(db: Kysely<DB>, actor: Actor, tripId: str
     if (existing?.status === "accepted") {
       throw new HttpError(409, "invitation_accepted", "This person already has access. Change their role in the list below, or revoke their access first to send a new link.");
     }
+    const sinceLast = existing ? now.getTime() - existing.updated_at.getTime() : null;
+    if (mailConfigured() && existing?.status === "pending" && sinceLast !== null && sinceLast >= 0 && sinceLast < EMAIL_COOLDOWN_MS) {
+      throw new HttpError(429, "invitation_recent", "A link was just sent to this person. Wait a minute before sending another, so the link in their email keeps working. To change what they can do, use their role in the list.");
+    }
     const row = existing ? await reissueInvitation(tx, existing.id, role, hash, expiresAt, now) : await insertInvitation(tx, tripId, email, role, hash, expiresAt);
-    return {
-      invitationId: row.id,
-      invitationUrl: `${appOrigin()}/invite#${token}`,
-      expiresAt: expiresAt.toISOString(),
-      invitation: invitationDto(row, now),
-    };
+    return { row, url: `${appOrigin()}/invite#${token}`, expiresAt, tripTitle: trip.title };
   });
+  const delivery = await emailInvitation(db, actor, created.row.invitee_email_normalized, created.row.role, created.tripTitle, created.url, created.expiresAt);
+  return {
+    invitationId: created.row.id,
+    invitationUrl: created.url,
+    expiresAt: created.expiresAt.toISOString(),
+    invitation: invitationDto(created.row, now),
+    delivery,
+  };
+}
+
+/** Sends the invitation email, if email is set up. Never throws: a failure is reported, not raised. */
+async function emailInvitation(db: Kysely<DB>, actor: Actor, to: string, role: Role, tripTitle: string, url: string, expiresAt: Date): Promise<InvitationDelivery> {
+  if (!mailConfigured()) return "off";
+  try {
+    const sender = await db.selectFrom("User").select("name").where("id", "=", actor.userId).executeTakeFirst();
+    const mail = invitationEmail({ tripTitle, inviterName: sender?.name?.trim() || actor.email, inviteeEmail: to, role, url, expiresAt });
+    await sendMail({ to, replyTo: actor.email, ...mail });
+    return "sent";
+  } catch (err) {
+    // The error's name and code only: a mail error's message can contain the address or the server's reply.
+    const code = typeof (err as { code?: unknown })?.code === "string" ? ` ${(err as { code: string }).code}` : "";
+    console.error(`[mail] ${err instanceof Error ? err.name : "Unknown error"}${code}`);
+    return "failed";
+  }
 }
 
 /**
@@ -74,7 +107,7 @@ export async function updateInvitationRole(db: Kysely<DB>, actor: Actor, tripId:
     const row = isUuid(invitationId) ? await invitationForUpdate(tx, tripId, invitationId) : undefined;
     if (!row) throw invitationNotFound();
     if (row.status === "revoked") throw new HttpError(409, "invitation_revoked", "This person's access was revoked. Create a new link to invite them again.");
-    return invitationDto(await setInvitationRole(tx, row.id, role, now), now);
+    return invitationDto(await setInvitationRole(tx, row.id, role), now);
   });
 }
 

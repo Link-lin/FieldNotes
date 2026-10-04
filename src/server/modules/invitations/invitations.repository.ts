@@ -45,9 +45,13 @@ export async function invitationForUpdate(tx: Transaction<DB>, tripId: string, i
   return tx.selectFrom("trip_viewers").selectAll().where("id", "=", id).where("trip_id", "=", tripId).forUpdate().executeTakeFirst();
 }
 
-/** Sets an entry's role. The change applies to the person's next request. */
-export async function setInvitationRole(tx: Transaction<DB>, id: string, role: Role, now: Date): Promise<InvitationRow> {
-  return tx.updateTable("trip_viewers").set({ role, updated_at: now }).where("id", "=", id).returningAll().executeTakeFirstOrThrow();
+/**
+ * Sets an entry's role. The change applies to the person's next request. It deliberately leaves `updated_at`
+ * alone: for a pending entry that column marks when its link was last issued, which the email cooldown reads,
+ * and a role change must not make a new link look recent.
+ */
+export async function setInvitationRole(tx: Transaction<DB>, id: string, role: Role): Promise<InvitationRow> {
+  return tx.updateTable("trip_viewers").set({ role }).where("id", "=", id).returningAll().executeTakeFirstOrThrow();
 }
 
 /** Revoke a pending or accepted entry. Returns false when no such entry exists on the trip. */

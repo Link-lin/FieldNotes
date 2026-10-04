@@ -16,6 +16,8 @@ export type IssueResult = { ok: true } | { ok: false; message: string; onEmail: 
 type Props = {
   tripId: string;
   entries: InvitationDTO[];
+  /** With email set up, a new link is emailed ("Send new link"); without it the owner copies it. */
+  canEmail: boolean;
   onNewLink: (email: string, role: Role) => Promise<IssueResult>;
   onRoleChanged: (entry: InvitationDTO) => void;
   onRevoked: (id: string) => void;
@@ -34,10 +36,10 @@ function detail(e: InvitationDTO): string {
 /**
  * ACCESS-5/6/11: the people a trip is shared with and their invitations, with status, role and expiry.
  * An owner changes anyone's role here (promoting to owner asks first). Revoke is offered for pending and
- * accepted entries (an accepted person is asked to confirm); Create new link for pending, expired
- * and revoked entries, and it invalidates any earlier link.
+ * accepted entries (an accepted person is asked to confirm); a new link (emailed when the server can) for
+ * pending, expired and revoked entries, and it invalidates any earlier link.
  */
-export function ViewerList({ tripId, entries, onNewLink, onRoleChanged, onRevoked }: Props) {
+export function ViewerList({ tripId, entries, canEmail, onNewLink, onRoleChanged, onRevoked }: Props) {
   const [busy, setBusy] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<string | null>(null);
   const [promoting, setPromoting] = useState<string | null>(null);
@@ -153,7 +155,7 @@ export function ViewerList({ tripId, entries, onNewLink, onRoleChanged, onRevoke
             ) : (
               <div className={styles.actions}>
                 {canRenew ? (
-                  <Button variant="quiet" disabled={disabled} onClick={() => void newLink(e)} aria-label={`Create new link for ${e.email}`}>Create new link</Button>
+                  <Button variant="quiet" disabled={disabled} onClick={() => void newLink(e)} aria-label={`${canEmail ? "Send new link to" : "Create new link for"} ${e.email}`}>{canEmail ? "Send new link" : "Create new link"}</Button>
                 ) : null}
                 {canRevoke ? (
                   <Button variant="danger" disabled={disabled} onClick={() => void revoke(e)} aria-label={`Revoke ${e.email}`}>Revoke</Button>

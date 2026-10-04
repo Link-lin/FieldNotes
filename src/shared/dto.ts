@@ -128,5 +128,8 @@ export type InvitationDTO = {
   revokedAt: string | null;
 };
 
+/** Whether the invitation email went out: sent, failed (the link still works, so copy it), or off (email isn't set up). */
+export type InvitationDelivery = "sent" | "failed" | "off";
+
 /** Returned once when an invitation is created or given a new link; the URL is never stored or listed. */
-export type InvitationLinkDTO = { invitationId: string; invitationUrl: string; expiresAt: string; invitation: InvitationDTO };
+export type InvitationLinkDTO = { invitationId: string; invitationUrl: string; expiresAt: string; invitation: InvitationDTO; delivery: InvitationDelivery };

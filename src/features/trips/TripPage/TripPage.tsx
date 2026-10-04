@@ -40,7 +40,7 @@ type ItemFormState = { item: PlanItemDTO | null; date: string; trigger: string |
  * costs, bookings and globe location. This component holds the page state and actions; each part
  * renders itself.
  */
-export function TripPage({ data, initialDay, initialEvent, initialView, mapsKey }: { data: TripDetailDTO; initialDay: string | null; initialEvent: string | null; initialView: TripView; mapsKey: string | null }) {
+export function TripPage({ data, initialDay, initialEvent, initialView, mapsKey, canEmail }: { data: TripDetailDTO; initialDay: string | null; initialEvent: string | null; initialView: TripView; mapsKey: string | null; canEmail: boolean }) {
   const router = useRouter();
   const toast = useToast();
   const { trip, items } = data;
@@ -340,7 +340,7 @@ export function TripPage({ data, initialDay, initialEvent, initialView, mapsKey 
           }}
         />
       ) : null}
-      {sharing && canManage ? <ShareDialog trip={trip} onClose={() => setSharing(false)} /> : null}
+      {sharing && canManage ? <ShareDialog trip={trip} canEmail={canEmail} onClose={() => setSharing(false)} /> : null}
       {editingTrip ? <TripForm trip={trip} recentCurrencies={data.recentCurrencies} onClose={() => setEditingTrip(false)} itemDates={items.map((i) => i.timelineDate).filter((d): d is string => !!d)} /> : null}
     </div>
   );

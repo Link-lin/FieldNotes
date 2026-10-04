@@ -48,6 +48,8 @@ services:
       TRIP_OWNER_EMAILS: ${TRIP_OWNER_EMAILS:?Set TRIP_OWNER_EMAILS in .env (your Google address)}
       GOOGLE_MAPS_EMBED_API_KEY: ${GOOGLE_MAPS_EMBED_API_KEY:-}
       GEOAPIFY_API_KEY: ${GEOAPIFY_API_KEY:-}
+      SMTP_URL: ${SMTP_URL:-}
+      MAIL_FROM: ${MAIL_FROM:-}
     # Reachable only from this machine; the https profile or your own reverse proxy serves the public.
     ports:
       - "127.0.0.1:${APP_PORT:-3000}:3000"

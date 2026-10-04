@@ -3,3 +3,6 @@
 /* The message is a readonly control; the monospace face makes the link easy to check. */
 .message { font-family: var(--mono); font-size: var(--text-sm); }
 .row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+/* After an email has gone out, copying the message is only a fallback: tucked away until it is wanted. */
+.fallback > summary { cursor: pointer; color: var(--ink-2); font-size: var(--text-sm); }
+.fallbackBody { display: grid; gap: var(--space-3); margin-top: var(--space-3); }

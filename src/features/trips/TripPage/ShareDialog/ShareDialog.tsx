@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { InvitationDTO, InvitationLinkDTO, Role, TripDetailDTO } from "@/shared/dto";
+import type { InvitationDelivery, InvitationDTO, InvitationLinkDTO, Role, TripDetailDTO } from "@/shared/dto";
 import { ROLE_HELP, ROLE_LABEL, ROLES } from "@/shared/roles";
 import { Banner } from "@/components/ui/Banner/Banner";
 import { Button } from "@/components/ui/Button/Button";
@@ -12,8 +12,8 @@ import { InviteLink } from "./InviteLink/InviteLink";
 import { ViewerList, type IssueResult } from "./ViewerList/ViewerList";
 import styles from "./ShareDialog.module.css";
 
-type Props = { trip: TripDetailDTO["trip"]; onClose: () => void };
-type Shown = { email: string; role: Role; url: string; expiresAt: string; copied: boolean };
+type Props = { trip: TripDetailDTO["trip"]; /** Whether the server can email invitations (SMTP is set up). */ canEmail: boolean; onClose: () => void };
+type Shown = { email: string; role: Role; url: string; expiresAt: string; delivery: InvitationDelivery; copied: boolean };
 
 /** Insert or replace entries by ID, keeping list order. */
 function upsert(list: InvitationDTO[], add: InvitationDTO[]): InvitationDTO[] {
@@ -23,11 +23,12 @@ function upsert(list: InvitationDTO[], add: InvitationDTO[]): InvitationDTO[] {
 }
 
 /**
- * ACCESS-5/8/11: the Share dialog for owners. It states what each role can see and do before anything is
- * created, invites one email at a time with a role, shows each new link once (only its hash is stored, so
- * it can't be shown again), and lists the people with their roles, Revoke and Create new link.
+ * ACCESS-3/5/8/11: the Share dialog for owners. It states what each role can see and do before anything is
+ * created, invites one email at a time with a role (emailing the link when the server can, and otherwise
+ * handing the owner a message to send), shows each new link once (only its hash is stored, so it can't be
+ * shown again), and lists the people with their roles, Revoke and a new link.
  */
-export function ShareDialog({ trip, onClose }: Props) {
+export function ShareDialog({ trip, canEmail, onClose }: Props) {
   const [entries, setEntries] = useState<InvitationDTO[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [email, setEmail] = useState("");
@@ -74,7 +75,8 @@ export function ShareDialog({ trip, onClose }: Props) {
     const entry = r.data.invitation;
     issuedDuringLoad.current.set(entry.id, entry);
     setEntries((list) => upsert(list ?? [], [entry]));
-    const link = { email: entry.email, role: entry.role, url: r.data.invitationUrl, expiresAt: r.data.expiresAt, copied: false };
+    // A link that was emailed is already with its recipient, so closing needn't warn that it wasn't copied.
+    const link: Shown = { email: entry.email, role: entry.role, url: r.data.invitationUrl, expiresAt: r.data.expiresAt, delivery: r.data.delivery, copied: r.data.delivery === "sent" };
     setLinks((all) => [link, ...all.filter((l) => l.email !== entry.email)]);
     setConfirmClose(false);
     return { ok: true };
@@ -115,7 +117,7 @@ export function ShareDialog({ trip, onClose }: Props) {
   }, [confirmClose]);
 
   return (
-    <Modal title="Share this trip" onClose={requestClose} subtitle="Invite people and choose what each can do. They sign in with Google." triggerSelector="[data-share-trip]">
+    <Modal title="Share this trip" onClose={requestClose} subtitle={canEmail ? "Invite people by email and choose what each can do. They sign in with Google." : "Invite people and choose what each can do. They sign in with Google."} triggerSelector="[data-share-trip]">
       <Banner tone="info">
         <p>
           Everyone you invite can see everything in this trip: all events, place names, map links and exact pinned positions, planned prices, booking
@@ -145,7 +147,7 @@ export function ShareDialog({ trip, onClose }: Props) {
             {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
           </select>
         </Field>
-        <Button variant="fill" type="submit" disabled={creating}>{creating ? "Creating…" : "Create invitation"}</Button>
+        <Button variant="fill" type="submit" disabled={creating}>{creating ? (canEmail ? "Sending…" : "Creating…") : canEmail ? "Send invitation" : "Create invitation"}</Button>
       </form>
       {formError ? <FormError>{formError}</FormError> : null}
 
@@ -157,6 +159,7 @@ export function ShareDialog({ trip, onClose }: Props) {
           role={l.role}
           url={l.url}
           expiresAt={l.expiresAt}
+          delivery={l.delivery}
           onCopied={() => setLinks((all) => all.map((x) => (x.url === l.url ? { ...x, copied: true } : x)))}
         />
       ))}
@@ -174,6 +177,7 @@ export function ShareDialog({ trip, onClose }: Props) {
         ) : (
           <ViewerList
             entries={entries}
+            canEmail={canEmail}
             onNewLink={issue}
             onRoleChanged={(entry) => {
               setEntries((list) => upsert(list ?? [], [entry]));
