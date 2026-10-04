@@ -8,8 +8,7 @@ import { dashboardUrl } from "@/features/dashboard/dashboard-return";
 import { ItemForm } from "@/features/trips/ItemForm/ItemForm";
 import { TripForm } from "@/features/trips/TripForm/TripForm";
 import { api } from "@/lib/api";
-import { isPhoneWidth } from "@/lib/client-value";
-import { clearEventReturn, rememberEventReturn } from "@/lib/event-return";
+import { clearEventReturn } from "@/lib/event-return";
 import { fmtDay } from "@/lib/format";
 import { AddFab } from "./AddFab/AddFab";
 import { BookingList } from "./BookingList/BookingList";
@@ -23,11 +22,12 @@ import { RecentlyDeleted } from "./RecentlyDeleted/RecentlyDeleted";
 import { ShareDialog } from "./ShareDialog/ShareDialog";
 import { Timeline } from "./Timeline/Timeline";
 import { TripHeader } from "./TripHeader/TripHeader";
-import { TripTiles } from "./TripTiles/TripTiles";
+import { TripHighlights } from "./TripHighlights/TripHighlights";
 import { TripViewNav, type TripView } from "./TripViewNav/TripViewNav";
-import { dayNumber, isOutside, pad2, straightLineKm, tripDays, tripStops } from "./trip-days";
+import { dayNumber, isOutside, pad2, tripDays, tripStops } from "./trip-days";
 import styles from "./TripPage.module.css";
 import { animateDayEnter } from "./day-motion";
+import { useTripEventPanel } from "./useTripEventPanel";
 
 const isField = (el: EventTarget | null) => el instanceof HTMLElement && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable);
 const LIT = "data-lit";
@@ -35,7 +35,7 @@ const LIT = "data-lit";
 type ItemFormState = { item: PlanItemDTO | null; date: string; trigger: string | null };
 
 /**
- * A trip on its own page (TRIP-1 to TRIP-9): header, tiles, day tabs, the timeline with its map,
+ * A trip on its own page (TRIP-1 to TRIP-10): header, highlights, day tabs, timeline and map,
  * costs, bookings and globe location. This component holds the page state and actions; each part
  * renders itself.
  */
@@ -67,9 +67,6 @@ export function TripPage({ data, initialDay, initialEvent, initialView, mapsKey 
   const [sharing, setSharing] = useState(false);
   const [itemForm, setItemForm] = useState<ItemFormState | null>(null);
   const [menuFor, setMenuFor] = useState<string | null>(null);
-  // The event side panel (TRIP-10). `open` turns false while it slides out; `snapshot` keeps an
-  // event that disappeared (deleted elsewhere) on screen until then.
-  const [panel, setPanel] = useState<{ id: string; open: boolean; snapshot: PlanItemDTO; initialEditing: boolean; trigger: string } | null>(null);
   // Deleted this visit and still restorable, so Undo stays reachable after the toast closes.
   const [recentlyDeleted, setRecentlyDeleted] = useState<PlanItemDTO[]>([]);
 
@@ -89,7 +86,7 @@ export function TripPage({ data, initialDay, initialEvent, initialView, mapsKey 
     const url = new URL(window.location.href);
     if (d === "all") url.searchParams.delete("day");
     else url.searchParams.set("day", d);
-    window.history.replaceState(window.history.state, "", url);
+    router.replace(`${url.pathname}${url.search}`, { scroll: false });
     if (focus) requestAnimationFrame(() => document.getElementById(`tab-${d}`)?.focus());
   }
 
@@ -193,47 +190,15 @@ export function TripPage({ data, initialDay, initialEvent, initialView, mapsKey 
     }),
     ...(all ? [...undatedFlights, ...undated] : []),
   ];
-  const currentPanelItem = panel ? items.find((i) => i.id === panel.id) : null;
-  const panelItem = panel ? (currentPanelItem && currentPanelItem.version >= panel.snapshot.version ? currentPanelItem : panel.snapshot) : null;
-  const panelAt = panelItem ? shown.findIndex((i) => i.id === panelItem.id) : -1;
-  // `trigger` is where focus returns when the panel closes; `replace` keeps an arrival link out of history.
-  const openPanel = (item: PlanItemDTO, { editing = false, trigger, replace = false }: { editing?: boolean; trigger?: string; replace?: boolean } = {}) => {
-    setMenuFor(null);
-    if (isPhoneWidth()) {
-      const query = new URLSearchParams();
-      if (view === "bookings") query.set("view", "bookings");
-      else if (!all) query.set("day", day);
-      if (editing) query.set("edit", "1");
-      const href = `/trips/${trip.id}/items/${item.id}${query.size ? `?${query}` : ""}`;
-      if (replace) router.replace(href);
-      else {
-        rememberEventReturn(trip.id, item.id);
-        router.push(href);
-      }
-      return;
-    }
-    setPanel({ id: item.id, open: true, snapshot: item, initialEditing: editing, trigger: trigger ?? (editing ? `[data-menu="${item.id}"]` : `[data-details="${item.id}"]`) });
-  };
-  const closePanel = () => setPanel((p) => (p ? { ...p, open: false } : p));
-
-  // Older dashboard links with ?event= still open the event once the page is on screen.
-  // The address then drops it, so a reload or Back behaves as before. Runs once the frame fires, which
-  // also survives the development double mount.
-  const arrivingEvent = useRef(initialEvent);
-  useEffect(() => {
-    const id = arrivingEvent.current;
-    if (!id) return;
-    const frame = requestAnimationFrame(() => {
-      arrivingEvent.current = null;
-      const url = new URL(window.location.href);
-      url.searchParams.delete("event");
-      window.history.replaceState(window.history.state, "", url);
-      const item = items.find((i) => i.id === id);
-      if (item) openPanel(item, { replace: true });
-    });
-    return () => cancelAnimationFrame(frame);
+  const eventPanel = useTripEventPanel({
+    tripId: trip.id,
+    items,
+    shown,
+    day,
+    view,
+    initialEvent,
+    closeMenu: () => setMenuFor(null),
   });
-  const panelExited = () => setPanel((p) => (p && !p.open ? null : p));
 
   const timeline = (list: PlanItemDTO[], numbered: boolean) => (
     <Timeline
@@ -243,11 +208,8 @@ export function TripPage({ data, initialDay, initialEvent, initialView, mapsKey 
       tripZone={trip.timeZone}
       menuFor={menuFor}
       onMenu={setMenuFor}
-      onOpen={(i) => openPanel(i)}
-      onEdit={(i) => {
-        setMenuFor(null);
-        openPanel(i, { editing: true });
-      }}
+      onOpen={(i) => eventPanel.open(i)}
+      onEdit={(i) => eventPanel.open(i, { editing: true })}
       onDuplicate={duplicateEvent}
       onDelete={deleteEvent}
     />
@@ -258,15 +220,15 @@ export function TripPage({ data, initialDay, initialEvent, initialView, mapsKey 
       <article className={styles.trip}>
         <div className={styles.hero} data-view={view}>
           <div className={styles.heading}>
-            <TripHeader trip={trip} owner={owner} compact={view === "bookings"} items={items} onOpenEvent={(i) => openPanel(i, { trigger: "[data-up-next]" })} onAdd={() => openAdd(all ? "" : day, "[data-add-top]")} onEdit={() => setEditingTrip(true)} onShare={() => setSharing(true)} />
+            <TripHeader trip={trip} owner={owner} compact={view === "bookings"} items={items} onOpenEvent={(i) => eventPanel.open(i, { trigger: "[data-up-next]" })} onAdd={() => openAdd(all ? "" : day, "[data-add-top]")} onEdit={() => setEditingTrip(true)} onShare={() => setSharing(true)} />
           </div>
           <div className={styles.sectionNav}>
             <TripViewNav selected={view} toBook={toBook.length} overdue={overdueCount} onSelect={selectView} />
-            {view === "itinerary" ? <TripTiles data={data} pinned={allStops.length} distanceKm={straightLineKm(allStops)} /> : null}
+            {view === "itinerary" ? <TripHighlights data={data} /> : null}
           </div>
         </div>
         {view === "bookings" ? (
-          <BookingList trip={trip} items={items} owner={owner} onOpen={(i) => openPanel(i, { trigger: `[data-task-open="${i.id}"]` })} />
+          <BookingList trip={trip} items={items} owner={owner} onOpen={(i) => eventPanel.open(i, { trigger: `[data-task-open="${i.id}"]` })} />
         ) : (
           <>
             <DayTabs trip={trip} days={days} byDate={byDate} eventCount={items.length} pinCount={allStops.length} selected={day} onSelect={selectDay} />
@@ -348,30 +310,30 @@ export function TripPage({ data, initialDay, initialEvent, initialView, mapsKey 
           }}
         />
       ) : null}
-      {panel && panelItem ? (
+      {eventPanel.panel && eventPanel.item ? (
         <EventPanel
           trip={trip}
-          item={panelItem}
-          open={panel.open}
+          item={eventPanel.item}
+          open={eventPanel.panel.open}
           owner={owner}
-          num={numbers.get(panelItem.id) ?? null}
+          num={numbers.get(eventPanel.item.id) ?? null}
           mapsKey={mapsKey}
           defaultCurrency={defaultCurrency}
           recentCurrencies={data.recentCurrencies}
-          initialEditing={panel.initialEditing}
-          triggerSelector={panel.trigger}
-          prev={panelAt > 0 ? (shown[panelAt - 1] ?? null) : null}
-          next={panelAt >= 0 ? (shown[panelAt + 1] ?? null) : null}
-          onGo={(i) => setPanel({ id: i.id, open: true, snapshot: i, initialEditing: false, trigger: view === "bookings" ? `[data-task-open="${i.id}"]` : `[data-details="${i.id}"]` })}
-          onClose={closePanel}
-          onExited={panelExited}
+          initialEditing={eventPanel.panel.initialEditing}
+          triggerSelector={eventPanel.panel.trigger}
+          prev={eventPanel.previous}
+          next={eventPanel.next}
+          onGo={eventPanel.go}
+          onClose={eventPanel.close}
+          onExited={eventPanel.exited}
           onSaved={(saved) => {
-            setPanel((p) => p && p.id === saved.id ? { ...p, snapshot: saved } : p);
+            eventPanel.acceptSaved(saved);
             router.refresh();
             toast({ message: "Event updated." });
           }}
           onNotesSaved={(saved) => {
-            setPanel((p) => p && p.id === saved.id ? { ...p, snapshot: saved } : p);
+            eventPanel.acceptSaved(saved);
             router.refresh();
           }}
         />
