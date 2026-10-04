@@ -7,6 +7,7 @@ import { appOrigin } from "@/server/core/env";
 import { HttpError, invalid } from "@/server/core/http/errors";
 import { isUuid } from "@/server/core/http/request";
 import type { InvitationDTO, InvitationLinkDTO } from "@/shared/dto";
+import { emailKey } from "@/shared/email";
 import { invitationDto } from "./invitations.mapper";
 import {
   insertInvitation,
@@ -40,7 +41,7 @@ export async function createInvitation(db: Kysely<DB>, actor: Actor, tripId: str
   return db.transaction().execute(async (tx) => {
     // Locking the trip serializes concurrent invitations for the same new email.
     await requireTripOwner(tx, actor, tripId, true);
-    if (email === actor.email) {
+    if (emailKey(email) === emailKey(actor.email)) {
       throw invalid([{ path: "email", code: "own_email", message: "That's your own email. You already own this trip." }], "You can't invite yourself.");
     }
     const token = newInvitationToken();
@@ -96,7 +97,7 @@ export async function acceptInvitation(db: Kysely<DB>, actor: Actor, hash: Buffe
       throw invalidInvitation();
     }
     if (invitationStatus(row, now) !== "pending") throw invalidInvitation();
-    if (row.invitee_email_normalized !== actor.email) {
+    if (emailKey(row.invitee_email_normalized) !== emailKey(actor.email)) {
       throw new HttpError(403, "invitation_wrong_account", "This invitation is for a different Google account. Switch to the account it was sent to.");
     }
     await markAccepted(tx, row.id, actor.userId, now);

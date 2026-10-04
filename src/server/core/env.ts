@@ -1,12 +1,16 @@
 import "server-only";
+import { emailKey } from "@/shared/email";
 
-/** Normalized owner allowlist (TRIP_OWNER_EMAILS). Required in production. */
+/**
+ * The owner allowlist (TRIP_OWNER_EMAILS) as address keys, so look an address up with `emailKey`:
+ * a Gmail owner matches whatever the dots, "+tag" or googlemail.com spelling. Required in production.
+ */
 export function ownerEmails(): ReadonlySet<string> {
   const raw = process.env.TRIP_OWNER_EMAILS ?? "";
   const set = new Set(
     raw
       .split(",")
-      .map((e) => normalizeEmail(e))
+      .map((e) => (e.trim() ? emailKey(e) : ""))
       .filter(Boolean),
   );
   if (set.size === 0 && process.env.NODE_ENV === "production") {

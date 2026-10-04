@@ -4,7 +4,7 @@ import { testDb } from "./helpers";
 import { createTrip, getTripDetail } from "@/server/modules/trips/trips.service";
 import { createItem } from "@/server/modules/items/items.service";
 import { allowSignIn } from "@/server/auth/sign-in-gate";
-import type { Actor } from "@/server/auth/actor";
+import { actorFor, type Actor } from "@/server/auth/actor";
 
 // Route handlers are exercised end to end with only the session lookup replaced.
 const session = vi.hoisted(() => ({ actor: null as Actor | null }));
@@ -120,6 +120,21 @@ describe("sign-in gate (ACCESS-1)", () => {
     expect(await allowSignIn(testDb(), attempt(" Owner@Example.com "))).toBe(true);
     expect(await allowSignIn(testDb(), attempt("owner@example.com", { emailVerified: false }))).toBe(false);
     expect(await allowSignIn(testDb(), attempt("owner@example.com", { provider: "github" }))).toBe(false);
+  });
+
+  it("matches a Gmail owner by address key, and no other domain by anything but the exact address", async () => {
+    vi.stubEnv("TRIP_OWNER_EMAILS", "Jane.Doe@gmail.com, kim.lee@example.com");
+    try {
+      for (const email of ["janedoe@gmail.com", "jane.doe+trips@gmail.com", "JANEDOE@googlemail.com"]) {
+        expect(await allowSignIn(testDb(), attempt(email))).toBe(true);
+        expect(actorFor({ id: "u", email }).isOwner).toBe(true);
+      }
+      expect(actorFor({ id: "u", email: "janedoe2@gmail.com" }).isOwner).toBe(false);
+      expect(actorFor({ id: "u", email: "kimlee@example.com" }).isOwner).toBe(false);
+      expect(actorFor({ id: "u", email: "Kim.Lee@example.com" }).isOwner).toBe(true);
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it("admits a pending, unexpired invitation only", async () => {

@@ -177,6 +177,36 @@ describe("invitation service", () => {
     expect((await getTripDetail(db(), actorFor(renamed), tripId, NOW)).trip.role).toBe("viewer");
   });
 
+  it("matches Gmail addresses whatever the dots, +tag or googlemail.com spelling, and no other domain", async () => {
+    const link = await createInvitation(db(), owner, tripId, "jane.doe+trip@gmail.com", NOW);
+    const hash = sha(tokenOf(link.invitationUrl));
+    // Google signs the account in as "janedoe@googlemail.com"; it is the invited person.
+    const jane = await makeActor("janedoe@googlemail.com", "Jane");
+    await acceptInvitation(db(), jane, hash, NOW);
+    expect((await getTripDetail(db(), jane, tripId, NOW)).trip.role).toBe("viewer");
+    // The same trick on another domain is a different person and stays refused.
+    const plain = await createInvitation(db(), owner, tripId, "sam.rivera@example.com", NOW);
+    const other = await makeActor("samrivera@example.com", "Sam");
+    await expectHttp(acceptInvitation(db(), other, sha(tokenOf(plain.invitationUrl)), NOW), 403, "invitation_wrong_account");
+    // Gmail names that really differ stay refused too.
+    const near = await createInvitation(db(), owner, tripId, "sam.rivera@gmail.com", NOW);
+    await expectHttp(acceptInvitation(db(), await makeActor("samrivera2@gmail.com", "Sam 2"), sha(tokenOf(near.invitationUrl)), NOW), 403, "invitation_wrong_account");
+  });
+
+  it("keeps one entry per person across spellings, and refuses the owner's own address in any spelling", async () => {
+    const first = await createInvitation(db(), owner, tripId, "jane.doe@gmail.com", NOW);
+    const again = await createInvitation(db(), owner, tripId, "janedoe+x@googlemail.com", NOW);
+    expect(again.invitationId).toBe(first.invitationId); // a new link in the same entry, not a second person
+    expect(await listInvitations(db(), owner, tripId, NOW)).toHaveLength(1);
+    await expectHttp(stageInvitation(db(), tokenOf(first.invitationUrl), NOW), 404); // the old link no longer works
+    const hash = sha(tokenOf(again.invitationUrl));
+    await acceptInvitation(db(), await makeActor("janedoe@gmail.com", "Jane"), hash, NOW);
+    await expectHttp(createInvitation(db(), owner, tripId, "j.anedoe@gmail.com", NOW), 409, "invitation_accepted");
+    const ownerGmail = await makeActor("my.owner@gmail.com", "Mine");
+    const t2 = (await createTrip(db(), { ...ownerGmail, isOwner: true }, tripInput, NOW)).id;
+    await expectHttp(createInvitation(db(), { ...ownerGmail, isOwner: true }, t2, "myowner+me@googlemail.com", NOW), 422, "validation_error");
+  });
+
   it("admits a new account for a pending invitation only while it can be accepted", async () => {
     const attempt = { provider: "google", providerAccountId: "sub-new", email: "new@example.com", emailVerified: true };
     expect(await allowSignIn(db(), attempt, NOW)).toBe(false);
@@ -185,9 +215,36 @@ describe("invitation service", () => {
     await revokeInvitation(db(), owner, tripId, link.invitationId, NOW);
     expect(await allowSignIn(db(), attempt, NOW)).toBe(false);
   });
+
+  it("admits a new Gmail identity for an invitation typed with other dots or a +tag, but not another domain's lookalike", async () => {
+    const gmail = (email: string) => ({ provider: "google", providerAccountId: `sub-${email}`, email, emailVerified: true });
+    await createInvitation(db(), owner, tripId, "jane.doe+trip@gmail.com", NOW);
+    expect(await allowSignIn(db(), gmail("janedoe@gmail.com"), NOW)).toBe(true);
+    expect(await allowSignIn(db(), gmail("Jane.Doe@googlemail.com"), NOW)).toBe(true);
+    expect(await allowSignIn(db(), gmail("janedoe2@gmail.com"), NOW)).toBe(false);
+    expect(await allowSignIn(db(), gmail("janedoe@example.com"), NOW)).toBe(false);
+    await createInvitation(db(), owner, tripId, "kim.lee@example.com", NOW);
+    expect(await allowSignIn(db(), gmail("kimlee@example.com"), NOW)).toBe(false);
+    expect(await allowSignIn(db(), gmail("kim.lee@example.com"), NOW)).toBe(true);
+    expect(await allowSignIn(db(), { ...gmail("janedoe@gmail.com"), emailVerified: false }, NOW)).toBe(false);
+    expect(await allowSignIn(db(), gmail("janedoe@gmail.com"), later(8))).toBe(false); // expired
+  });
 });
 
 describe("invitation routes", () => {
+  it("normalizes a typed Gmail address, keeps its spelling, and treats another spelling as the same person", async () => {
+    session.actor = owner;
+    const p = ctx({ tripId });
+    const first = await list.POST(req("POST", { email: "  Jane.Doe+Trip@Gmail.com " }), p);
+    expect(first.status).toBe(201);
+    const created = (await first.json()) as { invitationId: string; invitation: { email: string } };
+    expect(created.invitation.email).toBe("jane.doe+trip@gmail.com");
+    const second = await list.POST(req("POST", { email: "JANEDOE@googlemail.com" }), p);
+    expect(((await second.json()) as { invitationId: string }).invitationId).toBe(created.invitationId);
+    const entries = (await (await list.GET(req("GET"), p)).json()) as Array<{ email: string }>;
+    expect(entries.map((e) => e.email)).toEqual(["jane.doe+trip@gmail.com"]);
+  });
+
   it("need a session for every owner and accept route (ACCESS-7)", async () => {
     const p = ctx({ tripId });
     for (const r of [

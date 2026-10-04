@@ -5,6 +5,7 @@
  */
 import { createDb } from "@/server/core/db/client";
 import { normalizeEmail } from "@/server/core/env";
+import { emailKey } from "@/shared/email";
 import { HAWAII_TITLE, seedDemoTrips, TEST_FRIEND } from "./demo-trips";
 import { describeDbError } from "./db-error";
 import { loadEnvFile } from "./env-file";
@@ -23,7 +24,8 @@ if (!url || !email) {
 
 const db = createDb(url);
 try {
-  const you = await db.selectFrom("User").select(["id", "email"]).where("email", "=", email).executeTakeFirst();
+  // Gmail addresses match by key, so the allowlist spelling need not equal the address Google signed in with.
+  const you = (await db.selectFrom("User").select(["id", "email"]).execute()).find((u) => u.email && emailKey(u.email) === emailKey(email));
   if (!you) {
     console.error(`No account for ${email} yet. Sign in to the app once with that Google account, then run this again.`);
     process.exitCode = 1;

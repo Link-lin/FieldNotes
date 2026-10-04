@@ -120,7 +120,7 @@ export function ShareDialog({ trip, onClose }: Props) {
       </Banner>
 
       <form className={styles.invite} onSubmit={onSubmit} noValidate>
-        <Field label="Invite by email" htmlFor="share-email" error={emailError} errorId="share-email-error" className={styles.email}>
+        <Field label="Invite by email" htmlFor="share-email" hint="Gmail addresses match even if the dots, a +tag or googlemail.com differ." hintId="share-email-hint" error={emailError} errorId="share-email-error" className={styles.email}>
           <input
             id="share-email"
             type="email"
@@ -130,7 +130,7 @@ export function ShareDialog({ trip, onClose }: Props) {
             onChange={(e) => setEmail(e.target.value)}
             placeholder="sam@example.com"
             aria-invalid={emailError ? true : undefined}
-            aria-describedby={emailError ? "share-email-error" : undefined}
+            aria-describedby={emailError ? "share-email-error" : "share-email-hint"}
           />
         </Field>
         <Button variant="fill" type="submit" disabled={creating}>{creating ? "Creating…" : "Create invitation"}</Button>

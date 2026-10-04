@@ -82,7 +82,7 @@ These summaries show how the requirements fit together. The rules are in the fun
 - **ACCESS-1:** Owners sign in with Google before viewing or changing trip data.
 - **ACCESS-2:** Trips are private to the owner unless they invite a specific email address as a viewer.
 - **ACCESS-3:** The owner can create an invitation for one email and copy a trip-specific, unguessable, single-use link that expires after seven days. The link grants no trip access until a matching verified Google identity signs in. The app does not send the invitation email.
-- **ACCESS-4:** An invitee must sign in with a Google account whose verified email matches the invitation. A mismatched account is denied access and shown a switch-account path.
+- **ACCESS-4:** An invitee must sign in with a Google account whose verified email matches the invitation. Gmail addresses match whatever the dots in the name, a `+tag` or the googlemail.com spelling (`jane.doe+trip@gmail.com` and `janedoe@googlemail.com` are one person); every other domain must match exactly, apart from case. The same rule applies to the owner allowlist. A mismatched account is denied access and shown a switch-account path.
 - **ACCESS-5:** Viewers can read a shared trip but cannot create, edit, delete, invite others, or change access.
 - **ACCESS-6:** The owner can revoke viewer access or recreate an expired invitation. An accepted invitation grants access to that verified account until revoked. Revocation blocks subsequent protected requests; expired or revoked links cannot be accepted.
 - **ACCESS-7:** Invitation links never grant anonymous access. The public address may show sign-in, but unauthenticated visitors cannot retrieve trip content or APIs.

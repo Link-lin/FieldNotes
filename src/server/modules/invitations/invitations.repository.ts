@@ -1,6 +1,7 @@
 import "server-only";
 import type { Kysely, Selectable, Transaction } from "kysely";
 import type { DB, TripViewersTable } from "@/server/core/db/schema";
+import { emailKey } from "@/shared/email";
 
 type Conn = Kysely<DB> | Transaction<DB>;
 export type InvitationRow = Selectable<TripViewersTable>;
@@ -9,8 +10,15 @@ export async function tripInvitations(db: Conn, tripId: string): Promise<Invitat
   return db.selectFrom("trip_viewers").selectAll().where("trip_id", "=", tripId).orderBy("created_at").orderBy("id").execute();
 }
 
+/**
+ * The trip's entry for this person, however the address is spelled: Gmail dots, "+tags" and
+ * googlemail.com count as the same address, so one person never gets two entries. An accepted entry
+ * wins if (from before this rule) there are several.
+ */
 export async function invitationForEmail(tx: Transaction<DB>, tripId: string, email: string): Promise<InvitationRow | undefined> {
-  return tx.selectFrom("trip_viewers").selectAll().where("trip_id", "=", tripId).where("invitee_email_normalized", "=", email).forUpdate().executeTakeFirst();
+  const key = emailKey(email);
+  const rows = (await tx.selectFrom("trip_viewers").selectAll().where("trip_id", "=", tripId).orderBy("created_at").orderBy("id").forUpdate().execute()).filter((r) => emailKey(r.invitee_email_normalized) === key);
+  return rows.find((r) => r.status === "accepted") ?? rows[0];
 }
 
 export async function insertInvitation(tx: Transaction<DB>, tripId: string, email: string, hash: Buffer, expiresAt: Date): Promise<InvitationRow> {
