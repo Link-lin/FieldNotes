@@ -86,7 +86,7 @@ export async function createInvitation(db: Kysely<DB>, actor: Actor, tripId: str
 /**
  * ACCESS-3: invite someone by link, for a person the owner will message themselves (a WeChat contact, say). The
  * entry carries a label the owner chose instead of an address, and whoever opens the single-use link first, signed
- * in with Google or WeChat, joins with the chosen role; no email is sent. Like an email invitation it expires in
+ * in with Google, Apple or WeChat, joins with the chosen role; no email is sent. Like an email invitation it expires in
  * seven days, and the raw token is returned once while only its hash is stored.
  */
 export async function createLinkInvitation(db: Kysely<DB>, actor: Actor, tripId: string, label: string, now = new Date(), role: Role = "viewer"): Promise<InvitationLinkDTO> {
