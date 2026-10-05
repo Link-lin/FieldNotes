@@ -67,6 +67,8 @@ export function useDialog(ref: React.RefObject<HTMLElement | null>, { active, on
       requestAnimationFrame(() => {
         const other = document.activeElement?.closest('[role="dialog"]');
         if (other && other !== el) return;
+        // The trigger itself if it is still there (a stop-list name, a pin), else its re-rendered equivalent.
+        if (visible(trigger)) return trigger!.focus();
         const again = opts.current.triggerSelector ? document.querySelector<HTMLElement>(opts.current.triggerSelector) : null;
         (visible(again) ? again : target)?.focus();
       });
