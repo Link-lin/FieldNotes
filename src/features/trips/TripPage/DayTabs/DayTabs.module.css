@@ -1,6 +1,10 @@
 .days { min-width: 0; }
 .days > .picker { display: none; }
-.tabs { display: flex; gap: var(--space-2); overflow-x: auto; padding: 2px 2px 8px; margin: 0 -2px; }
+.tabs { display: flex; gap: var(--space-2); overflow-x: auto; scrollbar-width: thin; scrollbar-color: var(--ctl) transparent; padding: 2px 2px 8px; margin: 0 -2px; }
+.tabs::-webkit-scrollbar { height: var(--space-2); background: transparent; }
+.tabs::-webkit-scrollbar-track { background: transparent; }
+.tabs::-webkit-scrollbar-thumb { background: var(--ctl); border-radius: var(--radius-pill); }
+.tabs::-webkit-scrollbar-thumb:hover { background: var(--ink-3); }
 .tab { flex: none; text-align: left; display: grid; gap: 1px; padding: 8px var(--space-4) 9px; border: 1px solid var(--line); background: var(--card); border-radius: var(--radius-lg); min-width: 120px; transition: background-color 0.28s var(--ease-out), border-color 0.28s var(--ease-out), color 0.28s var(--ease-out), transform 0.16s var(--ease-out); }
 .tab .top, .tab small, .today { transition: color 0.28s; }
 .tab:active { transform: scale(0.97); }
