@@ -38,7 +38,7 @@ export function TripCard({ trip, booking, index, selected, onShowOnGlobe }: { tr
         {trip.atlasLocation ? (
           <Button variant="link" onClick={onShowOnGlobe}>Show on globe</Button>
         ) : canManage(trip.role) ? (
-          <ButtonLink variant="link" href={`/trips/${trip.id}#globe-location`} data-trip-link={trip.id}>Set globe location</ButtonLink>
+          <ButtonLink variant="link" href={`/trips/${trip.id}?trip=globe`} data-trip-link={trip.id}>Set globe location</ButtonLink>
         ) : (
           <span className="muted">Not on the globe</span>
         )}

@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import type { DashboardDTO } from "@/shared/dto";
 import { useToast } from "@/components/ui/Toast/Toast";
-import { TripForm } from "@/features/trips/TripForm/TripForm";
+import { TripDetails } from "@/features/trips/TripDetails/TripDetails";
 import { lastWriteAt } from "@/lib/api";
 import { useLiveRevision } from "@/lib/use-live-revision";
 import { rememberReturn, innerScroller, takeReturn } from "../dashboard-return";
@@ -47,7 +47,8 @@ export function Dashboard({ data, focus, initialFilter }: { data: DashboardDTO; 
   const [filter, setFilter] = useState<Filter>(initialFilter);
   const [selected, setSelected] = useState<string | null>(focus);
   const [focusKey, setFocusKey] = useState(focus ? 1 : 0);
-  const [creating, setCreating] = useState(false);
+  // New trip opens in the side panel; false while it slides out.
+  const [creating, setCreating] = useState<{ open: boolean } | null>(null);
   const [leftRatio, setLeftRatio] = useState<number | null>(null);
   const [resizing, setResizing] = useState(false);
   const [paneSize, setPaneSize] = useState({ total: 0, left: 0 });
@@ -183,7 +184,7 @@ export function Dashboard({ data, focus, initialFilter }: { data: DashboardDTO; 
     <div className={styles.dash} data-one-screen data-has-trips={data.trips.length > 0 || undefined} style={splitStyle}>
       <div className={styles.split} data-resizing={resizing || undefined} ref={splitRef} onClickCapture={onOpen}>
         <div className={styles.left} id="dashboard-trip-pane" data-dash-scroll ref={leftRef}>
-          <Hero className={styles.hero} data={data} onCreate={() => setCreating(true)} />
+          <Hero className={styles.hero} data={data} onCreate={() => setCreating({ open: true })} />
           <TripList
             className={styles.trips}
             trips={data.trips}
@@ -193,7 +194,7 @@ export function Dashboard({ data, focus, initialFilter }: { data: DashboardDTO; 
             selectedId={selected}
             onShowOnGlobe={(id) => select(id, false)}
             canCreate={data.canCreateTrips}
-            onCreate={() => setCreating(true)}
+            onCreate={() => setCreating({ open: true })}
           />
           <p className={styles.foot}>Markers are approximate destinations, never live location. The globe uses bundled map data and sends nothing to a map service.</p>
         </div>
@@ -229,7 +230,7 @@ export function Dashboard({ data, focus, initialFilter }: { data: DashboardDTO; 
           onDoubleClick={resetDivider}
         ><span className={styles.grip} aria-hidden="true">⋮</span></div>
       </div>
-      {creating ? <TripForm trip={null} onClose={() => setCreating(false)} recentCurrencies={data.recentCurrencies} /> : null}
+      {creating ? <TripDetails trip={null} open={creating.open} recentCurrencies={data.recentCurrencies} onClose={() => setCreating({ open: false })} onExited={() => setCreating(null)} /> : null}
     </div>
   );
 }

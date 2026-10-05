@@ -4,8 +4,8 @@ import { useState } from "react";
 import type { PlaceDTO } from "@/shared/dto";
 import { Field, FieldGrid } from "@/components/ui/Field/Field";
 import { MoneyInput } from "@/features/currency/MoneyInput/MoneyInput";
-import { DestinationInput } from "@/features/trips/TripForm/DestinationInput/DestinationInput";
-import { TimeZoneSelect } from "@/features/trips/TripForm/TimeZoneSelect/TimeZoneSelect";
+import { DestinationInput } from "@/features/trips/TripDetails/DestinationInput/DestinationInput";
+import { TimeZoneSelect } from "@/features/trips/TripDetails/TimeZoneSelect/TimeZoneSelect";
 import type { TripBrief as Brief } from "../../import-prompt";
 import styles from "./TripBrief.module.css";
 

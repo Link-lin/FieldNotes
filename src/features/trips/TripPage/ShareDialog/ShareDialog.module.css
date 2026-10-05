@@ -9,3 +9,6 @@
 .loadError { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
 .closeWarning { display: grid; gap: var(--space-3); }
 .closeActions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2); }
+.barTitle { font: 600 var(--text-lg) var(--serif); }
+.lede { margin: 0; color: var(--ink-2); font-size: var(--text-md); }
+.closeWarning { margin: var(--space-4) var(--space-5) 0; }

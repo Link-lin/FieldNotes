@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { newlyOutside } from "@/features/trips/TripForm/date-range";
+import { newlyOutside } from "@/features/trips/TripDetails/date-range";
 
 const trip = { startDate: "2026-10-18", endDate: "2026-10-25" };
 const dates = ["2026-10-17", "2026-10-18", "2026-10-20", "2026-10-25", "2026-10-25"];

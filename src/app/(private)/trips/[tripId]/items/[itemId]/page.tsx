@@ -18,5 +18,5 @@ export default async function EventRoute({ params, searchParams }: Props) {
   });
   if (!data.items.some((item) => item.id === itemId)) notFound();
   const query = await searchParams;
-  return <EventPage key={itemId} data={data} itemId={itemId} selectedDay={query.day ?? null} fromBookings={query.view === "bookings"} initialEditing={query.edit === "1"} mapsKey={mapsEmbedKey()} placeLookup={placeLookupConfigured()} />;
+  return <EventPage key={itemId} data={data} itemId={itemId} selectedDay={query.day ?? null} fromBookings={query.view === "bookings"} focusTitle={query.edit === "1"} mapsKey={mapsEmbedKey()} placeLookup={placeLookupConfigured()} />;
 }

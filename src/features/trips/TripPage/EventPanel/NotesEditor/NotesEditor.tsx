@@ -12,7 +12,8 @@ const DELAY_MS = 800;
 type Status = "idle" | "saving" | "saved" | "error" | "conflict";
 type Props = { tripId: string; item: PlanItemDTO; onSaved: (item: PlanItemDTO) => void };
 export type NotesFlushResult = { ok: true; item?: PlanItemDTO } | { ok: false };
-export type NotesEditorHandle = { flush: () => Promise<NotesFlushResult> };
+/** `flush` saves what is typed and waits for any save in flight; `pending` says whether there is anything to save or still saving. */
+export type NotesEditorHandle = { flush: () => Promise<NotesFlushResult>; pending: () => boolean };
 
 /**
  * TRIP-10: the owner's notes for one event, saved as they type (after a short pause), when the
@@ -83,7 +84,11 @@ export const NotesEditor = forwardRef<NotesEditorHandle, Props>(function NotesEd
     return result.ok && latest.current.trim() !== saved.current.trim() ? save() : result;
   }
 
-  useImperativeHandle(ref, () => ({ flush: save }));
+  useImperativeHandle(ref, () => ({
+    flush: save,
+    // Typed and not saved, saving, or held back after a failed or conflicting save.
+    pending: () => blocked.current || !!inFlight.current || latest.current.trim() !== saved.current.trim(),
+  }));
 
   // The panel flushes before transitions; cleanup covers an unexpected unmount.
   const flush = useRef(save);

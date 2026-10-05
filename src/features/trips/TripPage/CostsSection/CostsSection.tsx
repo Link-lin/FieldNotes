@@ -1,5 +1,6 @@
 import type { PlannedTotalDTO, TripDetailDTO } from "@/shared/dto";
 import { formatMoney } from "@/shared/money";
+import { Button } from "@/components/ui/Button/Button";
 import { Card } from "@/components/ui/Card/Card";
 import { Section } from "@/components/ui/Section/Section";
 import { cx } from "@/lib/cx";
@@ -8,9 +9,10 @@ import styles from "./CostsSection.module.css";
 
 /**
  * BUDGET-6 and 7: one card per currency (never added or converted), the budget bar in the
- * budget's currency only, a breakdown by type, and a note while AI estimates remain.
+ * budget's currency only, a breakdown by type, and a note while AI estimates remain. Owners set or change the budget
+ * from here (it opens the trip details with the budget ready to change).
  */
-export function CostsSection({ data, canManage }: { data: TripDetailDTO; canManage: boolean }) {
+export function CostsSection({ data, canManage, onSetBudget }: { data: TripDetailDTO; canManage: boolean; onSetBudget: () => void }) {
   const { trip, plannedTotals: totals, budgetComparison: cmp } = data;
   const budgetOnly = trip.budget && !totals.some((t) => t.currency === trip.budget!.currency);
   const cards: PlannedTotalDTO[] = [...(budgetOnly ? [{ currency: trip.budget!.currency, total: "0", priceCount: 0, unverifiedCount: 0, byType: [] }] : []), ...totals]
@@ -18,7 +20,10 @@ export function CostsSection({ data, canManage }: { data: TripDetailDTO; canMana
   return (
     <Section title="Planned costs" titleId="costs-title">
       {!totals.length && !trip.budget ? (
-        <Card><p className="note">No prices yet.{canManage ? " Add a price to an event, or set a trip budget with Edit trip." : ""}</p></Card>
+        <Card className={styles.empty}>
+          <p className="note">No prices yet.{canManage ? " Add a price to an event, or set a budget for the trip." : ""}</p>
+          {canManage ? <div><Button variant="quiet" data-set-budget onClick={onSetBudget}>Set a budget</Button></div> : null}
+        </Card>
       ) : (
         <>
           <div className={styles.costs}>
@@ -59,6 +64,7 @@ export function CostsSection({ data, canManage }: { data: TripDetailDTO; canMana
           {cards.length > 1 ? (
             <p className="note">Different currencies are never added together or converted.{trip.budget ? ` Only ${trip.budget.currency} costs count toward the budget.` : ""}</p>
           ) : null}
+          {canManage ? <div><Button variant="link" data-set-budget onClick={onSetBudget}>{trip.budget ? "Change the budget" : "Set a budget"}</Button></div> : null}
         </>
       )}
     </Section>

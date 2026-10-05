@@ -1,0 +1,6 @@
+.status { font-size: var(--text-sm); color: var(--ink-2); }
+.status:empty { display: none; }
+.status[data-state="error"] { color: var(--vermilion-ink); font-weight: 600; }
+.undo { border: 0; background: none; padding: 0 2px; font: inherit; font-weight: 600; color: var(--ink); text-decoration: underline; text-underline-offset: 2px; }
+.undo:hover { color: var(--vermilion-ink); }
+@media (pointer: coarse) { .undo { min-height: 44px; padding: 0 var(--space-2); } }

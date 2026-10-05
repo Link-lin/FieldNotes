@@ -1,0 +1,51 @@
+/* The page fades behind a paper-coloured wash while a panel is open. */
+.backdrop {
+  position: fixed; inset: 0; z-index: var(--z-modal);
+  background: color-mix(in srgb, var(--paper) 62%, transparent);
+  backdrop-filter: blur(1.5px) saturate(0.85);
+  animation: var(--kf-fade-in) 0.3s var(--ease-out) both;
+}
+.backdrop[data-state="closing"] { animation: var(--kf-fade-out) 0.24s ease-in both; pointer-events: none; }
+
+/* The panel slides in from the right edge and back out on close. */
+.panel {
+  position: absolute; top: 0; right: 0; bottom: 0; width: min(600px, 100%);
+  display: flex; flex-direction: column;
+  background: var(--card); border-left: 1px solid var(--line);
+  box-shadow: -24px 0 60px rgba(60, 44, 20, 0.16);
+  overflow-y: auto; overscroll-behavior: contain;
+  animation: var(--kf-panel-in) 0.38s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: transform;
+}
+.panel[data-size="wide"] { width: min(820px, 100%); }
+.backdrop[data-state="closing"] .panel { animation: var(--kf-panel-out) 0.26s cubic-bezier(0.5, 0, 0.75, 0) both; }
+.page { min-height: 100%; padding: var(--space-5) var(--gutter) var(--space-8); }
+.panel[data-presentation="page"] { position: relative; inset: auto; min-height: calc(100vh - 160px); margin: 0 auto; overflow: visible; border: 1px solid var(--line); border-radius: var(--radius-2xl); box-shadow: var(--shadow); animation: none; }
+
+.bar { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); padding: var(--space-3) var(--space-4); background: var(--card); border-bottom: 1px solid var(--line); }
+.barStart { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.barActions { display: flex; align-items: center; gap: var(--space-2); }
+.barActions svg { width: 14px; height: 14px; }
+.close { width: var(--tap); height: var(--tap); flex: none; border-radius: 50%; border: 1px solid var(--ctl); background: none; font-size: 22px; line-height: 1; color: var(--ink-2); display: grid; place-items: center; transition: border-color 0.2s, color 0.2s, transform 0.2s; }
+.close:hover { border-color: var(--ink); color: var(--ink); transform: rotate(90deg); }
+.close:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+.panel[data-presentation="page"] .close { width: auto; min-width: var(--tap); border-radius: var(--radius-pill); padding: 0 var(--space-3); font-size: var(--text-sm); }
+.panel[data-presentation="page"] .close:hover { transform: none; }
+
+.notice { display: grid; gap: var(--space-2); margin: var(--space-4) var(--space-5) 0; padding: var(--space-3); border: 1px solid var(--vermilion-ink); border-radius: var(--radius-md); background: var(--vermilion-soft); }
+.notice p { margin: 0; font-weight: 600; }
+.notice > div { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+
+/* The content fades up gently, on open and when it changes (contentKey). */
+.body { display: grid; align-content: start; gap: var(--space-5); width: min(720px, 100%); margin: 0 auto; padding: var(--space-6) var(--space-5) var(--space-8); animation: var(--kf-rise) 0.34s 0.06s var(--ease-out) both; }
+.footer { position: sticky; bottom: 0; z-index: 2; margin-top: auto; display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 10px; padding: var(--space-3) var(--space-5); background: var(--card); border-top: 1px solid var(--line); }
+
+@media (max-width: 600px) {
+  .page { padding: 0; }
+  .panel, .panel[data-presentation="page"] { border: 0; border-radius: 0; box-shadow: none; }
+  .bar { padding: var(--space-2) var(--space-3); flex-wrap: wrap; }
+  .barActions { margin-left: auto; }
+  .panel[data-bar-wraps] .barStart { order: 2; width: 100%; }
+  .body { padding: var(--space-4) var(--space-4) var(--space-7); }
+  .footer { padding: var(--space-3) var(--space-4); }
+}

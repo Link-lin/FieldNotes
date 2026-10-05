@@ -1,0 +1,11 @@
+.section { display: grid; gap: var(--space-3); }
+.head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); min-height: var(--tap); }
+/* Section headings read the same in the view and while editing. */
+.title { margin: 0; font: 500 11px var(--mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-3); }
+.section[data-editing] { padding: var(--space-4); margin-inline: calc(-1 * var(--space-4)); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--paper); }
+.form { display: grid; gap: var(--space-3); }
+.actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; padding-top: var(--space-1); }
+
+@media (max-width: 600px) {
+  .section[data-editing] { margin-inline: calc(-1 * var(--space-2)); padding: var(--space-3); }
+}

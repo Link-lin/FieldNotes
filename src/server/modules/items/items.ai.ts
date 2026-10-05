@@ -3,6 +3,9 @@ import { z } from "zod";
 import type { FieldError, PlanItemDTO } from "@/shared/dto";
 import { trimAmount } from "@/shared/money";
 import type { ItemInput } from "@/shared/schemas";
+import { itemInputOf } from "@/shared/fields";
+
+export { itemInputOf };
 
 /*
  * What a connected AI chat may change on an existing item (CONNECT-3, CONNECT-4), as pure rules: the shape of its
@@ -46,41 +49,6 @@ export const aiItemPatchSchema = z
   })
   .strict();
 export type AiItemPatch = z.infer<typeof aiItemPatchSchema>;
-
-/** The stored item in the shape the item form saves, which is what the shared schema checks. */
-export function itemInputOf(dto: PlanItemDTO): ItemInput {
-  const base = {
-    title: dto.title,
-    location: dto.location,
-    notes: dto.notes,
-    links: dto.links,
-    mapUrl: dto.mapUrl,
-    bookingStatus: dto.bookingStatus,
-    bookingDueDate: dto.bookingDueDate,
-    plannedPrice: dto.plannedPrice ? { amount: dto.plannedPrice.amount, currency: dto.plannedPrice.currency, label: dto.plannedPrice.label } : null,
-  };
-  if (dto.type === "flight") {
-    const f = dto.flightDetails!;
-    return {
-      ...base,
-      type: "flight",
-      plannedDepartureDate: f.plannedDepartureDate,
-      airline: f.airline,
-      flightNumber: f.flightNumber,
-      departure: { ...f.departure },
-      arrival: { ...f.arrival },
-    };
-  }
-  return {
-    ...base,
-    type: dto.type,
-    localDate: dto.localDate,
-    localTime: dto.localTime,
-    timeZone: dto.timeZone,
-    timeDisambiguation: dto.timeDisambiguation,
-    durationMinutes: dto.durationMinutes,
-  };
-}
 
 const blank = (v: string | null | undefined): string | null => (v === undefined || v === null || v.trim() === "" ? null : v.trim());
 

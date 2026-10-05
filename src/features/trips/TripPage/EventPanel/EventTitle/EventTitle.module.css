@@ -1,0 +1,3 @@
+.title { font-size: clamp(24px, 4vw, 30px); line-height: 1.15; }
+.title :where(h2) { font-size: inherit; line-height: inherit; }
+.field textarea { min-height: 0; field-sizing: content; resize: none; font-family: var(--serif); font-size: clamp(24px, 4vw, 30px); line-height: 1.15; font-weight: 700; padding-block: var(--space-2); }

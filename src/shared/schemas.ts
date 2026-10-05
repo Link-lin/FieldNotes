@@ -4,6 +4,7 @@ import { isCurrencyCode } from "./currencies";
 import { canonicalTimeZone, isDate, isTime, isLocalDateTime, isTimeZone, MAX_TRIP_DAYS, withinTripLength } from "./time";
 import { parseWebUrl, MAX_URL_LENGTH } from "./map-links";
 import type { FieldError } from "./dto";
+import { ITEM_FIELDS, TRIP_FIELDS } from "./fields";
 
 const dateStr = z.string().refine(isDate, { message: "Use a real date (YYYY-MM-DD)." });
 const timeStr = z.string().refine(isTime, { message: "Use a 24-hour time (HH:MM)." });
@@ -26,39 +27,58 @@ export const tripLengthIssue = { path: ["endDate"], message: `A trip can be at m
 
 export const moneySchema = z.object({ amount, currency }).strict();
 
-export const tripInputSchema = z
-  .object({
-    title: z.string().trim().min(1, { message: "Give the trip a name." }).max(120),
-    destination: z.string().trim().min(1, { message: "Add a main destination." }).max(160),
-    startDate: dateStr,
-    endDate: dateStr,
-    timeZone: zone,
-    budget: moneySchema.nullable(),
-  })
-  .strict()
-  .refine((t) => t.startDate <= t.endDate, { path: ["endDate"], message: "The trip can't end before it starts." })
-  .refine(tripLengthOk, tripLengthIssue);
+const tripShape = {
+  title: z.string().trim().min(1, { message: "Give the trip a name." }).max(120),
+  destination: z.string().trim().min(1, { message: "Add a main destination." }).max(160),
+  startDate: dateStr,
+  endDate: dateStr,
+  timeZone: zone,
+  budget: moneySchema.nullable(),
+};
+const atlasPoint = z.object({ latitude: z.number().min(-90).max(90), longitude: z.number().min(-180).max(180) }).strict().nullable();
+const startsBeforeEnd = (t: { startDate: string; endDate: string }) => t.startDate <= t.endDate;
+const startsBeforeEndIssue = { path: ["endDate"], message: "The trip can't end before it starts." };
+
+export const tripInputSchema = z.object(tripShape).strict().refine(startsBeforeEnd, startsBeforeEndIssue).refine(tripLengthOk, tripLengthIssue);
 
 export const tripPatchSchema = z
   .object({
-    title: z.string().trim().min(1, { message: "Give the trip a name." }).max(120),
-    destination: z.string().trim().min(1, { message: "Add a main destination." }).max(160),
-    startDate: dateStr,
-    endDate: dateStr,
-    timeZone: zone,
-    budget: moneySchema.nullable(),
+    ...tripShape,
     expectedVersion: z.number().int().min(1),
-    atlasLocation: z
-      .object({ latitude: z.number().min(-90).max(90), longitude: z.number().min(-180).max(180) })
-      .strict()
-      .nullable()
-      .optional(),
+    atlasLocation: atlasPoint.optional(),
     confirmTimeZoneImpact: z.boolean().optional(),
     timeDisambiguationByItem: z.record(z.string().uuid(), z.enum(["earlier", "later"])).optional(),
   })
   .strict()
-  .refine((t) => t.startDate <= t.endDate, { path: ["endDate"], message: "The trip can't end before it starts." })
+  .refine(startsBeforeEnd, startsBeforeEndIssue)
   .refine(tripLengthOk, tripLengthIssue);
+
+/** A trip's editable fields after a field-level save is merged onto them: the same rules as a full edit. */
+export const tripFieldsSchema = z.object({ ...tripShape, atlasLocation: atlasPoint }).strict().refine(startsBeforeEnd, startsBeforeEndIssue).refine(tripLengthOk, tripLengthIssue);
+
+/** Some of the named fields, each holding any JSON value; the merged result is what gets validated. */
+const someFields = <K extends string>(keys: readonly K[]) => z.object(Object.fromEntries(keys.map((k) => [k, z.unknown()])) as Record<K, z.ZodUnknown>).partial().strict();
+/** A field-level save changes at least one field and sends the value each changed field had when the edit began. */
+const fieldSaveRules = <S extends z.ZodType<{ changes: object; base: object }>>(schema: S) =>
+  schema
+    .refine((b) => Object.keys(b.changes).length > 0, { path: ["changes"], message: "Nothing to save." })
+    .refine((b) => Object.keys(b.changes).every((k) => k in b.base), { path: ["base"], message: "Send the value each changed field had when the edit began." });
+
+/**
+ * DASH-6: change some of a trip's fields (TRIP_FIELDS), each with the value it had when the edit began. A time-zone
+ * change still needs its impact confirmed, as in a full edit.
+ */
+export const tripFieldsPatchSchema = fieldSaveRules(
+  z
+    .object({
+      changes: someFields(TRIP_FIELDS),
+      base: someFields(TRIP_FIELDS),
+      confirmTimeZoneImpact: z.boolean().optional(),
+      timeDisambiguationByItem: z.record(z.string().uuid(), z.enum(["earlier", "later"])).optional(),
+    })
+    .strict(),
+);
+export type TripFieldsPatch = z.infer<typeof tripFieldsPatchSchema>;
 
 export const tripDeleteSchema = z.object({ confirm: z.literal(true), expectedVersion: z.number().int().min(1) }).strict();
 
@@ -152,6 +172,16 @@ export type TripPatch = z.infer<typeof tripPatchSchema>;
 export const itemPatchSchema = z
   .object({ item: itemInputSchema, expectedVersion: z.number().int().min(1), confirmTypeChange: z.boolean().optional(), confirmPrice: z.boolean().optional() })
   .strict();
+/**
+ * TRIP-10: change some of an event's fields (ITEM_FIELDS) from its view, each with the value it had when the edit began.
+ * The merged event then passes the same checks as a full edit, including the confirmations.
+ */
+export const itemFieldsPatchSchema = fieldSaveRules(
+  z
+    .object({ changes: someFields(ITEM_FIELDS), base: someFields(ITEM_FIELDS), confirmTypeChange: z.boolean().optional(), confirmPrice: z.boolean().optional() })
+    .strict(),
+);
+export type ItemFieldsPatch = z.infer<typeof itemFieldsPatchSchema>;
 /**
  * TRIP-10: the owner edits an event's notes from its side panel; the rest of the event is unchanged. `baseNotes`, the notes
  * the edit started from, lets it save over a newer version of the event whose notes are still those (TRIP-11).

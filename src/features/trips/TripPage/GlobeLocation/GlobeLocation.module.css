@@ -1,5 +1,0 @@
-.body { display: grid; gap: 10px; }
-.coords { font: 500 12px var(--mono); color: var(--ink-2); letter-spacing: 0.06em; margin: 0; }
-.results { display: flex; flex-wrap: wrap; gap: 6px; }
-.results button { border: 1px solid var(--ctl); background: none; border-radius: var(--radius-pill); padding: 5px var(--space-3); font-size: 13px; }
-.results button[aria-pressed="true"], .results button:hover { border-color: var(--ink); background: var(--card); }
