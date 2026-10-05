@@ -20,3 +20,5 @@
 .stack i[data-type="transport"], .breakdown i[data-type="transport"] { background: var(--cost-transport); }
 .stack i[data-type="other"], .breakdown i[data-type="other"] { background: var(--cost-other); }
 .breakdown li b { margin-left: auto; font-weight: 600; font-variant-numeric: tabular-nums; }
+.empty { display: grid; gap: var(--space-2); }
+.empty p { margin: 0; }

@@ -3,3 +3,7 @@
 .stop[data-lit] { background: var(--vermilion-wash); box-shadow: inset 3px 0 0 var(--vermilion); }
 .stop small { color: var(--ink-3); margin-left: auto; white-space: nowrap; }
 .dayChip { font: 500 10px var(--mono); letter-spacing: 0.1em; color: var(--ink-3); text-transform: uppercase; padding: var(--space-2) var(--space-2) 0; }
+/* The stop's name opens its event; it reads as text until pointed at. */
+.name { border: 0; background: none; padding: 0; font: inherit; color: inherit; text-align: left; text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 3px; transition: text-decoration-color 0.15s; }
+.name:hover, .name:focus-visible { text-decoration-color: currentColor; }
+@media (pointer: coarse) { .name { min-height: 44px; } }

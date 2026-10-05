@@ -47,7 +47,7 @@ export function MapPanel({ day, stops, focus, onPin, mapsKey }: { day: string; s
           ) : null}
         </div>
         {road && mapsKey ? <GoogleRoadMap key={day} stops={stops} apiKey={mapsKey} /> : <DayMap key={day} stops={stops} focus={focus} onPin={onPin} />}
-        <StopList legs={legs} />
+        <StopList legs={legs} onOpen={onPin} />
         {total > 0 ? <p className="note">About {km(total)} in straight lines between stops on the same day. Flights are not counted.</p> : null}
         {!all && stops.length ? <p className="note">Google Maps opens with this day&apos;s pinned locations{stops.length > 10 ? ", the first 10 stops only" : ""}.</p> : null}
         {stops.length ? (

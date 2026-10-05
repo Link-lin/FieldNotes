@@ -7,6 +7,7 @@ import { Button, ButtonLink } from "@/components/ui/Button/Button";
 import { EditIcon, PlusIcon, ShareIcon, StatusIcon } from "@/components/ui/Icon/icons";
 import { Tag } from "@/components/ui/Tag/Tag";
 import { dashboardUrl } from "@/features/dashboard/dashboard-return";
+import { TripTitleField } from "@/features/trips/TripDetails/TripTitleField/TripTitleField";
 import { cx } from "@/lib/cx";
 import { ROLE_LABEL } from "@/shared/roles";
 import { dateRangeLabel, STATUS_LABEL } from "@/lib/format";
@@ -29,7 +30,10 @@ type Props = {
   onShare: () => void;
 };
 
-/** Back to all trips, dates and zone, status and role, the title, the actions your role allows and, when wide, what's up next. */
+/**
+ * Back to all trips, dates and zone, status and role, the title (an owner changes it in place), the actions your role
+ * allows and, when wide, what's up next.
+ */
 export function TripHeader({ trip, canEdit, canManage, compact = false, items, onOpenEvent, onAdd, onEdit, onShare }: Props) {
   const router = useRouter();
   return (
@@ -55,13 +59,13 @@ export function TripHeader({ trip, canEdit, canManage, compact = false, items, o
           <Tag tone="soft">{ROLE_LABEL[trip.role]}{!trip.primaryOwner && trip.ownerName ? `, shared by ${trip.ownerName}` : ""}</Tag>
         </div>
         {!compact ? <Stamp className={styles.stamp} city={trip.destination.split(",")[0] ?? trip.destination} start={trip.startDate} days={trip.dayCount} status={trip.status} /> : null}
-        <h1 className={styles.title} id="trip-title" tabIndex={-1}>{trip.title}</h1>
+        <TripTitleField tripId={trip.id} title={trip.title} canEdit={canManage} as="h1" headingId="trip-title" className={styles.title} focusable />
         <p className={styles.dest}>{trip.destination}</p>
         <div className={styles.actions}>
           {canEdit ? <Button variant="fill" data-add-top onClick={onAdd}><PlusIcon /> Add to itinerary</Button> : null}
           {canManage ? (
             <>
-              <Button data-edit-trip onClick={onEdit}><EditIcon /> Edit trip</Button>
+              <Button data-edit-trip onClick={onEdit}><EditIcon /> Trip details</Button>
               <Button data-share-trip onClick={onShare}><ShareIcon /> Share</Button>
             </>
           ) : null}

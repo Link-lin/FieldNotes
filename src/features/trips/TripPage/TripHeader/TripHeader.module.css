@@ -5,7 +5,9 @@
 .meta { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding-right: 128px; }
 .meta :global(.mono) { color: var(--ink-3); }
 .title { font-size: clamp(38px, 6.4vw, 68px); padding-right: 128px; max-width: 980px; }
-.title:focus { outline: none; }
+.title:focus, .title :where(h1):focus { outline: none; }
+/* An owner's title is a button inside the heading: it keeps the heading's size. */
+.title :where(h1) { font-size: inherit; }
 .dest { color: var(--ink-2); font-size: var(--text-lg); padding-right: 128px; }
 .actions { display: flex; flex-wrap: wrap; gap: 10px; }
 /* On wide screens Up next and the stamp sit side by side on the header's right, both centred on
@@ -26,3 +28,5 @@
   .title, .dest { padding-right: 76px; }
   .meta { padding-right: 72px; }
 }
+/* While the owner renames the trip, the field reads at a title's size. */
+.title input { font-family: var(--serif); font-size: clamp(26px, 3.6vw, 40px); font-weight: 700; padding-block: var(--space-2); }

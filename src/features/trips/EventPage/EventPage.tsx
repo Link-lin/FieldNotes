@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { api } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/Toast/Toast";
 import { replaceEventReturn, takeEventReturn } from "@/lib/event-return";
@@ -12,10 +13,10 @@ import { EventPanel } from "../TripPage/EventPanel/EventPanel";
 import { REVIEW_CHANGED, sendReview } from "../TripPage/review-events";
 import { tripDays, tripStops } from "../TripPage/trip-days";
 
-type Props = { data: TripDetailDTO; itemId: string; selectedDay: string | null; fromBookings: boolean; initialEditing: boolean; mapsKey: string | null; placeLookup: boolean };
+type Props = { data: TripDetailDTO; itemId: string; selectedDay: string | null; fromBookings: boolean; focusTitle: boolean; mapsKey: string | null; placeLookup: boolean };
 
-/** The same event details/editor used by the desktop panel, with a real URL and Back on phones. */
-export function EventPage({ data, itemId, selectedDay, fromBookings, initialEditing, mapsKey, placeLookup }: Props) {
+/** The same event view, edited in place, as the desktop panel, with a real URL and Back on phones (TRIP-10). */
+export function EventPage({ data, itemId, selectedDay, fromBookings, focusTitle, mapsKey, placeLookup }: Props) {
   const router = useRouter();
   const toast = useToast();
   const { trip, items } = data;
@@ -41,6 +42,32 @@ export function EventPage({ data, itemId, selectedDay, fromBookings, initialEdit
   const query = fromBookings ? "?view=bookings" : day === "all" ? "" : `?day=${encodeURIComponent(day)}`;
   const back = `/trips/${trip.id}${query}`;
   const eventUrl = (target: PlanItemDTO) => `/trips/${trip.id}/items/${target.id}${query}`;
+  const leave = () => { if (takeEventReturn(trip.id, item.id)) router.back(); else router.replace(back); };
+
+  async function duplicate(target: PlanItemDTO) {
+    const r = await api<PlanItemDTO>("POST", `/api/trips/${trip.id}/items/${target.id}/duplicate`, { expectedVersion: target.version });
+    if (!r.ok) return toast({ message: r.message });
+    // The copy opens in place of this event, ready to change.
+    replaceEventReturn(trip.id, r.data.id);
+    router.replace(eventUrl(r.data));
+    toast({ message: "Event duplicated. You're looking at the copy.", quiet: true });
+  }
+
+  async function remove(target: PlanItemDTO) {
+    const r = await api<void>("DELETE", `/api/trips/${trip.id}/items/${target.id}`, { expectedVersion: target.version });
+    if (!r.ok) return toast({ message: r.message });
+    leave();
+    // TRIP-8: Undo restores the same event within 10 minutes.
+    toast({
+      message: "Event deleted.",
+      actionLabel: "Undo",
+      onAction: async () => {
+        const back = await api<PlanItemDTO>("POST", `/api/trips/${trip.id}/items/${target.id}/restore`);
+        router.refresh();
+        toast({ message: back.ok ? "Event restored." : back.status === 410 ? `"${target.title}" can no longer be restored.` : back.message });
+      },
+    });
+  }
 
   return (
     <EventPanel
@@ -53,14 +80,16 @@ export function EventPage({ data, itemId, selectedDay, fromBookings, initialEdit
       mapsKey={mapsKey}
       defaultCurrency={defaultCurrency}
       recentCurrencies={data.recentCurrencies}
-      initialEditing={initialEditing}
+      focusTitle={focusTitle}
       placeLookup={placeLookup}
       prev={at > 0 ? shown[at - 1] ?? null : null}
       next={at >= 0 ? shown[at + 1] ?? null : null}
       onGo={(target) => { replaceEventReturn(trip.id, target.id); router.replace(eventUrl(target)); }}
-      onClose={() => { if (takeEventReturn(trip.id, item.id)) router.back(); else router.replace(back); }}
+      onClose={leave}
       onExited={() => {}}
-      onSaved={(updated) => { setSaved(updated); router.refresh(); toast({ message: "Event updated." }); }}
+      onSaved={(updated) => { setSaved(updated); router.refresh(); }}
+      onDuplicate={canEdit(trip.role) ? (target) => void duplicate(target) : undefined}
+      onDelete={canEdit(trip.role) ? (target) => void remove(target) : undefined}
       onNotesSaved={(updated) => { setSaved(updated); router.refresh(); }}
       onReview={canEdit(trip.role) ? async (target, reviewed) => {
         const r = await sendReview(trip.id, [target], reviewed);

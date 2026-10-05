@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { commonZones, gmt, zoneLabel } from "@/features/trips/TripForm/TimeZoneSelect/zones";
+import { commonZones, gmt, zoneLabel } from "@/features/trips/TripDetails/TimeZoneSelect/zones";
 
 const JAN = new Date("2026-01-15T12:00:00Z");
 const JUL = new Date("2026-07-15T12:00:00Z");

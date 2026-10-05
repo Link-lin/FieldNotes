@@ -1,0 +1,14 @@
+/* Properties under the title: a label column and the values, each editable in place. */
+.props { margin: 0; display: grid; grid-template-columns: minmax(7rem, auto) minmax(0, 1fr); gap: var(--space-3) var(--space-4); align-items: baseline; font-size: var(--text-md); }
+.props dt { font: 500 11px var(--mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-3); padding-top: 2px; }
+.props dd { margin: 0; min-width: 0; display: grid; gap: var(--space-2); }
+.booking[data-state="needs_booking"] { color: var(--vermilion-ink); font-weight: 600; }
+.booking[data-state="booked"] { color: var(--forest); font-weight: 600; }
+.due { font-weight: 400; color: var(--ink-2); }
+.booking[data-due="overdue"] .due { color: var(--vermilion-ink); font-weight: 600; }
+.aiPrice { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+
+@media (max-width: 600px) {
+  .props { grid-template-columns: minmax(0, 1fr); gap: var(--space-1); }
+  .props dd + dt { margin-top: var(--space-2); }
+}

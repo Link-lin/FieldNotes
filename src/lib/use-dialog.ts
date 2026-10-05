@@ -36,6 +36,9 @@ export function useDialog(ref: React.RefObject<HTMLElement | null>, { active, on
     const trigger = document.activeElement as HTMLElement | null;
     const root = document.getElementById("app-root");
     if (root) root.inert = true;
+    // A dialog opened over another (a confirmation over a side panel) makes the one below inert too.
+    const below = [...document.querySelectorAll<HTMLElement>("[data-modal]")].filter((d) => el && !d.contains(el) && !d.inert);
+    below.forEach((d) => (d.inert = true));
     document.body.style.overflow = "hidden";
     const first =
       opts.current.initialFocus?.() ??
@@ -50,8 +53,11 @@ export function useDialog(ref: React.RefObject<HTMLElement | null>, { active, on
     document.addEventListener("keydown", onDocKey);
     return () => {
       document.removeEventListener("keydown", onDocKey);
-      if (root) root.inert = false;
-      document.body.style.overflow = "";
+      below.forEach((d) => (d.inert = false));
+      // The page stays inert and still while a dialog below this one is open.
+      const stillOpen = below.some((d) => d.isConnected);
+      if (root && !stillOpen) root.inert = false;
+      if (!stillOpen) document.body.style.overflow = "";
       const visible = (el: HTMLElement | null) => !!el && el.isConnected && el.getClientRects().length > 0;
       let target: HTMLElement | null = visible(trigger) ? trigger : null;
       if (!target && opts.current.triggerSelector) target = document.querySelector<HTMLElement>(opts.current.triggerSelector);
@@ -69,7 +75,9 @@ export function useDialog(ref: React.RefObject<HTMLElement | null>, { active, on
 
   function onKeyDown(e: React.KeyboardEvent) {
     if (e.key === "Escape") {
+      // Handled: a dialog below this one, or the page, must not act on the same key.
       e.stopPropagation();
+      e.preventDefault();
       close.current();
       return;
     }

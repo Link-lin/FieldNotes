@@ -6,13 +6,23 @@ import { ROLE_HELP, ROLE_LABEL, ROLES } from "@/shared/roles";
 import { Banner } from "@/components/ui/Banner/Banner";
 import { Button } from "@/components/ui/Button/Button";
 import { CheckField, Field, FormError } from "@/components/ui/Field/Field";
-import { Modal, ModalActions } from "@/components/ui/Modal/Modal";
+import { SidePanel } from "@/components/ui/SidePanel/SidePanel";
 import { api } from "@/lib/api";
 import { InviteLink } from "./InviteLink/InviteLink";
 import { ViewerList, type IssueResult } from "./ViewerList/ViewerList";
 import styles from "./ShareDialog.module.css";
 
-type Props = { trip: TripDetailDTO["trip"]; /** Whether the server can email invitations (SMTP is set up). */ canEmail: boolean; onClose: () => void };
+type Props = {
+  trip: TripDetailDTO["trip"];
+  /** Whether the server can email invitations (SMTP is set up). */
+  canEmail: boolean;
+  open: boolean;
+  triggerSelector?: string | null;
+  /** Asked before browser Back closes the panel: false after asking about a link not yet copied. */
+  guardRef?: React.RefObject<(() => boolean) | null>;
+  onClose: () => void;
+  onExited: () => void;
+};
 /** A link shown once. `name` is the address, or the label of an entry made by link. */
 type Shown = { id: string; name: string; byLink: boolean; role: Role; url: string; expiresAt: string; delivery: InvitationDelivery; copied: boolean };
 /** What an owner can ask for: a new entry by email or by link, or a new link for an entry made by link. */
@@ -26,13 +36,13 @@ function upsert(list: InvitationDTO[], add: InvitationDTO[]): InvitationDTO[] {
 }
 
 /**
- * ACCESS-3/5/8/11: the Share dialog for owners. It states what each role can see and do before anything is
+ * ACCESS-3/5/8/11: sharing, in a side panel for owners. It states what each role can see and do before anything is
  * created, invites one person at a time with a role, by email (emailing the link when the server can, and
  * otherwise handing the owner a message to send) or by link (a message the owner sends themselves, for someone
  * without a Google address), shows each new link once (only its hash is stored, so it can't be shown again),
  * and lists the people with their roles, Revoke and a new link.
  */
-export function ShareDialog({ trip, canEmail, onClose }: Props) {
+export function ShareDialog({ trip, canEmail, open, triggerSelector, guardRef, onClose, onExited }: Props) {
   const [entries, setEntries] = useState<InvitationDTO[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [mode, setMode] = useState<"email" | "link">("email");
@@ -141,8 +151,45 @@ export function ShareDialog({ trip, canEmail, onClose }: Props) {
     if (confirmClose) document.querySelector<HTMLElement>("[data-close-anyway]")?.focus();
   }, [confirmClose]);
 
+  // Browser Back closes the panel too, after the same question about a link not yet copied (TRIP-1).
+  useEffect(() => {
+    if (!guardRef) return;
+    guardRef.current = () => {
+      if (!uncopied.length || confirmClose) return true;
+      setConfirmClose(true);
+      return false;
+    };
+    return () => {
+      guardRef.current = null;
+    };
+  });
+
   return (
-    <Modal title="Share this trip" onClose={requestClose} subtitle={canEmail ? "Invite people by email and choose what each can do. They sign in with Google." : "Invite people and choose what each can do. They sign in with Google."} triggerSelector="[data-share-trip]">
+    <SidePanel
+      open={open}
+      onClose={requestClose}
+      onExited={onExited}
+      label="Share this trip"
+      closeLabel="Close sharing"
+      triggerSelector={triggerSelector ?? "[data-share-trip]"}
+      bar={<span className={styles.barTitle}>Share this trip</span>}
+      notices={
+        confirmClose && uncopied.length ? (
+          <Banner tone="warn" role="alert" className={styles.closeWarning}>
+            <span>
+              You haven&apos;t copied the link for {uncopied.map((l) => l.name).join(", ")}. It can&apos;t be shown again; you would need to create a new
+              link.
+            </span>
+            <span className={styles.closeActions}>
+              <Button variant="quiet" onClick={() => setConfirmClose(false)}>Keep open</Button>
+              <Button variant="danger" data-close-anyway onClick={onClose}>Close anyway</Button>
+            </span>
+          </Banner>
+        ) : null
+      }
+      footer={<Button variant="quiet" onClick={requestClose}>Done</Button>}
+    >
+      <p className={styles.lede}>{canEmail ? "Invite people by email and choose what each can do. They sign in with Google." : "Invite people and choose what each can do. They sign in with Google."}</p>
       <Banner tone="info">
         <p>
           Everyone you invite can see everything in this trip: all events, place names, map links and exact pinned positions, planned prices, booking
@@ -254,22 +301,6 @@ export function ShareDialog({ trip, canEmail, onClose }: Props) {
         )}
       </section>
 
-      {confirmClose && uncopied.length ? (
-        <Banner tone="warn" role="alert" className={styles.closeWarning}>
-          <span>
-            You haven&apos;t copied the link for {uncopied.map((l) => l.name).join(", ")}. It can&apos;t be shown again; you would need to create a new
-            link.
-          </span>
-          <span className={styles.closeActions}>
-            <Button variant="quiet" onClick={() => setConfirmClose(false)}>Keep open</Button>
-            <Button variant="danger" data-close-anyway onClick={onClose}>Close anyway</Button>
-          </span>
-        </Banner>
-      ) : null}
-
-      <ModalActions>
-        <Button variant="quiet" onClick={requestClose}>Done</Button>
-      </ModalActions>
-    </Modal>
+    </SidePanel>
   );
 }
