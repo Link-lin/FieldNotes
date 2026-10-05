@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { MoneyDTO, TripDetailDTO } from "@/shared/dto";
 import { Button } from "@/components/ui/Button/Button";
@@ -11,7 +11,7 @@ import { PanelNotice, SidePanel } from "@/components/ui/SidePanel/SidePanel";
 import { defaultCurrency } from "@/features/currency/CurrencyOptions/CurrencyOptions";
 import { MoneyInput } from "@/features/currency/MoneyInput/MoneyInput";
 import { formatMoney } from "@/shared/money";
-import { useInlineField } from "@/lib/use-inline-field";
+import { PanelEdits, useInlineField, usePanelEdits } from "@/lib/use-inline-field";
 import { DatesSection } from "./DatesSection/DatesSection";
 import { DeleteTripDialog } from "./DeleteTripDialog/DeleteTripDialog";
 import { DestinationInput } from "./DestinationInput/DestinationInput";
@@ -48,26 +48,27 @@ export function TripDetails({ trip, itemDates = [], recentCurrencies, open, focu
   const ref = useRef<HTMLElement>(null);
   const formId = useId();
   const titleId = useId();
-  const dirtyParts = useRef(new Map<string, boolean>());
+  // The values and sections edited here (the name included): their saves in flight and unsaved changes.
+  const edits = usePanelEdits();
+  const leaving = useRef(false);
   // Read when a close is asked for, which can come before a re-render: a ref, not state.
   const newDirty = useRef(false);
   const [busy, setBusy] = useState(false);
   const [discard, setDiscard] = useState<(() => void) | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const onDirty = useCallback((key: string, dirty: boolean) => {
-    dirtyParts.current.set(key, dirty);
-  }, []);
-  const isDirty = () => (trip ? [...dirtyParts.current.values()].some(Boolean) : newDirty.current);
+  const [waiting, setWaiting] = useState(false);
+  const isDirty = () => (trip ? edits.dirty() : newDirty.current);
 
   useEffect(() => {
     if (discard) ref.current?.querySelector<HTMLElement>("[data-discard-keep]")?.focus();
   }, [discard]);
-  // Browser Back closes the panel, unless something is unsaved (TRIP-1).
+  // Browser Back closes the panel at once when nothing is saving or unsaved; otherwise it goes the way the close button
+  // does (TRIP-1).
   useEffect(() => {
     if (!guardRef) return;
     guardRef.current = () => {
-      if (!isDirty()) return true;
-      setDiscard(() => onClose);
+      if (!edits.busy() && !isDirty()) return true;
+      void requestClose();
       return false;
     };
     return () => {
@@ -75,15 +76,24 @@ export function TripDetails({ trip, itemDates = [], recentCurrencies, open, focu
     };
   });
 
-  function requestClose() {
-    if (busy) return;
+  // Saves in flight finish before closing, so one about to land is never offered for discarding; anything still
+  // unsaved is asked about.
+  async function requestClose() {
+    if (busy || leaving.current) return;
     if (discard) { setDiscard(null); return; }
+    leaving.current = true;
+    if (edits.busy()) {
+      setWaiting(true);
+      await edits.settle();
+      setWaiting(false);
+    }
+    leaving.current = false;
     if (isDirty()) setDiscard(() => onClose);
     else onClose();
   }
 
-  const notice = discard ? (
-    <PanelNotice actions={<><Button data-discard-keep variant="quiet" onClick={() => setDiscard(null)}>Keep editing</Button><Button variant="danger" onClick={() => { const go = discard; setDiscard(null); dirtyParts.current.clear(); newDirty.current = false; go(); }}>Discard changes</Button></>}>
+  const notice = waiting ? <p className={styles.waiting} role="status">Saving…</p> : discard ? (
+    <PanelNotice actions={<><Button data-discard-keep variant="quiet" onClick={() => setDiscard(null)}>Keep editing</Button><Button variant="danger" onClick={() => { const go = discard; setDiscard(null); newDirty.current = false; go(); }}>Discard changes</Button></>}>
       You have unsaved changes. Discard them?
     </PanelNotice>
   ) : null;
@@ -92,7 +102,7 @@ export function TripDetails({ trip, itemDates = [], recentCurrencies, open, focu
     return (
       <SidePanel
         open={open}
-        onClose={requestClose}
+        onClose={() => void requestClose()}
         onExited={onExited}
         label="New trip"
         closeLabel="Close without creating"
@@ -104,7 +114,7 @@ export function TripDetails({ trip, itemDates = [], recentCurrencies, open, focu
         notices={notice}
         footer={
           <>
-            <Button variant="quiet" onClick={requestClose} disabled={busy}>Cancel</Button>
+            <Button variant="quiet" onClick={() => void requestClose()} disabled={busy}>Cancel</Button>
             <Button variant="fill" type="submit" form={formId} disabled={busy}>{busy ? "Creating…" : "Create trip"}</Button>
           </>
         }
@@ -115,9 +125,10 @@ export function TripDetails({ trip, itemDates = [], recentCurrencies, open, focu
   }
 
   return (
+    <PanelEdits.Provider value={edits}>
     <SidePanel
       open={open}
-      onClose={requestClose}
+      onClose={() => void requestClose()}
       onExited={onExited}
       labelledBy={titleId}
       closeLabel="Close trip details"
@@ -130,18 +141,18 @@ export function TripDetails({ trip, itemDates = [], recentCurrencies, open, focu
       <header className={styles.head}>
         <p className={styles.eyebrow}>Trip</p>
         <TripTitleField tripId={trip.id} title={trip.title} canEdit as="h2" headingId={titleId} className={styles.title} />
-        <DestinationField trip={trip} onDirty={onDirty} />
+        <DestinationField trip={trip} />
       </header>
 
-      <DatesSection tripId={trip.id} dates={trip} dayCount={trip.dayCount} itemDates={itemDates} onDirty={onDirty} />
-      <ZoneSection tripId={trip.id} zone={trip.timeZone} version={trip.version} onDirty={onDirty} />
+      <DatesSection tripId={trip.id} dates={trip} dayCount={trip.dayCount} itemDates={itemDates} />
+      <ZoneSection tripId={trip.id} zone={trip.timeZone} version={trip.version} />
 
       <SectionFrame title="Budget">
-        <BudgetField trip={trip} recentCurrencies={recentCurrencies} startOpen={focus === "budget"} onDirty={onDirty} />
+        <BudgetField trip={trip} recentCurrencies={recentCurrencies} startOpen={focus === "budget"} />
         <p className="note">Planned prices are compared with the budget only in its currency; other currencies are never converted.</p>
       </SectionFrame>
 
-      <GlobePoint tripId={trip.id} point={trip.atlasLocation} setByYou={trip.primaryOwner} startOpen={focus === "globe"} onDirty={onDirty} />
+      <GlobePoint tripId={trip.id} point={trip.atlasLocation} setByYou={trip.primaryOwner} startOpen={focus === "globe"} />
 
       <section className={styles.danger} aria-labelledby={`${titleId}-danger`}>
         <h3 id={`${titleId}-danger`}>Delete this trip</h3>
@@ -151,11 +162,12 @@ export function TripDetails({ trip, itemDates = [], recentCurrencies, open, focu
 
       {deleting ? <DeleteTripDialog trip={trip} onCancel={() => setDeleting(false)} /> : null}
     </SidePanel>
+    </PanelEdits.Provider>
   );
 }
 
 /** The main destination, edited in place; a new one moves a globe point matched from the place list, never one set by hand. */
-function DestinationField({ trip, onDirty }: { trip: Trip; onDirty: (key: string, dirty: boolean) => void }) {
+function DestinationField({ trip }: { trip: Trip }) {
   const router = useRouter();
   const field = useInlineField({
     read: () => trip.destination,
@@ -166,7 +178,6 @@ function DestinationField({ trip, onDirty }: { trip: Trip; onDirty: (key: string
       return { ok: true, note: trip.atlasLocation?.source === "owner" ? "Saved. The globe point was set by hand, so check it below." : undefined };
     },
   });
-  useEffect(() => onDirty("destination", field.dirty), [field.dirty, onDirty]);
   return (
     <InlineEdit
       label="Main destination"
@@ -190,7 +201,7 @@ function DestinationField({ trip, onDirty }: { trip: Trip; onDirty: (key: string
 }
 
 /** The optional budget (BUDGET-2), edited in place; an empty amount removes it. */
-function BudgetField({ trip, recentCurrencies, startOpen, onDirty }: { trip: Trip; recentCurrencies: string[]; startOpen: boolean; onDirty: (key: string, dirty: boolean) => void }) {
+function BudgetField({ trip, recentCurrencies, startOpen }: { trip: Trip; recentCurrencies: string[]; startOpen: boolean }) {
   const router = useRouter();
   const field = useInlineField({
     initiallyOpen: startOpen,
@@ -203,7 +214,6 @@ function BudgetField({ trip, recentCurrencies, startOpen, onDirty }: { trip: Tri
       return { ok: true, note: money(next) ? undefined : "Budget removed." };
     },
   });
-  useEffect(() => onDirty("budget", field.dirty), [field.dirty, onDirty]);
   const b = trip.budget;
   return (
     <InlineEdit

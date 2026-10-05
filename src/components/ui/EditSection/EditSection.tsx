@@ -68,7 +68,8 @@ export function EditSection({ title, canEdit, editing, onEdit, onCancel, onEscap
             onSave();
           }}
           onKeyDown={(e) => {
-            if (e.key !== "Escape") return;
+            // A control that handled the key itself (closing its own list) keeps it.
+            if (e.key !== "Escape" || e.defaultPrevented) return;
             e.stopPropagation();
             e.preventDefault();
             (onEscape ?? onCancel)();
@@ -84,7 +85,8 @@ export function EditSection({ title, canEdit, editing, onEdit, onCancel, onEscap
       ) : (
         view
       )}
-      {!editing ? <SaveStatus status={status} onUndo={onUndo} showSaving={false} /> : null}
+      {/* Closed, an error can only come from Undo; while open, the form shows a failed save's message. */}
+      {!editing ? <SaveStatus status={status} onUndo={onUndo} showError /> : null}
     </section>
   );
 }

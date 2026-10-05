@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { EditSection } from "@/components/ui/EditSection/EditSection";
 import { Field, FieldGrid } from "@/components/ui/Field/Field";
@@ -10,10 +9,10 @@ import { newlyOutside } from "../date-range";
 import { saveTripFields, tripFailure } from "../trip-edit";
 
 type Dates = { startDate: string; endDate: string };
-type Props = { tripId: string; dates: Dates; dayCount: number; itemDates: string[]; onDirty: (key: string, dirty: boolean) => void };
+type Props = { tripId: string; dates: Dates; dayCount: number; itemDates: string[] };
 
 /** DASH-6: the trip's start and end, edited in place. Events keep their dates; those the new range leaves out are counted. */
-export function DatesSection({ tripId, dates, dayCount, itemDates, onDirty }: Props) {
+export function DatesSection({ tripId, dates, dayCount, itemDates }: Props) {
   const router = useRouter();
   const field = useInlineField<Dates>({
     read: () => ({ startDate: dates.startDate, endDate: dates.endDate }),
@@ -25,7 +24,6 @@ export function DatesSection({ tripId, dates, dayCount, itemDates, onDirty }: Pr
       return { ok: true, note: out ? `Saved. ${plural(out, "event")} now ${out === 1 ? "falls" : "fall"} outside the trip dates; ${out === 1 ? "it stays" : "they stay"} on the trip.` : undefined };
     },
   });
-  useEffect(() => onDirty("dates", field.dirty), [field.dirty, onDirty]);
   const err = (path: string) => field.error(path);
   const out = field.editing ? newlyOutside(itemDates, dates, field.draft) : 0;
 

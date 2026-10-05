@@ -24,7 +24,7 @@ export async function saveTripFields(
 /** What a failed trip save tells the person. */
 export function tripFailure(r: Fail): Extract<FieldSaveResult, { ok: false }> {
   if (r.code === "field_conflict") {
-    return { ok: false, message: "This was changed elsewhere (in another tab or window, or by another owner) while you were editing, so yours wasn't saved. Cancel to see it as it is now, then make your change again.", fields: r.fields };
+    return { ok: false, conflict: true, message: "This was changed elsewhere (in another tab or window, or by another owner) while you were editing, so yours wasn't saved. Cancel to see it as it is now, then make your change again.", fields: r.fields };
   }
   return { ok: false, message: r.message, fields: r.fields };
 }

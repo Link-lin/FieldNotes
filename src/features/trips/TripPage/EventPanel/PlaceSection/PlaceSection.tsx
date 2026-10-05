@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
 import type { PlanItemDTO, TripDetailDTO } from "@/shared/dto";
 import { googleSearchUrl } from "@/shared/map-links";
 import { ButtonLink } from "@/components/ui/Button/Button";
@@ -17,11 +16,10 @@ type Props = {
   canEdit: boolean;
   placeLookup: boolean;
   onSaved: (item: PlanItemDTO) => void;
-  onDirty: (key: string, dirty: boolean) => void;
 };
 
 /** Where the event is and how it is pinned (MAP-1, MAP-2), edited in place as one section. Removing a pin offers Undo. */
-export function PlaceSection({ trip, item, canEdit, placeLookup, onSaved, onDirty }: Props) {
+export function PlaceSection({ trip, item, canEdit, placeLookup, onSaved }: Props) {
   const isFlight = item.type === "flight";
   const save = async (next: PlaceDraft, start: PlaceDraft) => {
     const r = await saveEventFields(trip.id, item.id, placeFields(next), placeFields(start));
@@ -42,7 +40,6 @@ export function PlaceSection({ trip, item, canEdit, placeLookup, onSaved, onDirt
       return { ok: true };
     },
   });
-  useEffect(() => onDirty("place", field.dirty), [field.dirty, onDirty]);
 
   if (!canEdit && !item.location && !item.mapUrl) return null;
   return (

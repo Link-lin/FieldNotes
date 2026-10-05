@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useContext } from "react";
 import type { ItemType, PlanItemDTO } from "@/shared/dto";
 import { flightReadyToBook } from "@/shared/booking";
 import { itemInputOf } from "@/shared/fields";
@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/Button/Button";
 import { Field } from "@/components/ui/Field/Field";
 import { InlineEdit } from "@/components/ui/InlineEdit/InlineEdit";
 import { dueText, priceText, TYPE_LABEL } from "@/lib/format";
-import { useInlineField, type FieldSaveResult } from "@/lib/use-inline-field";
+import { PanelEdits, useInlineField, type FieldSaveResult } from "@/lib/use-inline-field";
 import { bookingDraftOf, bookingFields, fieldId, priceDraftOf, priceFields, saveEventFields, saveFailure, type BookingDraft } from "../event-edit";
 import { BookingFields } from "../BookingFields/BookingFields";
 import { PriceFields } from "../PriceFields/PriceFields";
@@ -23,7 +23,6 @@ type Props = {
   onSaved: (item: PlanItemDTO) => void;
   /** A change to or from a flight clears the schedule, so the panel asks first (TRIP-9). */
   onTypeAcross: (type: ItemType) => void;
-  onDirty: (key: string, dirty: boolean) => void;
 };
 
 const STATUS_TEXT = { not_required: "Nothing to book", needs_booking: "Needs booking", booked: "Booked" } as const;
@@ -32,8 +31,9 @@ const STATUS_TEXT = { not_required: "Nothing to book", needs_booking: "Needs boo
  * The event's properties under its title (TRIP-10): type, booking and planned price, each edited where it is shown and
  * saved on its own, and where an AI suggestion came from. A change that moves the event's state (booking) offers Undo.
  */
-export function EventProperties({ tripId, item, canEdit, defaultCurrency, recentCurrencies, onSaved, onTypeAcross, onDirty }: Props) {
+export function EventProperties({ tripId, item, canEdit, defaultCurrency, recentCurrencies, onSaved, onTypeAcross }: Props) {
   const isFlight = item.type === "flight";
+  const edits = useContext(PanelEdits);
   const save = async (next: Record<string, unknown>, start: Record<string, unknown>, opts?: { confirmPrice?: boolean }): Promise<FieldSaveResult & { item?: PlanItemDTO }> => {
     const r = await saveEventFields(tripId, item.id, next, start, opts);
     if (!r.ok) return saveFailure(r);
@@ -60,16 +60,17 @@ export function EventProperties({ tripId, item, canEdit, defaultCurrency, recent
     save: (next, start) => save(priceFields(next), priceFields(start)),
   });
 
-  useEffect(() => onDirty("booking", booking.dirty), [booking.dirty, onDirty]);
-  useEffect(() => onDirty("price", price.dirty), [price.dirty, onDirty]);
 
   const f = item.flightDetails;
   const flightReady = !!f && flightReadyToBook({ departure: f.departure, arrival: f.arrival });
   const p = item.plannedPrice;
 
+  // Saved straight from the view, so the panel waits for it like any other save before it closes.
   async function confirmAiPrice() {
     const start = itemInputOf(item).plannedPrice;
-    await save({ plannedPrice: start }, { plannedPrice: start }, { confirmPrice: true });
+    const pending = save({ plannedPrice: start }, { plannedPrice: start }, { confirmPrice: true });
+    edits?.track(pending);
+    await pending;
   }
 
   return (

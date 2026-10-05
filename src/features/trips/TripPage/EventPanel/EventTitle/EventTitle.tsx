@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
 import type { PlanItemDTO } from "@/shared/dto";
 import { Field } from "@/components/ui/Field/Field";
 import { InlineEdit } from "@/components/ui/InlineEdit/InlineEdit";
@@ -16,11 +15,10 @@ type Props = {
   /** Opened with the row menu's Edit event: start with the title open. */
   startOpen?: boolean;
   onSaved: (item: PlanItemDTO) => void;
-  onDirty: (key: string, dirty: boolean) => void;
 };
 
 /** The event's title, edited where it is shown (TRIP-10): Enter or leaving the field saves, Escape goes back. */
-export function EventTitle({ tripId, item, canEdit, headingId, startOpen = false, onSaved, onDirty }: Props) {
+export function EventTitle({ tripId, item, canEdit, headingId, startOpen = false, onSaved }: Props) {
   // Opened from the row menu's Edit event: the title starts open (the panel focuses it).
   const field = useInlineField({
     initiallyOpen: startOpen && canEdit,
@@ -32,7 +30,6 @@ export function EventTitle({ tripId, item, canEdit, headingId, startOpen = false
       return { ok: true };
     },
   });
-  useEffect(() => onDirty("title", field.dirty), [field.dirty, onDirty]);
   return (
     <InlineEdit
       label="Event title"

@@ -61,6 +61,17 @@ export const bookingDraftOf = (item: PlanItemDTO | null, type: ItemType = item?.
   status: item?.bookingStatus ?? (type === "flight" ? "needs_booking" : "not_required"),
   due: item?.bookingDueDate ?? "",
 });
+/**
+ * The booking state an event keeps when its type changes (FLIGHT-2): a flight either needs booking or is booked, and is
+ * booked only with both airports, local times and zones. An event becoming a flight starts without them, so Nothing to
+ * book and Booked both become Needs booking.
+ */
+export function bookingForType(status: PlanItemDTO["bookingStatus"], toFlight: boolean, flightReady = false): PlanItemDTO["bookingStatus"] {
+  if (!toFlight) return status;
+  if (status === "not_required") return "needs_booking";
+  if (status === "booked" && !flightReady) return "needs_booking";
+  return status;
+}
 export const bookingFields = (d: BookingDraft) => ({ bookingStatus: d.status, bookingDueDate: d.status === "needs_booking" && d.due ? d.due : null });
 
 export const priceDraftOf = (item: PlanItemDTO | null, defaultCurrency: string): PriceDraft => ({
@@ -94,7 +105,7 @@ export async function saveEventFields(tripId: string, itemId: string, next: Reco
 /** What a failed save tells the person, as a field's or section's message. */
 export function saveFailure(r: Extract<EventSaveResult, { ok: false }>): Extract<FieldSaveResult, { ok: false }> {
   if (r.code === "field_conflict") {
-    return { ok: false, message: "This was changed elsewhere (in another tab or window, by someone you share the trip with, or by a connected chat) while you were editing, so yours wasn't saved. Cancel to see it as it is now, then make your change again.", fields: r.fields };
+    return { ok: false, conflict: true, message: "This was changed elsewhere (in another tab or window, by someone you share the trip with, or by a connected chat) while you were editing, so yours wasn't saved. Cancel to see it as it is now, then make your change again.", fields: r.fields };
   }
   return { ok: false, message: r.message, fields: r.fields };
 }

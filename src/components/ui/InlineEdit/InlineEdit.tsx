@@ -100,6 +100,8 @@ export function InlineEdit({ label, valueText, children, placeholder, empty = fa
         if (!e.currentTarget.contains(e.relatedTarget as Node | null)) onCommit();
       }}
       onKeyDown={(e) => {
+        // A control that handled the key itself (choosing a suggestion with Enter, closing its list) keeps it.
+        if (e.defaultPrevented) return;
         if (e.key === "Escape") {
           e.stopPropagation();
           e.preventDefault();

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { EditSection } from "@/components/ui/EditSection/EditSection";
 import { api } from "@/lib/api";
@@ -10,13 +10,13 @@ import { zoneLabel } from "../TimeZoneSelect/zones";
 import { impactBlocks, ZoneImpact, type Choice, type Impact } from "../ZoneImpact/ZoneImpact";
 import { saveTripFields, tripFailure } from "../trip-edit";
 
-type Props = { tripId: string; zone: string; version: number; onDirty: (key: string, dirty: boolean) => void };
+type Props = { tripId: string; zone: string; version: number };
 
 /**
  * DASH-6, TRIP-4: the trip's time zone, edited in place. Save first shows what the change does to event times and
  * booking dates (and asks which of a repeated time is meant); Confirm and save then makes it.
  */
-export function ZoneSection({ tripId, zone, version, onDirty }: Props) {
+export function ZoneSection({ tripId, zone, version }: Props) {
   const router = useRouter();
   const [impact, setImpact] = useState<Impact | null>(null);
   const [choices, setChoices] = useState<Record<string, Choice>>({});
@@ -31,7 +31,6 @@ export function ZoneSection({ tripId, zone, version, onDirty }: Props) {
       return { ok: true };
     },
   });
-  useEffect(() => onDirty("zone", field.dirty), [field.dirty, onDirty]);
 
   async function save() {
     if (field.draft === zone) return field.cancel();

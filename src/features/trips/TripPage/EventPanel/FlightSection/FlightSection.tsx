@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
 import type { PlanItemDTO, TripDetailDTO } from "@/shared/dto";
 import { EditSection } from "@/components/ui/EditSection/EditSection";
 import { fmtShort } from "@/lib/format";
@@ -9,10 +8,10 @@ import { FlightCard } from "../../FlightCard/FlightCard";
 import { flightDraftOf, flightFields, saveEventFields, saveFailure, type FlightDraft } from "../event-edit";
 import { FlightFields } from "../FlightFields/FlightFields";
 
-type Props = { trip: TripDetailDTO["trip"]; item: PlanItemDTO; canEdit: boolean; onSaved: (item: PlanItemDTO) => void; onDirty: (key: string, dirty: boolean) => void };
+type Props = { trip: TripDetailDTO["trip"]; item: PlanItemDTO; canEdit: boolean; onSaved: (item: PlanItemDTO) => void };
 
 /** A flight segment's carrier, airports and local times, edited in place as one section (TRIP-10, FLIGHT-2). */
-export function FlightSection({ trip, item, canEdit, onSaved, onDirty }: Props) {
+export function FlightSection({ trip, item, canEdit, onSaved }: Props) {
   const save = async (next: FlightDraft, start: FlightDraft) => {
     const r = await saveEventFields(trip.id, item.id, flightFields(next), flightFields(start));
     if (!r.ok) return saveFailure(r);
@@ -30,7 +29,6 @@ export function FlightSection({ trip, item, canEdit, onSaved, onDirty }: Props) 
       return { ok: true, note: to ? `Moved to ${fmtShort(to)}.` : "Moved to Undated flights.", undo: () => save(start, next) };
     },
   });
-  useEffect(() => onDirty("flight", field.dirty), [field.dirty, onDirty]);
 
   return (
     <EditSection

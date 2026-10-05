@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { ItemType, PlanItemDTO, TripDetailDTO } from "@/shared/dto";
 import { isAiDraft } from "@/shared/drafts";
 import { providerLabel } from "@/shared/map-links";
@@ -13,6 +13,7 @@ import { Modal, ModalActions } from "@/components/ui/Modal/Modal";
 import { PanelNotice, SidePanel } from "@/components/ui/SidePanel/SidePanel";
 import { Tag } from "@/components/ui/Tag/Tag";
 import { fmtDay, TYPE_LABEL } from "@/lib/format";
+import { PanelEdits, usePanelEdits } from "@/lib/use-inline-field";
 import { StopNumber } from "../StopNumber/StopNumber";
 import { dayTag, eventTimeText } from "../trip-days";
 import { EventMap } from "./EventMap/EventMap";
@@ -23,7 +24,7 @@ import { NewEvent } from "./NewEvent/NewEvent";
 import { NotesEditor, type NotesEditorHandle } from "./NotesEditor/NotesEditor";
 import { PlaceSection } from "./PlaceSection/PlaceSection";
 import { WhenSection } from "./WhenSection/WhenSection";
-import { saveEventFields } from "./event-edit";
+import { bookingForType, saveEventFields } from "./event-edit";
 import styles from "./EventPanel.module.css";
 
 /** Asked before the panel goes away by other means (browser Back): true to let it go, false after asking about unsaved changes. */
@@ -84,7 +85,8 @@ export function EventPanel(props: Props) {
   const leaving = useRef(false);
   const titleId = useId();
   const formId = useId();
-  const dirtyParts = useRef(new Map<string, boolean>());
+  // The values and sections edited here: their saves in flight and unsaved changes.
+  const edits = usePanelEdits();
   // Read when a close is asked for, which can come before a re-render: a ref, not state.
   const newDirty = useRef(false);
   const [creating, setCreating] = useState(false);
@@ -102,10 +104,23 @@ export function EventPanel(props: Props) {
   const [typeError, setTypeError] = useState<string | null>(null);
   const [typeBusy, setTypeBusy] = useState(false);
 
-  const onDirty = useCallback((key: string, dirty: boolean) => {
-    dirtyParts.current.set(key, dirty);
-  }, []);
-  const isDirty = () => (isNew ? newDirty.current : [...dirtyParts.current.values()].some(Boolean));
+  const isDirty = () => (isNew ? newDirty.current : edits.dirty());
+  // The newest version of this event saved from here (a value, a section, notes, a review), so an action that follows
+  // a save (Duplicate, Delete) sends the version the server has now.
+  const latestSaved = useRef<PlanItemDTO | null>(null);
+  const remember = (saved: PlanItemDTO) => {
+    if (!latestSaved.current || latestSaved.current.id !== saved.id || saved.version > latestSaved.current.version) latestSaved.current = saved;
+  };
+  const freshest = (...candidates: Array<PlanItemDTO | null | undefined>): PlanItemDTO | null =>
+    [item, latestSaved.current, ...candidates].filter((c): c is PlanItemDTO => !!c && c.id === item?.id).sort((a, b) => b.version - a.version)[0] ?? item;
+  const onSaved = (saved: PlanItemDTO) => {
+    remember(saved);
+    props.onSaved(saved);
+  };
+  const onNotesSaved = (saved: PlanItemDTO) => {
+    remember(saved);
+    props.onNotesSaved(saved);
+  };
 
   useEffect(() => {
     if (discard || unsavedExit) ref.current?.querySelector<HTMLElement>("[data-discard-keep]")?.focus();
@@ -116,12 +131,13 @@ export function EventPanel(props: Props) {
     if (focusTitle) ref.current?.querySelector<HTMLElement>("#ev-title")?.focus();
   }, [focusTitle]);
 
-  // Browser Back while the panel is open (TRIP-1): it closes, unless something is unsaved, which is asked about first.
+  // Browser Back while the panel is open (TRIP-1): it closes at once when nothing is saving or unsaved, notes included;
+  // otherwise it stays and goes the way the close button does (wait, ask, save the notes).
   useEffect(() => {
     if (!guardRef) return;
     guardRef.current = () => {
-      if (!isDirty()) return true;
-      setDiscard(() => () => props.onClose());
+      if (!edits.busy() && !isDirty() && !notesRef.current?.pending()) return true;
+      requestClose();
       return false;
     };
     return () => {
@@ -129,39 +145,48 @@ export function EventPanel(props: Props) {
     };
   });
 
-  async function leaveNotes(nextAction: (fresh: PlanItemDTO | null) => void) {
+  /**
+   * Leaving what is open (close, Previous or Next, Duplicate, Delete, browser Back): saves in flight finish first, so
+   * one about to land is never offered for discarding; anything still unsaved is asked about; then the notes are saved
+   * (a failure asks Stay or Leave without saving). `action` gets the newest version of the event.
+   */
+  async function leave(action: (fresh: PlanItemDTO | null) => void, askedAboutChanges = false) {
     if (leaving.current) return;
-    if (!notesRef.current) return nextAction(item);
     leaving.current = true;
-    setWaiting(true);
-    const result = await notesRef.current.flush();
-    leaving.current = false;
-    setWaiting(false);
-    // A failed save keeps the view and the typed text; the owner can retry or choose to leave.
-    if (result.ok === false) {
-      setUnsavedExit(() => () => nextAction(item));
+    if (edits.busy()) {
+      setWaiting(true);
+      await edits.settle();
+    }
+    if (!askedAboutChanges && isDirty()) {
+      leaving.current = false;
+      setWaiting(false);
+      setDiscard(() => () => void leave(action, true));
       return;
     }
-    nextAction(result.item ?? item);
-  }
-
-  /** Runs an action that leaves what is open, asking first when something is unsaved. */
-  function guarded(action: () => void) {
-    if (isDirty()) setDiscard(() => action);
-    else action();
+    let notes: Awaited<ReturnType<NotesEditorHandle["flush"]>> = { ok: true };
+    if (notesRef.current) {
+      setWaiting(true);
+      notes = await notesRef.current.flush();
+    }
+    leaving.current = false;
+    setWaiting(false);
+    if (notes.ok === false) {
+      setUnsavedExit(() => () => action(freshest()));
+      return;
+    }
+    action(freshest(notes.item));
   }
 
   function requestClose() {
-    if (creating || waiting) return;
+    if (creating) return;
     if (unsavedExit) { setUnsavedExit(null); return; }
     if (discard) { setDiscard(null); return; }
-    guarded(() => void leaveNotes(() => props.onClose()));
+    void leave(() => props.onClose());
   }
 
   function confirmDiscard() {
     const action = discard;
     setDiscard(null);
-    dirtyParts.current.clear();
     newDirty.current = false;
     action?.();
   }
@@ -175,8 +200,7 @@ export function EventPanel(props: Props) {
   // Stepping to the first or last event disables the button that was used; keep focus in the
   // panel (on the same button if still enabled, else the other one, else Close).
   function go(to: PlanItemDTO) {
-    guarded(() => void leaveNotes(() => {
-      dirtyParts.current.clear();
+    void leave(() => {
       props.onGo(to);
       requestAnimationFrame(() => {
         const panel = ref.current;
@@ -184,7 +208,7 @@ export function EventPanel(props: Props) {
         const pick = ["[data-step]:not([disabled])", "[data-panel-close]"].map((q) => panel.querySelector<HTMLElement>(q)).find(Boolean);
         pick?.focus();
       });
-    }));
+    });
   }
 
   async function review(reviewed: boolean) {
@@ -193,6 +217,7 @@ export function EventPanel(props: Props) {
     const saved = await props.onReview(item, reviewed);
     setReviewBusy(false);
     if (!saved) return;
+    remember(saved);
     setReviewedHere(reviewed ? saved.id : null);
     // The control is in the bar, or under the tags on a phone: focus the one on screen.
     const shown = (selector: string) => [...(ref.current?.querySelectorAll<HTMLElement>(selector) ?? [])].find((el) => el.getClientRects().length > 0);
@@ -203,13 +228,15 @@ export function EventPanel(props: Props) {
     if (!item || !typeAcross) return;
     setTypeBusy(true);
     setTypeError(null);
-    // A flight either needs booking or is booked (FLIGHT-2).
-    const status = typeAcross === "flight" && item.bookingStatus === "not_required" ? "needs_booking" : item.bookingStatus;
-    const r = await saveEventFields(trip.id, item.id, { type: typeAcross, bookingStatus: status }, { type: item.type, bookingStatus: item.bookingStatus }, { confirmTypeChange: true });
+    // A flight needs booking until its airports and times are in, which the change clears (FLIGHT-2).
+    const status = bookingForType(item.bookingStatus, typeAcross === "flight");
+    const pending = saveEventFields(trip.id, item.id, { type: typeAcross, bookingStatus: status }, { type: item.type, bookingStatus: item.bookingStatus }, { confirmTypeChange: true });
+    edits.track(pending);
+    const r = await pending;
     setTypeBusy(false);
     if (!r.ok) { setTypeError(r.message); return; }
     setTypeAcross(null);
-    props.onSaved(r.item);
+    onSaved(r.item);
   }
 
   const notices = (
@@ -224,7 +251,7 @@ export function EventPanel(props: Props) {
           Your notes haven&apos;t been saved. Stay to try again or copy them, or leave without them.
         </PanelNotice>
       ) : null}
-      {waiting ? <p className={styles.waiting} role="status">Saving notes…</p> : null}
+      {waiting ? <p className={styles.waiting} role="status">Saving…</p> : null}
       {gone ? <div className={styles.gone}><Banner tone="info" role="status">This event was deleted elsewhere: in another tab or window, by someone you share the trip with, or by a connected chat.</Banner></div> : null}
     </>
   );
@@ -279,6 +306,7 @@ export function EventPanel(props: Props) {
   const canChange = canEdit && (props.onDuplicate || props.onDelete);
 
   return (
+    <PanelEdits.Provider value={edits}>
     <SidePanel
       open={open}
       onClose={requestClose}
@@ -312,8 +340,8 @@ export function EventPanel(props: Props) {
               popupClassName={styles.menuPopup}
               trigger={(p) => <button type="button" className={styles.more} data-event-menu aria-label={`More actions for ${item.title}`} {...p}><DotsIcon /></button>}
             >
-              {props.onDuplicate ? <MenuItem icon={<CopyIcon />} onClick={() => { setMenuOpen(false); guarded(() => void leaveNotes(() => props.onDuplicate!(item))); }}>Duplicate</MenuItem> : null}
-              {props.onDelete ? <MenuItem icon={<TrashIcon />} danger onClick={() => { setMenuOpen(false); guarded(() => void leaveNotes(() => props.onDelete!(item))); }}>Delete event</MenuItem> : null}
+              {props.onDuplicate ? <MenuItem icon={<CopyIcon />} onClick={() => { setMenuOpen(false); void leave((fresh) => props.onDuplicate!(fresh ?? item)); }}>Duplicate</MenuItem> : null}
+              {props.onDelete ? <MenuItem icon={<TrashIcon />} danger onClick={() => { setMenuOpen(false); void leave((fresh) => props.onDelete!(fresh ?? item)); }}>Delete event</MenuItem> : null}
             </Menu>
           ) : null}
         </>
@@ -325,7 +353,7 @@ export function EventPanel(props: Props) {
           {props.num ? <StopNumber n={props.num.n} need={props.num.need} /> : null}
           <span>{when}</span>
         </p>
-        <EventTitle tripId={trip.id} item={item} canEdit={canEdit} headingId={titleId} startOpen={props.focusTitle} onSaved={props.onSaved} onDirty={onDirty} />
+        <EventTitle tripId={trip.id} item={item} canEdit={canEdit} headingId={titleId} startOpen={props.focusTitle} onSaved={onSaved} />
         <div className={styles.tags}>
           {item.bookingStatus === "needs_booking" ? <Tag tone="need">Needs booking</Tag> : null}
           {item.bookingStatus === "booked" ? <Tag tone="booked">Booked</Tag> : null}
@@ -338,16 +366,16 @@ export function EventPanel(props: Props) {
       <EventMap item={item} destination={trip.destination} mapsKey={props.mapsKey} />
 
       <section className={styles.section} aria-label="Details">
-        <EventProperties tripId={trip.id} item={item} canEdit={canEdit} defaultCurrency={props.defaultCurrency} recentCurrencies={props.recentCurrencies} onSaved={props.onSaved} onTypeAcross={(type) => { setTypeError(null); setTypeAcross(type); }} onDirty={onDirty} />
+        <EventProperties tripId={trip.id} item={item} canEdit={canEdit} defaultCurrency={props.defaultCurrency} recentCurrencies={props.recentCurrencies} onSaved={onSaved} onTypeAcross={(type) => { setTypeError(null); setTypeAcross(type); }} />
       </section>
 
       {f ? (
-        <FlightSection trip={trip} item={item} canEdit={canEdit} onSaved={props.onSaved} onDirty={onDirty} />
+        <FlightSection trip={trip} item={item} canEdit={canEdit} onSaved={onSaved} />
       ) : (
-        <WhenSection trip={trip} item={item} canEdit={canEdit} onSaved={props.onSaved} onDirty={onDirty} />
+        <WhenSection trip={trip} item={item} canEdit={canEdit} onSaved={onSaved} />
       )}
 
-      <PlaceSection trip={trip} item={item} canEdit={canEdit} placeLookup={props.placeLookup ?? false} onSaved={props.onSaved} onDirty={onDirty} />
+      <PlaceSection trip={trip} item={item} canEdit={canEdit} placeLookup={props.placeLookup ?? false} onSaved={onSaved} />
 
       {item.links.length ? (
         <section className={styles.section} aria-labelledby={`${titleId}-links`}>
@@ -361,7 +389,7 @@ export function EventPanel(props: Props) {
       ) : null}
 
       {canEdit ? (
-        <NotesEditor ref={notesRef} tripId={trip.id} item={item} onSaved={props.onNotesSaved} />
+        <NotesEditor ref={notesRef} tripId={trip.id} item={item} onSaved={onNotesSaved} />
       ) : (
         <section className={styles.section} aria-labelledby={`${titleId}-notes`}>
           <h3 className={styles.label} id={`${titleId}-notes`}>Notes</h3>
@@ -374,7 +402,9 @@ export function EventPanel(props: Props) {
           title={typeAcross === "flight" ? "Make this a flight?" : `Make this ${TYPE_LABEL[typeAcross].toLowerCase()} instead of a flight?`}
           onClose={() => setTypeAcross(null)}
           fallbackFocus={() => ref.current?.querySelector<HTMLElement>('[data-inline-edit="Type"]') ?? null}
-          subtitle={typeAcross === "flight" ? "A flight keeps its airports and local times instead of a date and time, so this event's date, time, zone and duration are cleared. Add the flight's details afterwards." : "This clears the flight's airline, number, airports and times. Add the date and time afterwards."}
+          subtitle={typeAcross === "flight"
+            ? `A flight keeps its airports and local times instead of a date and time, so this event's date, time, zone and duration are cleared. Add the flight's details afterwards.${item.bookingStatus === "booked" ? " It's marked booked, and a flight counts as booked only once both airports and times are in, so it will need booking again until you add them." : ""}`
+            : "This clears the flight's airline, number, airports and times. Add the date and time afterwards."}
         >
           {typeError ? <FormError>{typeError}</FormError> : null}
           <ModalActions>
@@ -384,5 +414,6 @@ export function EventPanel(props: Props) {
         </Modal>
       ) : null}
     </SidePanel>
+    </PanelEdits.Provider>
   );
 }

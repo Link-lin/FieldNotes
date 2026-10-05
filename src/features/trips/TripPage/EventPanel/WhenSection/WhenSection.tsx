@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
 import type { PlanItemDTO, TripDetailDTO } from "@/shared/dto";
 import { EditSection } from "@/components/ui/EditSection/EditSection";
 import { fmtDay, fmtShort } from "@/lib/format";
@@ -10,10 +9,10 @@ import { saveEventFields, saveFailure, whenDraftOf, whenFields, type WhenDraft }
 import { WhenFields } from "../WhenFields/WhenFields";
 import styles from "./WhenSection.module.css";
 
-type Props = { trip: TripDetailDTO["trip"]; item: PlanItemDTO; canEdit: boolean; onSaved: (item: PlanItemDTO) => void; onDirty: (key: string, dirty: boolean) => void };
+type Props = { trip: TripDetailDTO["trip"]; item: PlanItemDTO; canEdit: boolean; onSaved: (item: PlanItemDTO) => void };
 
 /** When a non-flight event happens, edited in place as one section (TRIP-10). A move to another day offers Undo. */
-export function WhenSection({ trip, item, canEdit, onSaved, onDirty }: Props) {
+export function WhenSection({ trip, item, canEdit, onSaved }: Props) {
   const save = async (next: WhenDraft, start: WhenDraft) => {
     const r = await saveEventFields(trip.id, item.id, whenFields(next), whenFields(start));
     if (!r.ok) return saveFailure(r);
@@ -31,7 +30,6 @@ export function WhenSection({ trip, item, canEdit, onSaved, onDirty }: Props) {
       return { ok: true, note: to ? `Moved to ${fmtShort(to)}.` : "Moved to Undated.", undo: () => save(start, next) };
     },
   });
-  useEffect(() => onDirty("when", field.dirty), [field.dirty, onDirty]);
 
   const date = item.localDate;
   return (

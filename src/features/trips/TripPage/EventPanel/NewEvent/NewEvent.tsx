@@ -9,7 +9,7 @@ import { fmtDay, TYPE_LABEL } from "@/lib/format";
 import { sameValue } from "@/shared/fields";
 import { dayTag } from "../../trip-days";
 import {
-  bookingDraftOf, bookingFields, errorId, fieldId, flightDraftOf, flightFields, placeDraftOf, placeFields, priceDraftOf, priceFields, whenDraftOf, whenFields,
+  bookingDraftOf, bookingFields, bookingForType, errorId, fieldId, flightDraftOf, flightFields, placeDraftOf, placeFields, priceDraftOf, priceFields, whenDraftOf, whenFields,
   type BookingDraft, type FlightDraft, type PlaceDraft, type PriceDraft, type WhenDraft,
 } from "../event-edit";
 import { BookingFields } from "../BookingFields/BookingFields";
@@ -99,8 +99,8 @@ export function NewEvent({ trip, defaultDate, defaultCurrency, recentCurrencies,
               value={v.type}
               onChange={(e) => {
                 const type = e.target.value as ItemType;
-                // A flight either needs booking or is booked (FLIGHT-2).
-                up({ type, booking: type === "flight" && v.booking.status === "not_required" ? { ...v.booking, status: "needs_booking" } : v.booking });
+                // A flight either needs booking or is booked, and is booked only once its airports and times are in (FLIGHT-2).
+                up({ type, booking: { ...v.booking, status: bookingForType(v.booking.status, type === "flight", flightReady) } });
               }}
             >
               {(Object.keys(TYPE_LABEL) as ItemType[]).map((k) => <option key={k} value={k}>{TYPE_LABEL[k]}</option>)}

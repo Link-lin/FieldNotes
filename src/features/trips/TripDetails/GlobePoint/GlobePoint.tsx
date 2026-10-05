@@ -17,13 +17,12 @@ type Props = {
   /** Whoever set it: this person, or another owner. */
   setByYou: boolean;
   startOpen?: boolean;
-  onDirty: (key: string, dirty: boolean) => void;
 };
 
 const at = (p: LatLon) => `${Math.abs(p.latitude).toFixed(2)}° ${p.latitude >= 0 ? "N" : "S"}, ${Math.abs(p.longitude).toFixed(2)}° ${p.longitude >= 0 ? "E" : "W"}`;
 
 /** ATLAS-4: where the trip sits on the dashboard globe, chosen from the bundled place list (nothing is sent out). */
-export function GlobePoint({ tripId, point, setByYou, startOpen = false, onDirty }: Props) {
+export function GlobePoint({ tripId, point, setByYou, startOpen = false }: Props) {
   const router = useRouter();
   const [q, setQ] = useState("");
   const [results, setResults] = useState<PlaceDTO[]>([]);
@@ -43,7 +42,6 @@ export function GlobePoint({ tripId, point, setByYou, startOpen = false, onDirty
       return r.ok ? { ok: true, note: next ? `Point saved${label ? `: ${label}` : ""}.` : "Point removed.", undo: () => save(from, next) } : r;
     },
   });
-  useEffect(() => onDirty("globe", field.dirty), [field.dirty, onDirty]);
 
   useEffect(() => {
     if (q.trim().length < 2) return;
