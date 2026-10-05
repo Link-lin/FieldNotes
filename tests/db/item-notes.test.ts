@@ -45,6 +45,21 @@ describe("event notes (TRIP-10)", () => {
     expect(cleared.notes).toBeNull();
   });
 
+  it("saves over a newer version when only the event's other fields changed, given the notes it started from (TRIP-11)", async () => {
+    const t = await createTrip(testDb(), owner, tripInput, NOW);
+    const i = await createItem(testDb(), owner, t.id, event({ notes: "Old" }));
+    // A connected chat moves the event after the panel opened.
+    const { updateItemByAi } = await import("@/server/modules/items/items.service");
+    const moved = (await updateItemByAi(testDb(), owner, t.id, i.id, { localTime: "09:30" }, NOW)).item;
+    expect(moved.version).toBe(i.version + 1);
+    const saved = await updateItemNotes(testDb(), owner, t.id, i.id, { notes: "Bring cash", expectedVersion: i.version, baseNotes: "Old" }, NOW);
+    expect(saved).toMatchObject({ notes: "Bring cash", localTime: "09:30", version: moved.version + 1 });
+    // Notes changed elsewhere are still a clash, and so is a stale version without the starting notes.
+    await updateItemByAi(testDb(), owner, t.id, i.id, { notes: "Theirs" }, NOW);
+    await expect(updateItemNotes(testDb(), owner, t.id, i.id, { notes: "Mine", expectedVersion: saved.version, baseNotes: "Bring cash" }, NOW)).rejects.toMatchObject({ status: 409 });
+    await expect(updateItemNotes(testDb(), owner, t.id, i.id, { notes: "Mine", expectedVersion: saved.version }, NOW)).rejects.toMatchObject({ status: 409 });
+  });
+
   it("returns 409 on a stale version, 403 to viewers and 404 to strangers, over the route", async () => {
     const t = await createTrip(testDb(), owner, tripInput, NOW);
     const i = await createItem(testDb(), owner, t.id, event());

@@ -152,8 +152,11 @@ export type TripPatch = z.infer<typeof tripPatchSchema>;
 export const itemPatchSchema = z
   .object({ item: itemInputSchema, expectedVersion: z.number().int().min(1), confirmTypeChange: z.boolean().optional(), confirmPrice: z.boolean().optional() })
   .strict();
-/** TRIP-10: the owner edits an event's notes from its side panel; the rest of the event is unchanged. */
-export const itemNotesSchema = z.object({ notes: optionalText(5000), expectedVersion: z.number().int().min(1) }).strict();
+/**
+ * TRIP-10: the owner edits an event's notes from its side panel; the rest of the event is unchanged. `baseNotes`, the notes
+ * the edit started from, lets it save over a newer version of the event whose notes are still those (TRIP-11).
+ */
+export const itemNotesSchema = z.object({ notes: optionalText(5000), expectedVersion: z.number().int().min(1), baseNotes: z.string().max(5000).nullable().optional() }).strict();
 export const versionSchema = z.object({ expectedVersion: z.number().int().min(1) }).strict();
 /** IMPORT-7: mark AI drafts reviewed, one event or a whole trip's at once; `reviewed: false` undoes it. */
 export const itemReviewSchema = z

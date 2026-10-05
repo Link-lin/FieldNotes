@@ -32,10 +32,8 @@ export const NotesEditor = forwardRef<NotesEditorHandle, Props>(function NotesEd
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inFlight = useRef<Promise<NotesFlushResult> | null>(null);
   const blocked = useRef(false);
-  // The newest version of the event this page has seen, for a save that crossed a live update.
-  const known = useRef(item);
+  // A newer version of the event (a live update, TRIP-11): its notes, if they changed and nothing is typed here.
   useEffect(() => {
-    known.current = item;
     if (item.version <= version.current) return;
     const theirs = item.notes ?? "";
     if (theirs === saved.current) version.current = item.version;
@@ -59,21 +57,8 @@ export const NotesEditor = forwardRef<NotesEditorHandle, Props>(function NotesEd
     }
     if (value === saved.current.trim()) return { ok: true };
     setStatus("saving");
-    const base = saved.current;
-    let sent = version.current;
-    const send = () => {
-      sent = version.current;
-      return api<PlanItemDTO>("PATCH", `/api/trips/${tripId}/items/${item.id}/notes`, { notes: value || null, expectedVersion: sent });
-    };
-    const request = send().then(async (first) => {
-      // The event moved on while this was on its way, without its notes changing: send again on the newer version.
-      const fresh = known.current;
-      if (!first.ok && first.status === 409 && fresh.version > sent && (fresh.notes ?? "") === base) {
-        version.current = fresh.version;
-        return send();
-      }
-      return first;
-    }).then((r): NotesFlushResult => {
+    // `baseNotes` lets the save go through when only the event's other fields changed meanwhile, here or not yet seen.
+    const request = api<PlanItemDTO>("PATCH", `/api/trips/${tripId}/items/${item.id}/notes`, { notes: value || null, expectedVersion: version.current, baseNotes: saved.current || null }).then((r): NotesFlushResult => {
       if (r.ok) {
         version.current = r.data.version;
         saved.current = r.data.notes ?? "";

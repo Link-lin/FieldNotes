@@ -99,7 +99,7 @@ export async function updateItemNotes(
   actor: Actor,
   tripId: string,
   itemId: string,
-  body: { notes: string | null; expectedVersion: number },
+  body: { notes: string | null; expectedVersion: number; baseNotes?: string | null },
   now = new Date(),
 ): Promise<PlanItemDTO> {
   let wasAi = false;
@@ -107,9 +107,12 @@ export async function updateItemNotes(
     const { trip } = await requireTripEditor(tx, actor, tripId, true);
     await repo.purgeExpired(tx, trip.id);
     const current = await repo.loadItemForUpdate(tx, trip.id, itemId);
-    if (current.version !== body.expectedVersion) throw conflict();
+    // Only the notes are written, so a newer version is no clash when its notes are still the ones this edit started from
+    // (a connected chat moved the event meanwhile, TRIP-11). Notes changed elsewhere are.
+    const sameNotes = body.baseNotes !== undefined && (current.notes ?? "") === (body.baseNotes ?? "").trim();
+    if (current.version !== body.expectedVersion && !sameNotes) throw conflict();
     const notes = body.notes?.trim() || null;
-    const row = await repo.updateNotes(tx, current.id, body.expectedVersion, notes);
+    const row = await repo.updateNotes(tx, current.id, current.version, notes);
     if (!row) throw conflict();
     await bumpTripVersion(tx, trip.id);
     wasAi = current.source === "ai";
