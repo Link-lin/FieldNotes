@@ -79,7 +79,8 @@ describe("pilot counts (PRD: Validation and MVP acceptance)", () => {
     const [one, two] = rows as [(typeof rows)[number], (typeof rows)[number]];
     await updateItem(testDb(), owner, tripId, one.id, { item: event({ title: "Imported one, edited", localDate: "2027-04-15", localTime: null, bookingStatus: "needs_booking", bookingDueDate: "2027-03-01" }), expectedVersion: one.version });
     await updateItemNotes(testDb(), owner, tripId, two.id, { notes: "Bring cash", expectedVersion: two.version });
-    await deleteItem(testDb(), owner, tripId, two.id, two.version + 1);
+    await updateItemNotes(testDb(), owner, tripId, two.id, { notes: "Bring cash and a hat", expectedVersion: two.version + 1 });
+    await deleteItem(testDb(), owner, tripId, two.id, two.version + 2);
 
     const manualTrip = await createTrip(testDb(), owner, tripInput, NOW);
     const manual = await createItem(testDb(), owner, manualTrip.id, event({ bookingStatus: "needs_booking", bookingDueDate: "2026-11-01" }));
@@ -87,7 +88,8 @@ describe("pilot counts (PRD: Validation and MVP acceptance)", () => {
 
     expect(await counts()).toMatchObject({
       import_trip_created: 1,
-      ai_item_edited: 2,
+      ai_item_edited: 3,
+      ai_item_first_edited: 2,
       ai_item_deleted: 1,
       due_date_set: 2,
       manual_trip_created: 1,

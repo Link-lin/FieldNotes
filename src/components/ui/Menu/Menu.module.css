@@ -1,7 +1,7 @@
 .wrap { position: relative; }
 .popup { position: absolute; right: 0; top: 46px; min-width: 240px; z-index: var(--z-menu); background: var(--card); border: 1px solid var(--ink); border-radius: var(--radius-lg); box-shadow: var(--shadow); padding: 6px; display: grid; gap: 2px; animation: var(--kf-pop-in) 0.16s both; }
 .popup[hidden] { display: none; }
-.item { display: flex; align-items: center; gap: 10px; text-align: left; width: 100%; background: none; border: 0; padding: 9px 10px; border-radius: 9px; font-size: 14px; font-weight: 500; }
+.item { display: flex; align-items: center; gap: 10px; text-align: left; width: 100%; background: none; border: 0; padding: 9px 10px; border-radius: 9px; font-size: 14px; font-weight: 500; text-decoration: none; }
 .item svg { width: 15px; height: 15px; flex: none; }
 .item:hover, .item:focus-visible { background: var(--paper); }
 .danger { color: var(--vermilion-ink); }

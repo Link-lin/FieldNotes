@@ -132,8 +132,9 @@ describe("marking AI drafts reviewed (IMPORT-7)", () => {
     expect(itemView(draft!)).not.toHaveProperty("reviewedByPerson");
   });
 
-  it("the database refuses a review on an event a person made", async () => {
+  it("the database refuses a review, or a first change to an AI item, on an event a person made", async () => {
     const mine = await createItem(testDb(), owner, tripId, event());
     await expect(testDb().updateTable("plan_items").set({ reviewed_at: new Date() }).where("id", "=", mine.id).execute()).rejects.toMatchObject({ code: "23514" });
+    await expect(testDb().updateTable("plan_items").set({ person_edited_at: new Date() }).where("id", "=", mine.id).execute()).rejects.toMatchObject({ code: "23514" });
   });
 });

@@ -5,7 +5,7 @@ import { isPhoneWidth } from "@/lib/client-value";
 import { rememberEventReturn } from "@/lib/event-return";
 import type { PanelGuard } from "./EventPanel/EventPanel";
 import type { TripView } from "./TripViewNav/TripViewNav";
-import { panelFromParams, type PanelRequest, type TripFocus } from "./panel-request";
+import { panelFromSearch, type PanelRequest, type TripFocus } from "./panel-request";
 
 export type { PanelRequest, TripFocus };
 
@@ -36,13 +36,14 @@ const sameKind = (a: PanelRequest | null, b: Panel | null) => !!a && !!b && a.ki
  * so browser Back closes it (asking first about unsaved changes); moving within a panel (Previous and Next, a new event
  * once added) replaces the entry. On phones an event opens as its own page instead (TRIP-10).
  */
-export function useTripPanels({ tripId, items, shown, day, view, initial, closeMenu }: {
+export function useTripPanels({ tripId, items, shown, day, view, allows, closeMenu }: {
   tripId: string;
   items: PlanItemDTO[];
   shown: PlanItemDTO[];
   day: string;
   view: TripView;
-  initial: PanelRequest | null;
+  /** Whether this person may use a panel the address asks for. */
+  allows: (want: PanelRequest) => boolean;
   closeMenu: () => void;
 }) {
   const router = useRouter();
@@ -135,15 +136,16 @@ export function useTripPanels({ tripId, items, shown, day, view, initial, closeM
     });
   }
 
-  // The address asked for a panel (a link, a reload, an older ?event= link from the dashboard): open it once. A frame
-  // also survives development's double mount.
-  const arriving = useRef(initial);
+  // The address asked for a panel (a link, a reload, a dashboard card's menu): open it once, or drop it from the address
+  // if this person can't use it. A frame also survives development's double mount.
+  const arriving = useRef(true);
   useEffect(() => {
-    const want = arriving.current;
-    if (!want) return;
+    if (!arriving.current) return;
     const frame = requestAnimationFrame(() => {
-      arriving.current = null;
-      openRequest(want, true);
+      arriving.current = false;
+      const want = panelFromSearch(window.location.search);
+      if (want && allows(want)) openRequest(want, true);
+      else if (want) window.history.replaceState(null, "", urlFor(null));
     });
     return () => cancelAnimationFrame(frame);
   });
@@ -158,8 +160,7 @@ export function useTripPanels({ tripId, items, shown, day, view, initial, closeM
   useEffect(() => {
     const onPop = () => {
       if (closing.current) return closing.current();
-      const q = new URLSearchParams(window.location.search);
-      const want = panelFromParams({ event: q.get("event"), add: q.get("add"), trip: q.get("trip"), share: q.get("share") });
+      const want = panelFromSearch(window.location.search);
       const open = live.current.panel?.open ? live.current.panel : null;
       if (open && !sameKind(want, open)) {
         if (guard.current && !guard.current()) {

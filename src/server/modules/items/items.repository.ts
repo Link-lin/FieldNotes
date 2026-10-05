@@ -73,11 +73,14 @@ export async function updateItemRow(tx: Tx, itemId: string, expectedVersion: num
     .executeTakeFirst();
 }
 
-/** Notes only, when the version still matches; undefined means someone else changed it first. */
-export async function updateNotes(tx: Tx, itemId: string, expectedVersion: number, notes: string | null): Promise<PlanItemRow | undefined> {
+/**
+ * Notes only (and, on a person's first change to an AI item, when that was), when the version still matches; undefined
+ * means someone else changed it first.
+ */
+export async function updateNotes(tx: Tx, itemId: string, expectedVersion: number, notes: string | null, personEditedAt?: Date): Promise<PlanItemRow | undefined> {
   return tx
     .updateTable("plan_items")
-    .set({ notes, version: sql`version + 1`, updated_at: sql`now()` })
+    .set({ notes, ...(personEditedAt ? { person_edited_at: personEditedAt } : {}), version: sql`version + 1`, updated_at: sql`now()` })
     .where("id", "=", itemId)
     .where("version", "=", expectedVersion)
     .returningAll()
@@ -104,7 +107,10 @@ export async function undelete(tx: Tx, itemId: string): Promise<PlanItemRow | un
   return tx.updateTable("plan_items").set({ deleted_at: null, version: sql`version + 1` }).where("id", "=", itemId).returningAll().executeTakeFirst();
 }
 
-/** A copy of the row with a new id and timestamps; a booked copy becomes "needs booking" without a due date. */
+/**
+ * A copy of the row with a new id and timestamps; a booked copy becomes "needs booking" without a due date. A copy of an
+ * AI item is the person's own (it isn't among the AI items the pilot counts), so changing it never counts as a first edit.
+ */
 export async function copyItem(tx: Tx, src: PlanItemRow): Promise<PlanItemRow> {
   const { id: _id, version: _v, created_at: _c, updated_at: _u, deleted_at: _d, links, ...rest } = src;
   void _id; void _v; void _c; void _u; void _d;
@@ -115,6 +121,7 @@ export async function copyItem(tx: Tx, src: PlanItemRow): Promise<PlanItemRow> {
       links: JSON.stringify(links),
       booking_status: src.booking_status === "booked" ? "needs_booking" : src.booking_status,
       booking_due_date: null,
+      person_edited_at: src.source === "ai" ? (src.person_edited_at ?? sql`now()`) : null,
     })
     .returningAll()
     .executeTakeFirstOrThrow();

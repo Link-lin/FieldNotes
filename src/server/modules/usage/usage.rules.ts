@@ -9,7 +9,8 @@ export const USAGE_NAMES = [
   "import_trip_created", // a confirmed import created a trip (retries not counted)
   "import_items_created",
   "import_items_skipped", // items the owner skipped in the preview
-  "ai_item_edited", // an owner edit (or notes save) on an imported item
+  "ai_item_edited", // a person saved a change to an AI item (each save: a field, a section, a full edit or notes)
+  "ai_item_first_edited", // a person changed an AI item for the first time (each item once)
   "ai_item_deleted",
   "manual_trip_created",
   "manual_item_created",
@@ -49,8 +50,10 @@ export function summarizeUsage(rows: UsageRow[]) {
       rejectedPreview: ratio(t("import_preview_rejected"), previews),
       /** Items skipped in preview, of all items reviewed in confirmed imports. */
       skippedItems: ratio(t("import_items_skipped"), reviewed),
-      /** Owner edits to imported items per imported item (an item can be edited more than once). */
-      editsPerImportedItem: ratio(t("ai_item_edited"), t("import_items_created")),
+      /** AI items (imported or added by a connected chat) a person changed at least once, of all AI items created. */
+      editedAiItems: ratio(t("ai_item_first_edited"), t("import_items_created") + t("connector_items_created")),
+      /** Saves per AI item a person changed: how much reworking each correction took. It depends on how finely the app saves. */
+      savesPerEditedItem: ratio(t("ai_item_edited"), t("ai_item_first_edited")),
     },
   };
 }

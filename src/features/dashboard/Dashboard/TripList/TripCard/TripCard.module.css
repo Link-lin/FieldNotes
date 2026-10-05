@@ -6,7 +6,14 @@
 .card[data-status="upcoming"]::before { background: var(--vermilion); }
 .card[data-status="ongoing"]::before { background: var(--ink); }
 .top { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
-.tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; margin-left: auto; }
+/* The owner's three-dot menu keeps its tap size without making the row taller; an open one stays above the next card. */
+.card[data-menu-open] { z-index: 1; }
+.menu { margin: -8px -8px -8px -4px; }
+.menu .popup { top: calc(var(--tap) + 4px); min-width: 190px; }
+.kebab { width: var(--tap); height: var(--tap); border-radius: 50%; border: 1px solid transparent; background: none; display: grid; place-items: center; color: var(--ink-2); }
+.kebab svg { width: 16px; height: 16px; }
+.kebab:hover, .kebab[aria-expanded="true"] { border-color: var(--ink); background: var(--card); color: var(--ink); }
 .when { color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .when b { color: var(--vermilion-ink); font-weight: 500; }
 .card[data-status="past"] .when b { color: var(--ink-3); }

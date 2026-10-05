@@ -29,7 +29,8 @@ try {
   console.log(`  Previews needing no fixes      ${pct(s.rates.cleanPreview)}`);
   console.log(`  Previews rejected (bad JSON)   ${pct(s.rates.rejectedPreview)}`);
   console.log(`  Items skipped in preview       ${pct(s.rates.skippedItems)}`);
-  console.log(`  Edits per imported item        ${s.rates.editsPerImportedItem ?? "n/a"}`);
+  console.log(`  AI items people changed        ${pct(s.rates.editedAiItems)}`);
+  console.log(`  Saves per changed AI item      ${s.rates.savesPerEditedItem ?? "n/a"}`);
   if (s.weeks.length) {
     console.log("\nBy week (Monday)");
     for (const w of s.weeks) console.log(`  ${w.week}  ${Object.entries(w.counts).map(([k, v]) => `${k}=${v}`).join("  ")}`);

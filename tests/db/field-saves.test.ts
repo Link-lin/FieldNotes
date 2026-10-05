@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { sql } from "kysely";
 import { event, flight, grant, makeActor, NOW, reset, testDb, tripInput } from "./helpers";
 import { createTrip, getTripDetail, updateTripFields } from "@/server/modules/trips/trips.service";
-import { createItem, updateItemByAi, updateItemFields } from "@/server/modules/items/items.service";
+import { createItem, duplicateItem, updateItemByAi, updateItemFields } from "@/server/modules/items/items.service";
 import { itemInputOf, tripFieldsOf } from "@/shared/fields";
 import type { Actor } from "@/server/auth/actor";
 
@@ -96,7 +96,7 @@ describe("event field saves (TRIP-10)", () => {
     expect(booked).toMatchObject({ bookingStatus: "booked", version: scheduled.version + 1 });
   });
 
-  it("keeps an AI price unverified until the person changes it, and counts each save of an AI event once", async () => {
+  it("keeps an AI price unverified until the person changes it, and counts each save of an AI event and its first change once", async () => {
     const t = await createTrip(testDb(), owner, tripInput, NOW);
     const i = await createItem(testDb(), owner, t.id, event({ plannedPrice: { amount: "40", currency: "USD", label: "estimate" } }));
     await testDb().updateTable("plan_items").set({ source: "ai", price_source: "ai" }).where("id", "=", i.id).execute();
@@ -104,7 +104,11 @@ describe("event field saves (TRIP-10)", () => {
     expect(notes.plannedPrice).toMatchObject({ amount: "40", source: "ai" });
     const priced = await updateItemFields(testDb(), owner, t.id, i.id, { changes: { plannedPrice: { amount: "45", currency: "USD", label: "estimate" } }, base: { plannedPrice: { amount: "40", currency: "USD", label: "estimate" } } }, NOW);
     expect(priced.plannedPrice).toMatchObject({ amount: "45", source: "owner" });
-    expect((await counts()).ai_item_edited).toBe(2);
+    expect(await counts()).toMatchObject({ ai_item_edited: 2, ai_item_first_edited: 1 });
+    // A copy is the person's own: changing it is not a first change to an AI item.
+    const copy = await duplicateItem(testDb(), owner, t.id, i.id, priced.version, NOW);
+    await updateItemFields(testDb(), owner, t.id, copy.id, { changes: { notes: "Copy" }, base: { notes: "Cash only" } }, NOW);
+    expect(await counts()).toMatchObject({ ai_item_edited: 3, ai_item_first_edited: 1 });
   });
 
   it("lets owners and editors save over the route; viewers get 403, strangers 404, others 401 or 403", async () => {

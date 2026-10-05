@@ -14,13 +14,13 @@ import { DestinationInput } from "../DestinationInput/DestinationInput";
 import { TimeZoneSelect } from "../TimeZoneSelect/TimeZoneSelect";
 import styles from "./NewTrip.module.css";
 
-type Props = { formId: string; recentCurrencies: string[]; onDirty: (dirty: boolean) => void; onBusy: (busy: boolean) => void };
+type Props = { formId: string; recentCurrencies: string[]; onDirty: (dirty: boolean) => void; onBusy: (busy: boolean) => void; onCreated?: (tripId: string) => void };
 
 /**
  * New trip (DASH-3) in the trip details' own layout: name and destination, then Dates, Time zone and Budget, all open,
  * created by the panel's Create trip button. Picking a destination suggests its time zone until one is chosen by hand.
  */
-export function NewTrip({ formId, recentCurrencies, onDirty, onBusy }: Props) {
+export function NewTrip({ formId, recentCurrencies, onDirty, onBusy, onCreated }: Props) {
   const router = useRouter();
   const browserZone = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC", []);
   const [initial] = useState(() => ({ title: "", destination: "", startDate: "", endDate: "", timeZone: browserZone, budgetAmount: "", budgetCurrency: defaultCurrency(recentCurrencies) }));
@@ -49,7 +49,8 @@ export function NewTrip({ formId, recentCurrencies, onDirty, onBusy }: Props) {
     });
     if (r.ok) {
       onDirty(false);
-      router.push(`/trips/${r.data.id}`);
+      if (onCreated) onCreated(r.data.id);
+      else router.push(`/trips/${r.data.id}`);
       return;
     }
     onBusy(false);

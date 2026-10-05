@@ -9,6 +9,7 @@ import * as m0007 from "./migrations/0007_link_invitations";
 import * as m0008 from "./migrations/0008_ai_connector";
 import * as m0009 from "./migrations/0009_item_review";
 import * as m0010 from "./migrations/0010_auto_pins";
+import * as m0011 from "./migrations/0011_person_edited";
 
 /** Migrations are listed explicitly so every runtime (tsx, tests) sees the same set. */
 const migrations: Record<string, Migration> = {
@@ -22,6 +23,7 @@ const migrations: Record<string, Migration> = {
   "0008_ai_connector": m0008,
   "0009_item_review": m0009,
   "0010_auto_pins": m0010,
+  "0011_person_edited": m0011,
 };
 
 const provider: MigrationProvider = { getMigrations: async () => migrations };

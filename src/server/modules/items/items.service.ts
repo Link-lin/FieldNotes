@@ -114,15 +114,23 @@ async function writeItem(tx: Tx, trip: TripRow, current: PlanItemRow, input: Ite
   if (errs.length) throw invalid(errs);
   const values = toValues(input, current, opts.confirmPrice === true);
   if ("path" in values) throw invalid([values]);
+  if (firstPersonEdit(current)) values.person_edited_at = now;
   const row = await repo.updateItemRow(tx, current.id, current.version, values);
   if (!row) throw conflict();
   await bumpTripVersion(tx, trip.id);
   return dto(row, trip.time_zone, now);
 }
 
+/** A person's first change to an AI item, which the pilot counts once per item (`ai_item_first_edited`). */
+const firstPersonEdit = (current: PlanItemRow | null) => current?.source === "ai" && current.person_edited_at === null;
+
+/** A person's change to an AI item: every save counts, and the first one per item counts once more. */
+const aiEditUsage = (prior: PlanItemRow | null): UsageEvent[] =>
+  prior?.source === "ai" ? [{ name: "ai_item_edited" }, ...(firstPersonEdit(prior) ? [{ name: "ai_item_first_edited" as const }] : [])] : [];
+
 /** After a person's edit: its pilot counts, and a new place name looked up for a pin (MAP-2). */
 async function afterEdit(db: Kysely<DB>, tripId: string, prior: PlanItemRow | null, input: ItemInput, saved: PlanItemDTO, later?: Later) {
-  await countUsage(db, [...(prior?.source === "ai" ? [{ name: "ai_item_edited" as const }] : []), ...bookingUsage(prior, saved)]);
+  await countUsage(db, [...aiEditUsage(prior), ...bookingUsage(prior, saved)]);
   // Only a new place name is looked up: a pin the person removed on purpose doesn't come back on the next save.
   if (later && placeChanged(input, prior) && wantsAutoPin(saved)) later(async () => void (await autoPin(db, tripId, [saved.id])));
 }
@@ -136,7 +144,7 @@ export async function updateItemNotes(
   body: { notes: string | null; expectedVersion: number; baseNotes?: string | null },
   now = new Date(),
 ): Promise<PlanItemDTO> {
-  let wasAi = false;
+  let before: PlanItemRow | null = null;
   const saved = await db.transaction().execute(async (tx) => {
     const { trip } = await requireTripEditor(tx, actor, tripId, true);
     await repo.purgeExpired(tx, trip.id);
@@ -146,13 +154,13 @@ export async function updateItemNotes(
     const sameNotes = body.baseNotes !== undefined && (current.notes ?? "") === (body.baseNotes ?? "").trim();
     if (current.version !== body.expectedVersion && !sameNotes) throw conflict();
     const notes = body.notes?.trim() || null;
-    const row = await repo.updateNotes(tx, current.id, current.version, notes);
+    const row = await repo.updateNotes(tx, current.id, current.version, notes, firstPersonEdit(current) ? now : undefined);
     if (!row) throw conflict();
     await bumpTripVersion(tx, trip.id);
-    wasAi = current.source === "ai";
+    before = current;
     return dto(row, trip.time_zone, now);
   });
-  if (wasAi) await countUsage(db, [{ name: "ai_item_edited" }]);
+  await countUsage(db, aiEditUsage(before));
   return saved;
 }
 

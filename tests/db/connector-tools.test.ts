@@ -216,6 +216,7 @@ describe("update_item", () => {
     expect(row.source).toBe("manual");
     expect(row.version).toBe(item.version + 1);
     expect(await counts()).not.toHaveProperty("ai_item_edited");
+    expect(await counts()).not.toHaveProperty("ai_item_first_edited");
     // null clears, an empty string clears too.
     const cleared = await run(editor, "update_item", { tripId, itemId: item.id, notes: null, durationMinutes: 90 });
     expect(cleared.json.item.notes).toBeUndefined();
