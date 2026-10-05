@@ -25,6 +25,10 @@
 .step { display: flex; gap: var(--space-2); }
 .barActions { display: flex; align-items: center; gap: var(--space-2); }
 .barActions svg { width: 14px; height: 14px; }
+/* Mark as reviewed (IMPORT-7): beside Edit event, or under the tags on a phone, where the bar has no room for it. */
+.reviewInBar { display: contents; }
+.reviewInHead { display: none; margin: 0; }
+.reviewInHead svg { width: 14px; height: 14px; }
 .close { width: var(--tap); height: var(--tap); border-radius: 50%; border: 1px solid var(--ctl); background: none; font-size: 22px; line-height: 1; color: var(--ink-2); display: grid; place-items: center; transition: border-color 0.2s, color 0.2s, transform 0.2s; }
 .close:hover { border-color: var(--ink); color: var(--ink); transform: rotate(90deg); }
 .panel[data-presentation="page"] .close { width: auto; min-width: var(--tap); border-radius: var(--radius-pill); padding: 0 var(--space-3); font-size: var(--text-sm); }
@@ -40,8 +44,6 @@
 .when { margin: 0; display: flex; align-items: center; gap: var(--space-2); font: 500 12px var(--mono); letter-spacing: 0.06em; color: var(--ink-3); }
 .title { font-size: clamp(24px, 4vw, 30px); line-height: 1.15; }
 .tags { display: flex; flex-wrap: wrap; gap: 6px; }
-.review { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-3); }
-.review svg { width: 14px; height: 14px; }
 
 .section { display: grid; gap: var(--space-2); }
 .place { margin: 0; display: inline-flex; gap: 6px; align-items: center; color: var(--ink-2); }
@@ -60,6 +62,8 @@
   .panel, .panel[data-presentation="page"] { border: 0; border-radius: 0; box-shadow: none; }
   .bar { padding: var(--space-2) var(--space-3); flex-wrap: wrap; }
   .barActions { margin-left: auto; }
+  .reviewInBar { display: none; }
+  .reviewInHead { display: flex; }
   .step { order: 2; width: 100%; justify-content: space-between; }
   .body { padding: var(--space-4) var(--space-4) var(--space-7); }
 }

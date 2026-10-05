@@ -69,7 +69,7 @@ export function EventPanel({ trip, item, open, gone = false, canEdit: mayEdit, n
   const [busy, setBusy] = useState(false);
   const [waiting, setWaiting] = useState(false);
   const [discard, setDiscard] = useState<"close" | "details" | null>(null);
-  // The event just marked reviewed here, which offers Undo in place (a toast would take focus out of the panel).
+  // The event just marked reviewed here, whose bar offers Undo in the same place (a toast would take focus out of the panel).
   const [reviewedHere, setReviewedHere] = useState<string | null>(null);
   const [reviewBusy, setReviewBusy] = useState(false);
   // A way out after the notes failed to save: the owner stays by default, or leaves without them.
@@ -169,12 +169,19 @@ export function EventPanel({ trip, item, open, gone = false, canEdit: mayEdit, n
     setReviewBusy(false);
     if (!saved) return;
     setReviewedHere(reviewed ? saved.id : null);
-    requestAnimationFrame(() => ref.current?.querySelector<HTMLElement>(reviewed ? "[data-review-undo]" : "[data-review]")?.focus());
+    // The control is in the bar, or under the tags on a phone: focus the one on screen.
+    const shown = (selector: string) => [...(ref.current?.querySelectorAll<HTMLElement>(selector) ?? [])].find((el) => el.getClientRects().length > 0);
+    requestAnimationFrame(() => shown(reviewed ? "[data-review-undo]" : "[data-review]")?.focus());
   }
 
   const f = item.flightDetails;
   const day = item.timelineDate;
   const draft = isAiDraft(item);
+  const reviewControl = !canEdit || !onReview ? null : draft ? (
+    <Button data-review onClick={() => void review(true)} disabled={reviewBusy || waiting}><CheckIcon /> Mark as reviewed</Button>
+  ) : reviewedHere === item.id ? (
+    <Button variant="quiet" data-review-undo onClick={() => void review(false)} disabled={reviewBusy || waiting}>Undo review</Button>
+  ) : null;
   const when = [day ? dayTag(trip, day) : null, day ? fmtDay(day) : null, eventTimeText(item, trip.timeZone)].filter(Boolean).join(" · ");
 
   const surface = (
@@ -187,6 +194,8 @@ export function EventPanel({ trip, item, open, gone = false, canEdit: mayEdit, n
             </div>
           )}
           <div className={styles.barActions}>
+            {/* IMPORT-7: next to Edit, in the details view only (under the tags on a phone, where the bar has no room). */}
+            {!editing && reviewControl ? <span className={styles.reviewInBar}>{reviewControl}</span> : null}
             {!editing && canEdit ? <Button variant="fill" data-panel-edit onClick={startEditing} disabled={waiting}><EditIcon /> Edit event</Button> : null}
             <button type="button" className={styles.close} data-panel-close aria-label={presentation === "page" ? "Back to trip" : "Close event details"} disabled={busy || waiting} onClick={requestClose}>{presentation === "page" ? "← Trip" : "×"}</button>
           </div>
@@ -251,18 +260,8 @@ export function EventPanel({ trip, item, open, gone = false, canEdit: mayEdit, n
               {item.bookingStatus === "booked" ? <Tag tone="booked">Booked</Tag> : null}
               {draft ? <Tag tone="soft">AI draft, unverified</Tag> : null}
             </div>
-            {draft && canEdit && onReview ? (
-              <p className={styles.review}>
-                <Button variant="quiet" data-review onClick={() => void review(true)} disabled={reviewBusy}><CheckIcon /> Mark as reviewed</Button>
-                <span className="note">When you have checked it: the AI draft tag goes, the price stays an estimate.</span>
-              </p>
-            ) : null}
-            {!draft && reviewedHere === item.id ? (
-              <p className={styles.review} role="status">
-                <span>Marked as reviewed.</span>
-                <Button variant="quiet" data-review-undo onClick={() => void review(false)} disabled={reviewBusy}>Undo</Button>
-              </p>
-            ) : null}
+            {reviewControl ? <p className={styles.reviewInHead}>{reviewControl}</p> : null}
+            <span role="status" className="visually-hidden">{!draft && reviewedHere === item.id ? "Marked as reviewed. The price stays an estimate until you confirm it." : ""}</span>
           </header>
 
           <EventMap item={item} destination={trip.destination} mapsKey={mapsKey} />
