@@ -3,22 +3,33 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { flushSync } from "react-dom";
 import { cx as cn } from "@/lib/cx";
+import { haversineKm } from "@/shared/map-links";
 import { prefersReducedMotion } from "../../day-motion";
 import type { Stop } from "../../trip-days";
 import { StopNumber } from "../../StopNumber/StopNumber";
 import type { MapFocus, MapFocusStore } from "../map-focus";
+import { km } from "../StopList/StopList";
 import { clampView, fitView, H0, PAD, relaxView, viewOnDay, viewOnStop, W0, type Framing, type View } from "./camera";
 import { createCameraDirector, FRAMED, type CameraDirector } from "./camera-director";
+import { cityRankLimit, closestPlacesKm, compass, edgePointers, framedStops, homeSpans, project, projectionFor } from "./framing";
 import { MAP_CITIES, outlinePaths, outlineProjection } from "./geography";
 import styles from "./DayMap.module.css";
 
-/** How wide, in kilometres, the view is when the map looks at one stop, at most; and the narrowest view the map zooms to. */
+/**
+ * Kilometres across: the view the map gives one stop it is pointed at, at most; the narrowest it goes there by itself
+ * (tighter, an outline map without streets shows nothing but pins); and the narrowest the person can zoom to.
+ */
 const EVENT_SPAN_KM = 20;
-const MIN_SPAN_KM = 4;
+const LOOK_MIN_KM = 6;
+const MANUAL_MIN_KM = 1;
+/** Stops sharing a marker closer together than this are one venue: the marker lists them instead of zooming in. */
+const SAME_VENUE_KM = 0.15;
+const HOME: View = { x: 0, y: 0, w: W0, h: H0 };
 /** Coordinates in the SVG keep four decimals, which is still a fraction of a pixel when zoomed in a few hundred times. */
 const u = (n: number) => Math.round(n * 1e4) / 1e4;
 const NICE = [10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000, 1000000, 2000000, 5000000];
 const short = (s: string, n = 24) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
+const farKm = (v: number) => (v >= 1000 ? `${Math.round(v).toLocaleString("en-US")} km` : km(v));
 
 /**
  * Outline day map (MAP-3 to MAP-5): bundled coastlines, country borders and city labels, with
@@ -56,42 +67,47 @@ export function DayMap({ stops, focus, onPin }: { stops: Stop[]; focus: MapFocus
     return () => ro.disconnect();
   }, [stops.length]);
 
-  // Projection with longitudes unwrapped around the median stop (antimeridian-safe).
-  const lat0 = stops.reduce((a, s) => a + s.lat, 0) / (stops.length || 1);
-  const kx = Math.cos((lat0 * Math.PI) / 180);
-  const lons = stops.map((s) => s.lon).sort((a, b) => a - b);
-  const med = lons[Math.floor(lons.length / 2)] ?? 0;
-  const xs = stops.map((s) => (s.lon - med > 180 ? s.lon - 360 : s.lon - med < -180 ? s.lon + 360 : s.lon) * kx);
-  const ys = stops.map((s) => -s.lat);
-  const minx = xs.length ? Math.min(...xs) : 0;
-  const maxx = xs.length ? Math.max(...xs) : 0;
-  const miny = ys.length ? Math.min(...ys) : 0;
-  const maxy = ys.length ? Math.max(...ys) : 0;
-  const spx = Math.max(maxx - minx, 0.02 * kx);
-  const spy = Math.max(maxy - miny, 0.02);
-  const sc = Math.min((W0 - 2 * PAD - 40) / spx, (H0 - 2 * PAD) / spy);
-  const cx = (minx + maxx) / 2;
-  const cy = (miny + maxy) / 2;
+  // The view starts on the stops where the trip happens (framing.ts), at least a few kilometres across and wide enough for
+  // the nearest town, in a projection with longitudes unwrapped around their median (antimeridian-safe).
+  const fit = useMemo(() => {
+    const core = framedStops(stops);
+    const proj = projectionFor(stops, core);
+    const points = core.map((i) => project(proj, stops[i]!.lon, stops[i]!.lat));
+    const towns = points.length ? MAP_CITIES.map(([, lon, lat]) => project(proj, lon, lat)) : [];
+    const spans = points.length ? homeSpans(points, towns, { width: W0, innerX: W0 - 2 * PAD - 40, innerY: H0 - 2 * PAD, aspect: H0 / W0 }, closestPlacesKm(stops, core)) : { cx: 0, cy: 0, spanX: 1, spanY: 1 };
+    return { core, proj, ...spans };
+  }, [stops]);
+  const { medianLon: med, kx } = fit.proj;
+  const sc = Math.min((W0 - 2 * PAD - 40) / Math.max(fit.spanX, 1e-9), (H0 - 2 * PAD) / Math.max(fit.spanY, 1e-9));
+  const cx = fit.cx;
+  const cy = fit.cy;
   const projection = useMemo(() => outlineProjection({ medianLon: med, horizontalScale: kx, fitScale: sc, centerX: cx, centerY: cy, width: W0, height: H0 }), [med, kx, sc, cx, cy]);
   const outline = useMemo(() => stops.length ? outlinePaths(projection) : { land: "", borders: "" }, [projection, stops.length]);
   const nearbyCities = useMemo(() => stops.length ? MAP_CITIES.flatMap(([name, lon, lat, rank]) => {
     const at = projection([lon, lat]);
     return at ? [{ name, rank, x: at[0], y: at[1] }] : [];
   }) : [], [projection, stops.length]);
-  const pts = stops.map((s) => {
+  const all = stops.map((s) => {
     const at = projection([s.lon, s.lat]);
     return { s, x: at?.[0] ?? W0 / 2, y: at?.[1] ?? H0 / 2 };
   });
+  // Stops beyond the part of the map that can be shown (half a map past the start view) get a pointer at the edge.
+  const reachable = (q: { x: number; y: number }) => q.x >= -W0 * 0.5 && q.x <= W0 * 1.5 && q.y >= -H0 * 0.5 && q.y <= H0 * 1.5;
+  const pts = all.filter(reachable);
+  const away = all.filter((q) => !reachable(q));
   const pr = stops.length > 5 ? 11 : 14;
   const z = W0 / vb.w;
-  // Kilometres in map units (sc is units per degree of latitude). The view may zoom in to a few kilometres across, or to 12
-  // times the starting view when that is tighter, so a trip across an ocean can still be zoomed into a city.
-  const span = (EVENT_SPAN_KM * sc) / 111.32;
-  const minW = Math.min(W0 / 12, (MIN_SPAN_KM * sc) / 111.32);
+  // Kilometres in map units (sc is units per degree of latitude).
+  const unitsPerKm = sc / 111.32;
+  const span = EVENT_SPAN_KM * unitsPerKm;
+  const minW = Math.min(W0 / 4, MANUAL_MIN_KM * unitsPerKm);
+  const lookMin = Math.min(W0, Math.max(minW, LOOK_MIN_KM * unitsPerKm));
   const k = screenW ? screenW / W0 : 1;
+  const mapW = screenW || W0;
+  const mapH = mapW * (H0 / W0);
 
   // Merge pins closer than 14 screen pixels; hide labels that collide.
-  const screen = pts.map((p) => ({ x: ((p.x - vb.x) / vb.w) * (screenW || W0), y: ((p.y - vb.y) / vb.h) * ((screenW || W0) * (H0 / W0)) }));
+  const screen = pts.map((p) => ({ x: ((p.x - vb.x) / vb.w) * mapW, y: ((p.y - vb.y) / vb.h) * mapH }));
   const lead: number[] = [];
   const members = new Map<number, number[]>();
   screen.forEach((a, i) => {
@@ -117,7 +133,21 @@ export function DayMap({ stops, focus, onPin }: { stops: Stop[]; focus: MapFocus
       const label = group.length > 1 ? `Stops ${group.join(", ")}` : short(p.s.name);
       return { p, i, group, together, text, r, label, right: p.x < W0 * 0.62 };
     });
-  const placed: Array<{ x: number; y: number; w: number; h: number }> = [];
+  // Stops beyond the map: a pointer on its edge toward each (merged when they'd touch), saying how far it is from the
+  // nearest stop on the map. A pointer lights with its row and leads to the event, as a pin does.
+  const nearestKm = (s: Stop) => Math.min(...pts.map((q) => haversineKm([q.s.lat, q.s.lon], [s.lat, s.lon])));
+  const pointers = edgePointers(away.map((q, index) => ({ index, x: ((q.x - vb.x) / vb.w) * mapW, y: ((q.y - vb.y) / vb.h) * mapH })), mapW, mapH).map((ptr) => {
+    const group = ptr.members.map((m) => away[m]!.s).sort((a, b) => a.n - b.n);
+    const first = group[0]!;
+    const text = group.length > 1 ? `${group.map((s) => s.n).join("·")} · ${group.length} stops` : `${first.n} · ${first.airport ?? short(first.name, 16)}`;
+    const dist = farKm(Math.min(...group.map(nearestKm)));
+    // Kept whole inside the map, however close to a corner its point falls.
+    const half = ((text.length + dist.length + 3) * 6.4 + 30) / 2;
+    return { ...ptr, group, first, text, dist, half, left: Math.max(half + 4, Math.min(mapW - half - 4, ptr.x)), top: Math.max(16, Math.min(mapH - 16, ptr.y)) };
+  });
+
+  // Labels keep clear of those pointers as they do of each other.
+  const placed: Array<{ x: number; y: number; w: number; h: number }> = pointers.map((ptr) => ({ x: ptr.left - ptr.half, y: ptr.top - 12, w: ptr.half * 2, h: 24 }));
   const circles = shown.map((d) => ({ x: screen[d.i]!.x, y: screen[d.i]!.y, r: (d.r + 2) * k }));
   const labelOn = shown.map((d, ix) => {
     const c = circles[ix]!;
@@ -154,6 +184,14 @@ export function DayMap({ stops, focus, onPin }: { stops: Stop[]; focus: MapFocus
       onPin(d.p.s.id);
       return;
     }
+    // Stops that share a marker only because the view is wide: zoom in until they part. At one venue, list them.
+    const members = d.together.flatMap((s) => pts.filter((q) => q.s.id === s.id));
+    const apart = members.some((a) => members.some((b) => haversineKm([a.s.lat, a.s.lon], [b.s.lat, b.s.lon]) > SAME_VENUE_KM));
+    if (apart) {
+      setOpenLead(null);
+      director.current?.glide(clampView(fitView(members, minW)));
+      return;
+    }
     const opening = openLead !== d.p.s.id;
     setOpenLead(opening ? d.p.s.id : null);
     if (opening) requestAnimationFrame(() => list.current?.querySelector<HTMLButtonElement>("button")?.focus());
@@ -163,8 +201,9 @@ export function DayMap({ stops, focus, onPin }: { stops: Stop[]; focus: MapFocus
   // ones become eligible when zoomed in, and none cover a stop pin or a stop label.
   const cityLabels: Array<{ name: string; x: number; y: number }> = [];
   const labelBoxes = [...placed];
+  const rankLimit = cityRankLimit(vb.w / unitsPerKm);
   for (const city of nearbyCities) {
-    if (city.rank > (z < 2 ? 4 : 7)) continue;
+    if (city.rank > rankLimit) continue;
     const x = ((city.x - vb.x) / vb.w) * (screenW || W0);
     const y = ((city.y - vb.y) / vb.h) * ((screenW || W0) * (H0 / W0));
     if (x < 12 * k || x > (screenW || W0) - 12 * k || y < 12 * k || y > (screenW || W0) * (H0 / W0) - 12 * k) continue;
@@ -202,15 +241,17 @@ export function DayMap({ stops, focus, onPin }: { stops: Stop[]; focus: MapFocus
   useLayoutEffect(() => {
     resolveRef.current = (f, now) => {
       if (!pts.length) return null;
-      const framing: Framing = { home: fitView(pts), span, floor: minW, pixels: screenW || W0 };
+      const framing: Framing = { home: HOME, span, floor: lookMin, pixels: screenW || W0 };
       if (f.kind === "event") {
         const at = pts.find((q) => q.s.id === f.id);
-        return at ? (viewOnStop(at, now, framing, pts.filter((q) => q !== at)) ?? FRAMED) : null;
+        // A stop beyond the map stays there: its pointer at the edge lights instead.
+        if (!at) return away.some((q) => q.s.id === f.id) ? FRAMED : null;
+        return viewOnStop(at, now, framing, pts.filter((q) => q !== at)) ?? FRAMED;
       }
       const day = pts.filter((q) => q.s.day === f.day);
-      return day.length ? (viewOnDay(day, now, framing) ?? FRAMED) : null;
+      return day.length ? (viewOnDay(day, now, framing) ?? FRAMED) : away.some((q) => q.s.day === f.day) ? FRAMED : null;
     };
-    relaxRef.current = (shown) => (pts.length ? relaxView(shown, fitView(pts)) : shown);
+    relaxRef.current = (shown) => (pts.length ? relaxView(shown, HOME) : shown);
   });
   useEffect(() => {
     const d = createCameraDirector({
@@ -300,7 +341,7 @@ export function DayMap({ stops, focus, onPin }: { stops: Stop[]; focus: MapFocus
     return (
       <div className={styles.empty}>
         <b>No places on this map yet</b>
-        <span>Owners and editors can find a place by name while importing or editing an event, then confirm its map location.</span>
+        <span>Events appear here once they have a pin: from a map link, a place found by name, or a flight&apos;s arrival airport.</span>
       </div>
     );
   }
@@ -428,6 +469,22 @@ export function DayMap({ stops, focus, onPin }: { stops: Stop[]; focus: MapFocus
             </ul>
           </div>
         ) : null}
+        {pointers.map((ptr) => (
+          <button
+            key={ptr.first.id}
+            type="button"
+            className={styles.away}
+            data-hl={ptr.first.id}
+            data-hl-also={ptr.group.length > 1 ? ptr.group.slice(1).map((s) => s.id).join(" ") : undefined}
+            style={{ left: ptr.left, top: ptr.top }}
+            aria-label={`${ptr.group.length > 1 ? `Stops ${ptr.group.map((s) => s.n).join(", ")}` : `Stop ${ptr.first.n}: ${ptr.first.name}`}, ${ptr.dist} to the ${compass(ptr.angle)}, beyond this map`}
+            onClick={() => onPin(ptr.first.id)}
+          >
+            <span className={styles.awayArrow} style={{ transform: `rotate(${Math.round(ptr.angle)}deg)` }} aria-hidden="true">→</span>
+            <span>{ptr.text}</span>
+            <span className={styles.awayKm}>{ptr.dist}</span>
+          </button>
+        ))}
         <div className={styles.controls}>
           <span className={styles.zoom}>
             <button type="button" aria-label="Zoom in on the map" disabled={vb.w < minW * 1.01} onClick={() => zoomTo(vb.x + vb.w / 2, vb.y + vb.h / 2, vb.w / 1.5)}>+</button>
