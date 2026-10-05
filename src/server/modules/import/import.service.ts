@@ -1,4 +1,6 @@
 import "server-only";
+import { autoPin, wantsAutoPin } from "@/server/modules/places/auto-pin.service";
+import type { Later } from "@/server/core/later";
 import { createHash } from "node:crypto";
 import type { Kysely } from "kysely";
 import type { Actor } from "@/server/auth/actor";
@@ -196,7 +198,7 @@ export async function commitImport(
  * CONNECT-3, CONNECT-4: a connected AI chat adds items to a trip. They are checked as an import checks them, against
  * the trip's own time zone, and saved as AI drafts. Any error refuses the whole call; nothing is partly saved.
  */
-export async function appendAiItems(db: Kysely<DB>, actor: Actor, tripId: string, raw: unknown[], now = new Date()): Promise<PlanItemDTO[]> {
+export async function appendAiItems(db: Kysely<DB>, actor: Actor, tripId: string, raw: unknown[], now = new Date(), later?: Later): Promise<PlanItemDTO[]> {
   const { rows, zone } = await db.transaction().execute(async (tx) => {
     const { trip } = await requireTripEditor(tx, actor, tripId, true);
     await purgeExpired(tx, trip.id);
@@ -213,7 +215,11 @@ export async function appendAiItems(db: Kysely<DB>, actor: Actor, tripId: string
   });
   await countUsage(db, [{ name: "connector_items_created", count: rows.length }]);
   const today = dateInZone(zone, now.getTime());
-  return rows.map((row) => itemDto(row, zone, today));
+  const added = rows.map((row) => itemDto(row, zone, today));
+  // MAP-2: places with a clear match get their pins once the chat has its answer.
+  const toPin = added.filter(wantsAutoPin).map((i) => i.id);
+  if (later && toPin.length) later(async () => void (await autoPin(db, tripId, toPin)));
+  return added;
 }
 
 /**
@@ -221,7 +227,7 @@ export async function appendAiItems(db: Kysely<DB>, actor: Actor, tripId: string
  * is the one JSON v1 has (a budget is the person's own, relayed by the chat); items are checked and tagged as an
  * import's are. Atomic: a trip with an invalid item is not created.
  */
-export async function createTripByAi(db: Kysely<DB>, actor: Actor, input: { trip: unknown; items: unknown[] }, now = new Date()): Promise<{ trip: TripSummaryDTO; items: PlanItemDTO[] }> {
+export async function createTripByAi(db: Kysely<DB>, actor: Actor, input: { trip: unknown; items: unknown[] }, now = new Date(), later?: Later): Promise<{ trip: TripSummaryDTO; items: PlanItemDTO[] }> {
   requireOwnerAccount(actor);
   const block = input.trip && typeof input.trip === "object" && !Array.isArray(input.trip) ? (input.trip as Record<string, unknown>) : null;
   if (!block) throw invalid([{ path: "trip", code: "invalid", message: "Send the trip as an object with title, destination, startDate, endDate and timeZone." }]);
@@ -250,5 +256,8 @@ export async function createTripByAi(db: Kysely<DB>, actor: Actor, input: { trip
   });
   await countUsage(db, [{ name: "connector_trip_created" }, { name: "connector_items_created", count: rows.length }]);
   const today = dateInZone(row.time_zone, now.getTime());
-  return { trip: tripSummary(row, { role: "owner", primaryOwner: true }, now), items: rows.map((r) => itemDto(r, row.time_zone, today)) };
+  const created = rows.map((r) => itemDto(r, row.time_zone, today));
+  const toPin = created.filter(wantsAutoPin).map((i) => i.id);
+  if (later && toPin.length) later(async () => void (await autoPin(db, row.id, toPin)));
+  return { trip: tripSummary(row, { role: "owner", primaryOwner: true }, now), items: created };
 }

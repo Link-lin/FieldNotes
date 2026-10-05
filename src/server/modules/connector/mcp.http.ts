@@ -4,6 +4,7 @@ import { getDb } from "@/server/core/db/client";
 import { appOrigin, connectorEnabled } from "@/server/core/env";
 import { connectorOff, OAuthError, readLimitedText } from "@/server/core/http/oauth";
 import { errorTag } from "@/server/core/http/respond";
+import { later } from "@/server/core/later";
 import { rateLimit } from "@/server/core/rate-limit";
 import { bearerChallenge } from "@/server/modules/oauth/oauth.metadata";
 import { authenticateAccessToken } from "@/server/modules/oauth/oauth.service";
@@ -60,7 +61,7 @@ export async function handleMcpHttp(req: Request, now = new Date()): Promise<Res
 
     return answer(
       await handleMcpMessage(
-        { db: getDb(), actor: session.actor, scope: session.scope, now },
+        { db: getDb(), actor: session.actor, scope: session.scope, now, later },
         { protocolVersion: req.headers.get("mcp-protocol-version"), method: req.headers.get("mcp-method"), name: req.headers.get("mcp-name") },
         body,
       ),

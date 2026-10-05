@@ -10,7 +10,9 @@ import { itemInputSchema, toFieldErrors, type ItemInput, type ItemReview } from 
 import { dateInZone, resolveLocal } from "@/shared/time";
 import { itemDto } from "./items.mapper";
 import * as repo from "./items.repository";
-import { canMarkBooked, scheduleErrors, toValues } from "./items.rules";
+import { canMarkBooked, placeChanged, scheduleErrors, toValues } from "./items.rules";
+import type { Later } from "@/server/core/later";
+import { autoPin, wantsAutoPin } from "@/server/modules/places/auto-pin.service";
 import { applyAiPatch, itemInputOf, priceChanged, type AiItemPatch } from "./items.ai";
 import { countUsage } from "@/server/modules/usage/usage.service";
 import type { UsageEvent } from "@/server/modules/usage/usage.rules";
@@ -27,7 +29,7 @@ const dto = (row: PlanItemRow, zone: string, now: Date): PlanItemDTO => itemDto(
 const capError = () => new HttpError(409, "item_cap", `A trip can have at most ${ITEM_CAP} events.`);
 const restoreExpired = () => new HttpError(410, "restore_expired", "This event was deleted more than 10 minutes ago and can't be restored.");
 
-export async function createItem(db: Kysely<DB>, actor: Actor, tripId: string, input: ItemInput, now = new Date()): Promise<PlanItemDTO> {
+export async function createItem(db: Kysely<DB>, actor: Actor, tripId: string, input: ItemInput, now = new Date(), later?: Later): Promise<PlanItemDTO> {
   const created = await db.transaction().execute(async (tx) => {
     const { trip } = await requireTripEditor(tx, actor, tripId, true);
     await repo.purgeExpired(tx, trip.id);
@@ -41,6 +43,8 @@ export async function createItem(db: Kysely<DB>, actor: Actor, tripId: string, i
     return dto(row, trip.time_zone, now);
   });
   await countUsage(db, [{ name: "manual_item_created" }, ...bookingUsage(null, created)]);
+  // MAP-2: a place name without a map link is looked up, and pinned on a clear match, after the response.
+  if (later && wantsAutoPin(created)) later(async () => void (await autoPin(db, tripId, [created.id])));
   return created;
 }
 
@@ -59,6 +63,7 @@ export async function updateItem(
   itemId: string,
   body: { item: ItemInput; expectedVersion: number; confirmTypeChange?: boolean; confirmPrice?: boolean },
   now = new Date(),
+  later?: Later,
 ): Promise<PlanItemDTO> {
   let before: PlanItemRow | null = null;
   const saved = await db.transaction().execute(async (tx) => {
@@ -83,6 +88,8 @@ export async function updateItem(
   });
   const prior = before as PlanItemRow | null;
   await countUsage(db, [...(prior?.source === "ai" ? [{ name: "ai_item_edited" as const }] : []), ...bookingUsage(prior, saved)]);
+  // Only a new place name is looked up: a pin the person removed on purpose doesn't come back on the next save.
+  if (later && placeChanged(body.item, prior) && wantsAutoPin(saved)) later(async () => void (await autoPin(db, tripId, [saved.id])));
   return saved;
 }
 
@@ -242,8 +249,9 @@ export async function updateItemByAi(
   itemId: string,
   patch: AiItemPatch,
   now = new Date(),
+  later?: Later,
 ): Promise<{ item: PlanItemDTO; clearedPin: boolean }> {
-  return db.transaction().execute(async (tx) => {
+  const result = await db.transaction().execute(async (tx) => {
     const { trip } = await requireTripEditor(tx, actor, tripId, true);
     await repo.purgeExpired(tx, trip.id);
     const current = await repo.loadItemForUpdate(tx, trip.id, itemId);
@@ -262,8 +270,11 @@ export async function updateItemByAi(
     const row = await repo.updateItemRow(tx, current.id, current.version, values);
     if (!row) throw conflict();
     await bumpTripVersion(tx, trip.id);
-    return { item: dto(row, trip.time_zone, now), clearedPin: applied.clearedPin };
+    return { item: dto(row, trip.time_zone, now), clearedPin: applied.clearedPin, moved: placeChanged(parsed.data, current) };
   });
+  // A new place name gets its pin once the chat has its answer (MAP-2).
+  if (later && result.moved && wantsAutoPin(result.item)) later(async () => void (await autoPin(db, tripId, [result.item.id])));
+  return { item: result.item, clearedPin: result.clearedPin };
 }
 
 /** CONNECT-3: a connected AI chat deletes an item; it can be restored for 10 minutes (TRIP-8). Not counted in the pilot. */

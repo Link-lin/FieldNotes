@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { HttpError } from "@/server/core/http/errors";
 import { mapsEmbedKey } from "@/server/core/env";
 import { mailConfigured } from "@/server/core/mail";
+import { placeLookupConfigured } from "@/server/modules/places/geocode.service";
 import { currentActor, pageActor } from "@/server/auth/session";
 import { tripDetailForPage } from "@/server/modules/trips/trips.service";
 import { TripPage } from "@/features/trips/TripPage/TripPage";
@@ -16,7 +17,7 @@ export default async function TripRoute({ params, searchParams }: Props) {
     if (err instanceof HttpError && err.status === 404) notFound();
     throw err;
   });
-  return <TripPage key={tripId} data={data} initialDay={day ?? null} initialEvent={event ?? null} initialView={view === "bookings" ? "bookings" : "itinerary"} mapsKey={mapsEmbedKey()} canEmail={mailConfigured()} />;
+  return <TripPage key={tripId} data={data} initialDay={day ?? null} initialEvent={event ?? null} initialView={view === "bookings" ? "bookings" : "itinerary"} mapsKey={mapsEmbedKey()} canEmail={mailConfigured()} placeLookup={placeLookupConfigured()} />;
 }
 
 export async function generateMetadata({ params }: Props) {

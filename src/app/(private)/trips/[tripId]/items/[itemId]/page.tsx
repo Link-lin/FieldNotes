@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { HttpError } from "@/server/core/http/errors";
 import { mapsEmbedKey } from "@/server/core/env";
 import { pageActor } from "@/server/auth/session";
+import { placeLookupConfigured } from "@/server/modules/places/geocode.service";
 import { tripDetailForPage } from "@/server/modules/trips/trips.service";
 import { EventPage } from "@/features/trips/EventPage/EventPage";
 
@@ -17,5 +18,5 @@ export default async function EventRoute({ params, searchParams }: Props) {
   });
   if (!data.items.some((item) => item.id === itemId)) notFound();
   const query = await searchParams;
-  return <EventPage key={itemId} data={data} itemId={itemId} selectedDay={query.day ?? null} fromBookings={query.view === "bookings"} initialEditing={query.edit === "1"} mapsKey={mapsEmbedKey()} />;
+  return <EventPage key={itemId} data={data} itemId={itemId} selectedDay={query.day ?? null} fromBookings={query.view === "bookings"} initialEditing={query.edit === "1"} mapsKey={mapsEmbedKey()} placeLookup={placeLookupConfigured()} />;
 }

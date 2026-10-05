@@ -12,10 +12,10 @@ import { EventPanel } from "../TripPage/EventPanel/EventPanel";
 import { REVIEW_CHANGED, sendReview } from "../TripPage/review-events";
 import { tripDays, tripStops } from "../TripPage/trip-days";
 
-type Props = { data: TripDetailDTO; itemId: string; selectedDay: string | null; fromBookings: boolean; initialEditing: boolean; mapsKey: string | null };
+type Props = { data: TripDetailDTO; itemId: string; selectedDay: string | null; fromBookings: boolean; initialEditing: boolean; mapsKey: string | null; placeLookup: boolean };
 
 /** The same event details/editor used by the desktop panel, with a real URL and Back on phones. */
-export function EventPage({ data, itemId, selectedDay, fromBookings, initialEditing, mapsKey }: Props) {
+export function EventPage({ data, itemId, selectedDay, fromBookings, initialEditing, mapsKey, placeLookup }: Props) {
   const router = useRouter();
   const toast = useToast();
   const { trip, items } = data;
@@ -54,6 +54,7 @@ export function EventPage({ data, itemId, selectedDay, fromBookings, initialEdit
       defaultCurrency={defaultCurrency}
       recentCurrencies={data.recentCurrencies}
       initialEditing={initialEditing}
+      placeLookup={placeLookup}
       prev={at > 0 ? shown[at - 1] ?? null : null}
       next={at >= 0 ? shown[at + 1] ?? null : null}
       onGo={(target) => { replaceEventReturn(trip.id, target.id); router.replace(eventUrl(target)); }}

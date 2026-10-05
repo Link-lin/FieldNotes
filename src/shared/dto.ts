@@ -64,7 +64,8 @@ export type PlanItemDTO = {
   links: Array<{ label: string; url: string }>;
   mapUrl: string | null;
   mapProvider: string | null;
-  coordinates: (LatLon & { source: "map_link" | "airport" }) | null;
+  /** `lookup`: found automatically from the place name (MAP-2); `map_link`: from a link a person saved or chose. */
+  coordinates: (LatLon & { source: "map_link" | "lookup" | "airport" }) | null;
   bookingStatus: BookingStatus;
   bookingDueDate: string | null;
   bookingDueState: DueState | null;

@@ -46,19 +46,27 @@ export function canMarkBooked(row: Pick<PlanItemRow, FlightColumns>): boolean {
   });
 }
 
-function mapFields(input: ItemInput, current: PlanItemRow | null): { map_url: string | null; latitude: string | null; longitude: string | null } | FieldError {
+type MapColumns = { map_url: string | null; latitude: string | null; longitude: string | null; pin_source: "lookup" | null };
+const NO_PIN: MapColumns = { map_url: null, latitude: null, longitude: null, pin_source: null };
+const blankText = (v: string | null | undefined) => (v ?? "").trim();
+
+function mapFields(input: ItemInput, current: PlanItemRow | null): MapColumns | FieldError {
   const raw = input.mapUrl;
+  const kept: MapColumns | null = current ? { map_url: current.map_url, latitude: current.latitude, longitude: current.longitude, pin_source: current.pin_source } : null;
   // MAP-2: only a changed link is re-read; re-sending the stored link never re-pins.
-  if (current && (raw ?? null) === current.map_url) {
-    return { map_url: current.map_url, latitude: current.latitude, longitude: current.longitude };
-  }
-  if (!raw) return { map_url: null, latitude: null, longitude: null };
+  if (kept && (raw ?? null) === kept.map_url) return kept;
+  if (!raw) return NO_PIN;
   const clean = cleanMapUrl(mapLinkFromInput(raw));
   if (!clean) return { path: "mapUrl", code: "invalid_url", message: "Use a full https link (at most 2048 characters) without a user name, or coordinates such as 35.0116, 135.7681." };
-  if (current && clean === current.map_url) return { map_url: current.map_url, latitude: current.latitude, longitude: current.longitude };
+  if (kept && clean === kept.map_url) return kept;
+  // A link a person saves is theirs, whoever found it.
   const c = coordinatesFromMapUrl(clean);
-  return { map_url: clean, latitude: c ? c[0].toFixed(5) : null, longitude: c ? c[1].toFixed(5) : null };
+  return { map_url: clean, latitude: c ? c[0].toFixed(5) : null, longitude: c ? c[1].toFixed(5) : null, pin_source: null };
 }
+
+/** An automatic pin (MAP-2) belongs to the place name it was found for: a new name drops it, and the lookup runs again. */
+export const placeChanged = (input: Pick<ItemInput, "location">, current: Pick<PlanItemRow, "location"> | null): boolean =>
+  !current || blankText(input.location) !== blankText(current.location);
 
 function priceFields(input: ItemInput, current: PlanItemRow | null, confirmPrice: boolean) {
   const p = input.plannedPrice;
@@ -74,8 +82,9 @@ function priceFields(input: ItemInput, current: PlanItemRow | null, confirmPrice
 }
 
 export function toValues(input: ItemInput, current: PlanItemRow | null, confirmPrice = false): Values | FieldError {
-  const map = mapFields(input, current);
+  let map = mapFields(input, current);
   if ("path" in map) return map;
+  if (current && map.pin_source === "lookup" && placeChanged(input, current)) map = NO_PIN;
   const status = input.bookingStatus;
   const base = {
     type: input.type,

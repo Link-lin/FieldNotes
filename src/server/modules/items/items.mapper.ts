@@ -36,7 +36,7 @@ export function itemDto(row: PlanItemRow, tripZone: string, today: string): Plan
   }
   let coordinates: PlanItemDTO["coordinates"] = null;
   if (row.latitude !== null && row.longitude !== null) {
-    coordinates = { latitude: Number(row.latitude), longitude: Number(row.longitude), source: "map_link" };
+    coordinates = { latitude: Number(row.latitude), longitude: Number(row.longitude), source: row.pin_source === "lookup" ? "lookup" : "map_link" };
   } else if (isFlight && (row.source === "manual" || row.reviewed_at !== null || row.booking_status === "booked")) {
     const p = airportPoint(row.arrival_airport_code);
     if (p) coordinates = { ...p, source: "airport" };

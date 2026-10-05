@@ -5,6 +5,7 @@ import { z } from "zod";
 import type { Actor } from "@/server/auth/actor";
 import type { ConnectorScope, DB } from "@/server/core/db/schema";
 import { HttpError } from "@/server/core/http/errors";
+import type { Later } from "@/server/core/later";
 import { isUuid } from "@/server/core/http/request";
 import { errorTag } from "@/server/core/http/respond";
 import { getDashboard } from "@/server/modules/dashboard/dashboard.service";
@@ -12,6 +13,7 @@ import { appendAiItems, createTripByAi } from "@/server/modules/import/import.se
 import { aiItemPatchSchema } from "@/server/modules/items/items.ai";
 import { deleteItemByAi, getItem, restoreItem, updateItemByAi } from "@/server/modules/items/items.service";
 import { hasWrite } from "@/server/modules/oauth/oauth.rules";
+import { placeLookupConfigured } from "@/server/modules/places/geocode.service";
 import { getTripDetail } from "@/server/modules/trips/trips.service";
 import { toFieldErrors } from "@/shared/schemas";
 import schema from "../../../../docs/design/json-v1.schema.json";
@@ -23,7 +25,8 @@ import { itemView, toJson, tripDetailJson, tripListView, tripView } from "./mcp.
  * can act on comes back as a tool result with isError, never as a protocol error.
  */
 
-export type ToolContext = { db: Kysely<DB>; actor: Actor; scope: ConnectorScope; now: Date };
+/** `later` runs work after the answer has gone back to the chat (automatic pins, MAP-2). */
+export type ToolContext = { db: Kysely<DB>; actor: Actor; scope: ConnectorScope; now: Date; later?: Later };
 export type ToolResult = { text: string; isError?: boolean };
 
 type Json = Record<string, unknown>;
@@ -195,8 +198,9 @@ const TOOLS: Tool[] = [
     async run(ctx, args) {
       const a = parse(addArgs, args);
       if ("error" in a) return a.error;
-      const added = await appendAiItems(ctx.db, ctx.actor, a.value.tripId, a.value.items, ctx.now);
-      return ok({ added: added.map((i) => itemView(i)), message: `Added ${added.length} item${added.length === 1 ? "" : "s"} as unverified AI drafts. Suggest the person checks them in Field Notes.` });
+      const added = await appendAiItems(ctx.db, ctx.actor, a.value.tripId, a.value.items, ctx.now, ctx.later);
+      const pins = placeLookupConfigured() ? " Places with one clear match are pinned on the map within a few seconds." : "";
+      return ok({ added: added.map((i) => itemView(i)), message: `Added ${added.length} item${added.length === 1 ? "" : "s"} as unverified AI drafts. Suggest the person checks them in Field Notes.${pins}` });
     },
   },
   {
@@ -211,8 +215,9 @@ const TOOLS: Tool[] = [
       const a = parse(updateArgs, args);
       if ("error" in a) return a.error;
       const { tripId, itemId, ...patch } = a.value;
-      const { item, clearedPin } = await updateItemByAi(ctx.db, ctx.actor, tripId, itemId, patch, ctx.now);
-      return ok({ item: itemView(item), message: clearedPin ? "Saved. The place changed, so the item's saved map pin was removed; the person can pin it again in Field Notes." : "Saved." });
+      const { item, clearedPin } = await updateItemByAi(ctx.db, ctx.actor, tripId, itemId, patch, ctx.now, ctx.later);
+      const repin = placeLookupConfigured() ? "the new place is pinned automatically if the lookup finds one clear match." : "the person can pin it again in Field Notes.";
+      return ok({ item: itemView(item), message: clearedPin ? `Saved. The place changed, so the item's saved map pin was removed; ${repin}` : "Saved." });
     },
   },
   {
@@ -254,7 +259,7 @@ const TOOLS: Tool[] = [
     async run(ctx, args) {
       const a = parse(createArgs, args);
       if ("error" in a) return a.error;
-      const created = await createTripByAi(ctx.db, ctx.actor, { trip: a.value.trip, items: a.value.items ?? [] }, ctx.now);
+      const created = await createTripByAi(ctx.db, ctx.actor, { trip: a.value.trip, items: a.value.items ?? [] }, ctx.now, ctx.later);
       return ok({ trip: tripView(created.trip), items: created.items.map((i) => itemView(i)), message: `Created the trip with ${created.items.length} item${created.items.length === 1 ? "" : "s"} as unverified AI drafts.` });
     },
   },

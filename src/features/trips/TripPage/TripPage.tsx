@@ -52,7 +52,7 @@ type ItemFormState = { item: PlanItemDTO | null; date: string; trigger: string |
  * costs, bookings and globe location. This component holds the page state and actions; each part
  * renders itself.
  */
-export function TripPage({ data, initialDay, initialEvent, initialView, mapsKey, canEmail }: { data: TripDetailDTO; initialDay: string | null; initialEvent: string | null; initialView: TripView; mapsKey: string | null; canEmail: boolean }) {
+export function TripPage({ data, initialDay, initialEvent, initialView, mapsKey, canEmail, placeLookup }: { data: TripDetailDTO; initialDay: string | null; initialEvent: string | null; initialView: TripView; mapsKey: string | null; canEmail: boolean; placeLookup: boolean }) {
   const router = useRouter();
   const toast = useToast();
   const { trip, items } = data;
@@ -373,6 +373,7 @@ export function TripPage({ data, initialDay, initialEvent, initialView, mapsKey,
           defaultDate={itemForm.date}
           item={itemForm.item}
           triggerSelector={itemForm.trigger}
+          placeLookup={placeLookup}
           onClose={() => setItemForm(null)}
           onSaved={(saved, created) => {
             setItemForm(null);
@@ -388,6 +389,7 @@ export function TripPage({ data, initialDay, initialEvent, initialView, mapsKey,
           open={eventPanel.panel.open}
           gone={eventPanel.gone}
           canEdit={canEdit}
+          placeLookup={placeLookup}
           num={numbers.get(eventPanel.item.id) ?? null}
           mapsKey={mapsKey}
           defaultCurrency={defaultCurrency}

@@ -154,6 +154,8 @@ export interface PlanItemsTable {
   map_url: string | null;
   latitude: Numeric | null;
   longitude: Numeric | null;
+  /** "lookup" when the map link came from an automatic lookup of the place name (MAP-2); null for a link a person saved. */
+  pin_source: "lookup" | null;
   source: "ai" | "manual";
   /** When a person marked this AI draft reviewed (IMPORT-7); null while it is an unverified draft, and for manual items. */
   reviewed_at: Date | null;

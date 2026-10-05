@@ -35,10 +35,12 @@ type Props = {
   onBusyChange?: (busy: boolean) => void;
   panelHeading?: string;
   mapPreview?: React.ReactNode;
+  /** Whether place lookup (Geoapify) is set up: Find place on map, and automatic pins for a new place name (MAP-2). */
+  placeLookup?: boolean;
 };
 
 /** Add to itinerary / Edit event (TRIP-9). The server repeats every check. */
-export function ItemForm({ tripId, tripTitle, tripDestination, tripZone, tripDates, defaultCurrency, recentCurrencies = [], defaultDate, item, triggerSelector, onClose, onSaved, surface = "modal", onDirtyChange, onBusyChange, panelHeading, mapPreview }: Props) {
+export function ItemForm({ tripId, tripTitle, tripDestination, tripZone, tripDates, defaultCurrency, recentCurrencies = [], defaultDate, item, triggerSelector, onClose, onSaved, surface = "modal", onDirtyChange, onBusyChange, panelHeading, mapPreview, placeLookup = false }: Props) {
   const f = item?.flightDetails;
   const ep = (e?: { airportCode: string | null; localDateTime: string | null; timeZone: string | null; timeDisambiguation: "earlier" | "later" | null }): Endpoint => ({
     code: e?.airportCode ?? "",
@@ -163,8 +165,14 @@ export function ItemForm({ tripId, tripTitle, tripDestination, tripZone, tripDat
   // MAP-2: say before saving whether the map field will pin the stop (the server decides on save).
   const mapText = v.mapUrl.trim();
   const pin = mapText ? (parseCoordinateText(mapText) ?? coordinatesFromMapUrl(mapText)) : null;
+  const autoPin = !!item && item.coordinates?.source === "lookup" ? item.mapUrl : null;
+  const autoPinned = !!autoPin && mapText === autoPin;
   const mapHint = !mapText
-    ? "Use Find place on map above, or paste a Google Maps, Apple Maps or OpenStreetMap link. Coordinates also work."
+    ? placeLookup
+      ? "Use Find place on map above, or paste a Google Maps, Apple Maps or OpenStreetMap link. Coordinates also work. Left empty, a place name with one clear match is pinned automatically after saving."
+      : "Paste a Google Maps, Apple Maps or OpenStreetMap link. Coordinates also work."
+    : autoPinned
+      ? "Pinned automatically from the place name. Paste another link or coordinates to move the pin, or clear this field to remove it."
     : pin
       ? `Pins the stop at ${pin[0].toFixed(5)}, ${pin[1].toFixed(5)}.`
       : "This link has no coordinates the app can read, so the event won't be on the day map. Try Find place on map above.";
@@ -359,9 +367,9 @@ export function ItemForm({ tripId, tripTitle, tripDestination, tripZone, tripDat
           {surface === "panel" ? <h3 className={styles.sectionTitle}>Place &amp; map</h3> : null}
         <FieldGrid>
           <Field label={<>Place {optional()}</>} htmlFor="item-location" wide>
-            <input id="item-location" value={v.location} maxLength={500} placeholder="Fushimi Inari Taisha, Kyoto" onChange={(e) => { placeRequest.current++; setFindingPlace(false); up({ location: e.target.value, ...(lookupMapUrl && v.mapUrl === lookupMapUrl ? { mapUrl: "" } : {}) }); setLookupMapUrl(null); setPlaceMatches([]); setPlaceMessage(null); }} />
+            <input id="item-location" value={v.location} maxLength={500} placeholder="Fushimi Inari Taisha, Kyoto" onChange={(e) => { placeRequest.current++; setFindingPlace(false); up({ location: e.target.value, ...((lookupMapUrl && v.mapUrl === lookupMapUrl) || (autoPin && v.mapUrl === autoPin) ? { mapUrl: "" } : {}) }); setLookupMapUrl(null); setPlaceMatches([]); setPlaceMessage(null); }} />
           </Field>
-          {!isFlight && v.location.trim() ? (
+          {!isFlight && placeLookup && v.location.trim() ? (
             <div className={styles.placeFinder}>
               <Button variant="quiet" onClick={findPlace} disabled={findingPlace || busy}>{findingPlace ? "Finding place…" : "Find place on map"}</Button>
               <span className="note">Sends this place and the trip destination to Geoapify. You choose the match before saving.</span>

@@ -37,6 +37,8 @@ type Props = {
   onExited: () => void;
   onSaved: (item: PlanItemDTO) => void;
   onNotesSaved: (item: PlanItemDTO) => void;
+  /** Whether place lookup is set up, for the editor (MAP-2). */
+  placeLookup?: boolean;
   /** Marks this AI draft reviewed, or back to a draft (IMPORT-7); resolves with the saved event, or null if it failed. */
   onReview?: (item: PlanItemDTO, reviewed: boolean) => Promise<PlanItemDTO | null>;
   defaultCurrency: string;
@@ -55,7 +57,7 @@ const EXIT_MS = 320;
  * owner edits in place. Previous and next step through the events in page order. Escape, the close
  * button or a click on the faded page closes it and returns focus to the event.
  */
-export function EventPanel({ trip, item, open, gone = false, canEdit: mayEdit, num, mapsKey, prev, next, onGo, onClose, onExited, onSaved, onNotesSaved, onReview, defaultCurrency, recentCurrencies, initialEditing = false, presentation = "panel", triggerSelector }: Props) {
+export function EventPanel({ trip, item, open, gone = false, canEdit: mayEdit, num, mapsKey, prev, next, onGo, onClose, onExited, onSaved, onNotesSaved, onReview, placeLookup = false, defaultCurrency, recentCurrencies, initialEditing = false, presentation = "panel", triggerSelector }: Props) {
   const canEdit = mayEdit && !gone;
   const ref = useRef<HTMLElement>(null);
   const notesRef = useRef<NotesEditorHandle>(null);
@@ -225,6 +227,7 @@ export function EventPanel({ trip, item, open, gone = false, canEdit: mayEdit, n
               onBusyChange={setBusy}
               panelHeading={when}
               mapPreview={<EventMap item={item} destination={trip.destination} mapsKey={mapsKey} />}
+              placeLookup={placeLookup}
               onSaved={(saved) => {
                 setDirty(false);
                 setEditItem(null);
@@ -269,6 +272,9 @@ export function EventPanel({ trip, item, open, gone = false, canEdit: mayEdit, n
           {item.location || item.mapUrl ? (
             <section className={styles.section} aria-label="Place">
               {item.location ? <p className={styles.place}><PinIcon />{item.location}</p> : null}
+              {item.coordinates?.source === "lookup" ? (
+                <p className="note">Pinned automatically from the place name{canEdit ? ". If it's the wrong place, Edit event changes or removes the pin." : "."}</p>
+              ) : null}
               <div className={styles.links}>
                 {item.mapUrl ? (
                   <ButtonLink variant="quiet" external href={item.mapUrl}>Open in {item.mapProvider ?? "map"} ↗</ButtonLink>
