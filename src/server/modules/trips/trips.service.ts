@@ -2,17 +2,19 @@ import "server-only";
 import { cache } from "react";
 import type { Kysely } from "kysely";
 import { getDb } from "@/server/core/db/client";
-import type { DB } from "@/server/core/db/schema";
-import { conflict } from "@/server/core/http/errors";
+import type { Tx } from "@/server/core/db/client";
+import type { DB, TripRow } from "@/server/core/db/schema";
+import { conflict, fieldConflict, invalid } from "@/server/core/http/errors";
 import type { Actor } from "@/server/auth/actor";
-import { requireOwnerAccount, requireTripOwner, requireTripRead } from "@/server/auth/access";
+import { requireOwnerAccount, requireTripOwner, requireTripRead, type TripAccess } from "@/server/auth/access";
 import { compareItems, itemDto } from "@/server/modules/items/items.mapper";
 import { liveItems } from "@/server/modules/items/items.repository";
 import { matchDestination } from "@/server/modules/places/catalog";
 import type { TripDetailDTO, TripSummaryDTO } from "@/shared/dto";
 import { trimAmount } from "@/shared/money";
 import { tripRevision } from "@/shared/revision";
-import type { TripInput, TripPatch } from "@/shared/schemas";
+import { mergeFields, tripFieldsOf, type TripFields } from "@/shared/fields";
+import { toFieldErrors, tripFieldsSchema, type TripFieldsPatch, type TripInput, type TripPatch } from "@/shared/schemas";
 import { dateInZone } from "@/shared/time";
 import { budgetComparison, plannedTotals, recentCurrencies } from "./budget.repository";
 import { applyTimeZoneChange } from "./time-zone.service";
@@ -79,37 +81,78 @@ export async function createTrip(db: Kysely<DB>, actor: Actor, input: TripInput,
 export async function updateTrip(db: Kysely<DB>, actor: Actor, tripId: string, patch: TripPatch, now = new Date()): Promise<TripSummaryDTO> {
   return db.transaction().execute(async (tx) => {
     const access = await requireTripOwner(tx, actor, tripId, true);
-    const { trip } = access;
-    if (trip.version !== patch.expectedVersion) throw conflict();
-    if (patch.timeZone !== trip.time_zone) await applyTimeZoneChange(tx, trip, patch.timeZone, patch.confirmTimeZoneImpact, patch.timeDisambiguationByItem ?? {});
-
-    // Globe point (ATLAS-4, ATLAS-5): an explicit edit wins; otherwise a new destination re-matches a catalog point.
-    let lat = trip.atlas_latitude;
-    let lon = trip.atlas_longitude;
-    let src = trip.atlas_source;
-    if (patch.atlasLocation !== undefined) {
-      if (patch.atlasLocation === null) [lat, lon, src] = [null, null, null];
-      else [lat, lon, src] = [patch.atlasLocation.latitude.toFixed(5), patch.atlasLocation.longitude.toFixed(5), "owner"];
-    } else if (patch.destination !== trip.destination && src !== "owner") {
-      const p = matchDestination(patch.destination);
-      [lat, lon, src] = p ? [String(p.latitude), String(p.longitude), "catalog"] : [null, null, null];
-    }
-
-    const row = await updateTripRow(tx, trip.id, patch.expectedVersion, {
-      title: patch.title,
-      destination: patch.destination,
-      start_date: patch.startDate,
-      end_date: patch.endDate,
-      time_zone: patch.timeZone,
-      budget_amount: patch.budget?.amount ?? null,
-      budget_currency: patch.budget?.currency ?? null,
-      atlas_latitude: lat,
-      atlas_longitude: lon,
-      atlas_source: src,
-    });
-    if (!row) throw conflict();
-    return tripSummary({ ...row, owner_name: trip.owner_name }, access, now);
+    if (access.trip.version !== patch.expectedVersion) throw conflict();
+    return writeTrip(tx, access, { ...patch, atlasLocation: patch.atlasLocation ?? null }, patch.atlasLocation !== undefined, patch, now);
   });
+}
+
+/**
+ * DASH-6, ATLAS-4: change some of a trip's fields from the trip page. Each changed field must still hold the value it had
+ * when the edit began, so a change elsewhere to another field (or to the trip's events, which also moves its version) is
+ * no clash. The merged trip passes the same checks as a full edit, and a time-zone change still needs its impact confirmed.
+ */
+export async function updateTripFields(db: Kysely<DB>, actor: Actor, tripId: string, body: TripFieldsPatch, now = new Date()): Promise<TripSummaryDTO> {
+  return db.transaction().execute(async (tx) => {
+    const access = await requireTripOwner(tx, actor, tripId, true);
+    const { merged, conflicts } = mergeFields(tripFieldsOfRow(access.trip), body.changes, body.base);
+    if (conflicts.length) throw fieldConflict(conflicts);
+    const parsed = tripFieldsSchema.safeParse(merged);
+    if (!parsed.success) throw invalid(toFieldErrors(parsed.error));
+    return writeTrip(tx, access, parsed.data, "atlasLocation" in body.changes, body, now);
+  });
+}
+
+/** A trip's editable fields as stored, in the shape the trip page edits (`tripFieldsOf`). */
+function tripFieldsOfRow(trip: TripRow): TripFields {
+  return tripFieldsOf({
+    title: trip.title,
+    destination: trip.destination,
+    startDate: trip.start_date,
+    endDate: trip.end_date,
+    timeZone: trip.time_zone,
+    budget: trip.budget_amount !== null && trip.budget_currency ? { amount: trimAmount(trip.budget_amount), currency: trip.budget_currency } : null,
+    atlasLocation: trip.atlas_latitude !== null && trip.atlas_longitude !== null && trip.atlas_source ? { latitude: Number(trip.atlas_latitude), longitude: Number(trip.atlas_longitude) } : null,
+  });
+}
+
+/** The checks and write a trip edit shares, full or field-level. `pointSet` says the globe point was edited explicitly. */
+async function writeTrip(
+  tx: Tx,
+  access: TripAccess,
+  next: TripFields,
+  pointSet: boolean,
+  zone: { confirmTimeZoneImpact?: boolean; timeDisambiguationByItem?: Record<string, "earlier" | "later"> },
+  now: Date,
+): Promise<TripSummaryDTO> {
+  const { trip } = access;
+  if (next.timeZone !== trip.time_zone) await applyTimeZoneChange(tx, trip, next.timeZone, zone.confirmTimeZoneImpact, zone.timeDisambiguationByItem ?? {});
+
+  // Globe point (ATLAS-4, ATLAS-5): an explicit edit wins; otherwise a new destination re-matches a catalog point.
+  let lat = trip.atlas_latitude;
+  let lon = trip.atlas_longitude;
+  let src = trip.atlas_source;
+  if (pointSet) {
+    if (next.atlasLocation === null) [lat, lon, src] = [null, null, null];
+    else [lat, lon, src] = [next.atlasLocation.latitude.toFixed(5), next.atlasLocation.longitude.toFixed(5), "owner"];
+  } else if (next.destination !== trip.destination && src !== "owner") {
+    const p = matchDestination(next.destination);
+    [lat, lon, src] = p ? [String(p.latitude), String(p.longitude), "catalog"] : [null, null, null];
+  }
+
+  const row = await updateTripRow(tx, trip.id, trip.version, {
+    title: next.title,
+    destination: next.destination,
+    start_date: next.startDate,
+    end_date: next.endDate,
+    time_zone: next.timeZone,
+    budget_amount: next.budget?.amount ?? null,
+    budget_currency: next.budget?.currency ?? null,
+    atlas_latitude: lat,
+    atlas_longitude: lon,
+    atlas_source: src,
+  });
+  if (!row) throw conflict();
+  return tripSummary({ ...row, owner_name: trip.owner_name }, access, now);
 }
 
 /** TRIP-5: permanent deletion with its items and shares. */

@@ -1,12 +1,14 @@
 import "server-only";
 import type { Kysely } from "kysely";
-import type { DB, PlanItemRow } from "@/server/core/db/schema";
-import { conflict, HttpError, invalid } from "@/server/core/http/errors";
+import type { Tx } from "@/server/core/db/client";
+import type { DB, PlanItemRow, TripRow } from "@/server/core/db/schema";
+import { conflict, fieldConflict, HttpError, invalid } from "@/server/core/http/errors";
 import type { Actor } from "@/server/auth/actor";
 import { requireTripEditor, requireTripRead } from "@/server/auth/access";
 import { bumpTripVersion } from "@/server/modules/trips/trips.repository";
 import type { PlanItemDTO } from "@/shared/dto";
-import { itemInputSchema, toFieldErrors, type ItemInput, type ItemReview } from "@/shared/schemas";
+import { mergeItemFields } from "@/shared/fields";
+import { itemInputSchema, toFieldErrors, type ItemFieldsPatch, type ItemInput, type ItemReview } from "@/shared/schemas";
 import { dateInZone, resolveLocal } from "@/shared/time";
 import { itemDto } from "./items.mapper";
 import * as repo from "./items.repository";
@@ -72,25 +74,57 @@ export async function updateItem(
     const current = await repo.loadItemForUpdate(tx, trip.id, itemId);
     if (current.version !== body.expectedVersion) throw conflict();
     before = current;
-    const input = body.item;
-    const crossesFlight = (current.type === "flight") !== (input.type === "flight");
-    if (crossesFlight && !body.confirmTypeChange) {
-      throw new HttpError(409, "type_change_confirmation_required", "Changing to or from a flight clears the schedule fields. Confirm to continue.");
-    }
-    const errs = scheduleErrors(input, trip.time_zone);
-    if (errs.length) throw invalid(errs);
-    const values = toValues(input, current, body.confirmPrice === true);
-    if ("path" in values) throw invalid([values]);
-    const row = await repo.updateItemRow(tx, current.id, body.expectedVersion, values);
-    if (!row) throw conflict();
-    await bumpTripVersion(tx, trip.id);
-    return dto(row, trip.time_zone, now);
+    return writeItem(tx, trip, current, body.item, body, now);
   });
-  const prior = before as PlanItemRow | null;
+  await afterEdit(db, tripId, before, body.item, saved, later);
+  return saved;
+}
+
+/**
+ * TRIP-10: change some of an event's fields from its view. Each changed field must still hold the value it had when the
+ * edit began; a newer version of the event that left them alone is no clash. The merged event passes the same checks as
+ * a full edit (schema, schedule, the flight-type confirmation, price and map rules) and counts the same.
+ */
+export async function updateItemFields(db: Kysely<DB>, actor: Actor, tripId: string, itemId: string, body: ItemFieldsPatch, now = new Date(), later?: Later): Promise<PlanItemDTO> {
+  let before: PlanItemRow | null = null;
+  let input: ItemInput | null = null;
+  const saved = await db.transaction().execute(async (tx) => {
+    const { trip } = await requireTripEditor(tx, actor, tripId, true);
+    await repo.purgeExpired(tx, trip.id);
+    const current = await repo.loadItemForUpdate(tx, trip.id, itemId);
+    const { merged, conflicts } = mergeItemFields(itemInputOf(dto(current, trip.time_zone, now)), body.changes, body.base);
+    if (conflicts.length) throw fieldConflict(conflicts);
+    const parsed = itemInputSchema.safeParse(merged);
+    if (!parsed.success) throw invalid(toFieldErrors(parsed.error));
+    before = current;
+    input = parsed.data;
+    return writeItem(tx, trip, current, parsed.data, body, now);
+  });
+  await afterEdit(db, tripId, before, input!, saved, later);
+  return saved;
+}
+
+/** The checks and write a person's edit shares, full or field-level. */
+async function writeItem(tx: Tx, trip: TripRow, current: PlanItemRow, input: ItemInput, opts: { confirmTypeChange?: boolean; confirmPrice?: boolean }, now: Date): Promise<PlanItemDTO> {
+  const crossesFlight = (current.type === "flight") !== (input.type === "flight");
+  if (crossesFlight && !opts.confirmTypeChange) {
+    throw new HttpError(409, "type_change_confirmation_required", "Changing to or from a flight clears the schedule fields. Confirm to continue.");
+  }
+  const errs = scheduleErrors(input, trip.time_zone);
+  if (errs.length) throw invalid(errs);
+  const values = toValues(input, current, opts.confirmPrice === true);
+  if ("path" in values) throw invalid([values]);
+  const row = await repo.updateItemRow(tx, current.id, current.version, values);
+  if (!row) throw conflict();
+  await bumpTripVersion(tx, trip.id);
+  return dto(row, trip.time_zone, now);
+}
+
+/** After a person's edit: its pilot counts, and a new place name looked up for a pin (MAP-2). */
+async function afterEdit(db: Kysely<DB>, tripId: string, prior: PlanItemRow | null, input: ItemInput, saved: PlanItemDTO, later?: Later) {
   await countUsage(db, [...(prior?.source === "ai" ? [{ name: "ai_item_edited" as const }] : []), ...bookingUsage(prior, saved)]);
   // Only a new place name is looked up: a pin the person removed on purpose doesn't come back on the next save.
-  if (later && placeChanged(body.item, prior) && wantsAutoPin(saved)) later(async () => void (await autoPin(db, tripId, [saved.id])));
-  return saved;
+  if (later && placeChanged(input, prior) && wantsAutoPin(saved)) later(async () => void (await autoPin(db, tripId, [saved.id])));
 }
 
 /** TRIP-10: save an event's notes from its side panel. Same owner, version and trip-version rules as a full edit. */
