@@ -3,7 +3,10 @@
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import type { DashboardDTO } from "@/shared/dto";
+import { useToast } from "@/components/ui/Toast/Toast";
 import { TripForm } from "@/features/trips/TripForm/TripForm";
+import { lastWriteAt } from "@/lib/api";
+import { useLiveRevision } from "@/lib/use-live-revision";
 import { rememberReturn, innerScroller, takeReturn } from "../dashboard-return";
 import { GlobeLoading } from "./Globe/GlobeLoading/GlobeLoading";
 import { Hero } from "./Hero/Hero";
@@ -16,6 +19,8 @@ const Globe = dynamic(() => import("./Globe/Globe").then((m) => m.Globe), {
 });
 
 const SPLIT_KEY = "field-notes:dashboard-left-ratio";
+/** A change that lands this soon after this tab saved something is its own (TRIP-11). */
+const OWN_CHANGE_MS = 2500;
 const MIN_LEFT = 480;
 const MIN_GLOBE = 360;
 
@@ -47,6 +52,20 @@ export function Dashboard({ data, focus, initialFilter }: { data: DashboardDTO; 
   const [resizing, setResizing] = useState(false);
   const [paneSize, setPaneSize] = useState({ total: 0, left: 0 });
   const visible = useMemo(() => data.trips.filter((t) => filter === "all" || t.status === filter), [data.trips, filter]);
+
+  // TRIP-11: trips created or shared elsewhere (a connected chat, another tab) appear on their own, with a short note.
+  useLiveRevision("/api/dashboard/revision", data.revision);
+  const toast = useToast();
+  const loaded = useRef(data);
+  useEffect(() => {
+    const before = loaded.current;
+    loaded.current = data;
+    if (before === data || Date.now() - lastWriteAt() < OWN_CHANGE_MS) return;
+    const known = new Set(before.trips.map((t) => t.id));
+    const added = data.trips.filter((t) => !known.has(t.id));
+    if (added.length === 1) toast({ message: `New trip: ${added[0]!.title}.`, quiet: true });
+    else if (added.length > 1) toast({ message: `${added.length} new trips.`, quiet: true });
+  }, [data, toast]);
 
   useEffect(() => {
     let restoreFrame = 0;

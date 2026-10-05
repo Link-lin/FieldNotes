@@ -40,6 +40,8 @@ export type DashboardDTO = {
   recentCurrencies: string[];
   trips: TripSummaryDTO[];
   ownerBookingTasks: BookingTaskDTO[];
+  /** Live updates (TRIP-11): what `/api/dashboard/revision` reports while nothing on the dashboard has changed. */
+  revision: string;
 };
 
 export type FlightEndpointDTO = {

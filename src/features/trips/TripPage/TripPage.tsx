@@ -7,9 +7,11 @@ import { useToast } from "@/components/ui/Toast/Toast";
 import { dashboardUrl } from "@/features/dashboard/dashboard-return";
 import { ItemForm } from "@/features/trips/ItemForm/ItemForm";
 import { TripForm } from "@/features/trips/TripForm/TripForm";
-import { api } from "@/lib/api";
+import { api, lastWriteAt } from "@/lib/api";
 import { clearEventReturn } from "@/lib/event-return";
 import { fmtDay } from "@/lib/format";
+import { useLiveRevision } from "@/lib/use-live-revision";
+import { tripRevision } from "@/shared/revision";
 import { canEdit as mayEdit, canManage as mayManage } from "@/shared/roles";
 import { AddFab } from "./AddFab/AddFab";
 import { BookingList } from "./BookingList/BookingList";
@@ -28,12 +30,17 @@ import { TripHeader } from "./TripHeader/TripHeader";
 import { TripHighlights } from "./TripHighlights/TripHighlights";
 import { TripViewNav, type TripView } from "./TripViewNav/TripViewNav";
 import { dayNumber, isOutside, pad2, tripDays, tripStops } from "./trip-days";
+import { changesMessage, liveChanges } from "./live-changes";
 import styles from "./TripPage.module.css";
 import { animateDayEnter } from "./day-motion";
 import { useTripEventPanel } from "./useTripEventPanel";
 
 const isField = (el: EventTarget | null) => el instanceof HTMLElement && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable);
 const LIT = "data-lit";
+/** A change that lands this soon after this tab saved something is taken to be its own (it says so itself). */
+const OWN_CHANGE_MS = 2500;
+/** How long rows changed elsewhere stay lit. */
+const FRESH_MS = 2400;
 
 type ItemFormState = { item: PlanItemDTO | null; date: string; trigger: string | null };
 
@@ -48,6 +55,9 @@ export function TripPage({ data, initialDay, initialEvent, initialView, mapsKey,
   const { trip, items } = data;
   const canEdit = mayEdit(trip.role); // events, bookings and notes
   const canManage = mayManage(trip.role); // the trip itself, sharing and deletion
+
+  // TRIP-11: the page follows changes made elsewhere (a connected chat, another tab, people it is shared with) on its own.
+  useLiveRevision(`/api/trips/${trip.id}/revision`, tripRevision(trip));
 
   const { byDate, inRange, days } = useMemo(() => tripDays(trip, items), [trip, items]);
   const undated = items.filter((i) => !i.timelineDate && !i.flightDetails);
@@ -133,6 +143,25 @@ export function TripPage({ data, initialDay, initialEvent, initialView, mapsKey,
   }, [mapFocus]);
 
   const rowOf = (id: string) => root.current?.querySelector<HTMLElement>(`[data-timeline] [data-hl="${CSS.escape(id)}"]`) ?? null;
+
+  // What a refresh brought that this tab didn't do itself: light those rows and stop lines for a moment, and say what changed.
+  const loaded = useRef(data);
+  useEffect(() => {
+    const before = loaded.current;
+    loaded.current = data;
+    if (before === data || Date.now() - lastWriteAt() < OWN_CHANGE_MS) return;
+    const changes = liveChanges(before.items, data.items);
+    const message = changesMessage(changes, before.trip, data.trip);
+    if (message) toast({ message, quiet: true });
+    const lit = [...changes.added, ...changes.changed, ...changes.pinned].flatMap((id) => [...(root.current?.querySelectorAll<HTMLElement>(`[data-hl="${CSS.escape(id)}"]:not([data-pin])`) ?? [])]);
+    lit.forEach((el) => el.toggleAttribute(LIT, true));
+    const off = () => lit.forEach((el) => el.toggleAttribute(LIT, false));
+    const t = setTimeout(off, FRESH_MS);
+    return () => {
+      clearTimeout(t);
+      off();
+    };
+  }, [data, toast]);
 
   function goToEvent(id: string) {
     const row = rowOf(id);
@@ -324,6 +353,7 @@ export function TripPage({ data, initialDay, initialEvent, initialView, mapsKey,
           trip={trip}
           item={eventPanel.item}
           open={eventPanel.panel.open}
+          gone={eventPanel.gone}
           canEdit={canEdit}
           num={numbers.get(eventPanel.item.id) ?? null}
           mapsKey={mapsKey}

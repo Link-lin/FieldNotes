@@ -4,7 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/Toast/Toast";
 import { replaceEventReturn, takeEventReturn } from "@/lib/event-return";
+import { useLiveRevision } from "@/lib/use-live-revision";
 import type { PlanItemDTO, TripDetailDTO } from "@/shared/dto";
+import { tripRevision } from "@/shared/revision";
 import { canEdit } from "@/shared/roles";
 import { EventPanel } from "../TripPage/EventPanel/EventPanel";
 import { tripDays, tripStops } from "../TripPage/trip-days";
@@ -16,6 +18,8 @@ export function EventPage({ data, itemId, selectedDay, fromBookings, initialEdit
   const router = useRouter();
   const toast = useToast();
   const { trip, items } = data;
+  // TRIP-11: the event follows changes made elsewhere; if it is deleted, the refresh shows that it is gone.
+  useLiveRevision(`/api/trips/${trip.id}/revision`, tripRevision(trip));
   const [saved, setSaved] = useState<PlanItemDTO | null>(null);
   const original = items.find((item) => item.id === itemId)!;
   const item = saved && saved.version > original.version ? saved : original;

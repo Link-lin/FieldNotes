@@ -9,6 +9,8 @@ type ToastSpec = {
   onAction?: () => void;
   /** Selector focused if the toast held focus when it closes. */
   afterFocus?: string;
+  /** A passing note (a live update): it never replaces a toast that offers an action, such as Undo. */
+  quiet?: boolean;
 };
 type Ctx = (t: ToastSpec) => void;
 const ToastContext = createContext<Ctx>(() => {});
@@ -46,7 +48,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     [hide],
   );
 
-  const show = useCallback((t: ToastSpec) => setToast({ ...t, key: Date.now() }), []);
+  const show = useCallback((t: ToastSpec) => setToast((cur) => (t.quiet && cur?.actionLabel ? cur : { ...t, key: Date.now() })), []);
 
   useEffect(() => {
     if (!toast) return;

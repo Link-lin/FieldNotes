@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { PlanItemDTO, TripDetailDTO } from "@/shared/dto";
 import { googleSearchUrl, providerLabel } from "@/shared/map-links";
+import { Banner } from "@/components/ui/Banner/Banner";
 import { Button, ButtonLink } from "@/components/ui/Button/Button";
 import { EditIcon, PinIcon } from "@/components/ui/Icon/icons";
 import { Tag } from "@/components/ui/Tag/Tag";
@@ -22,6 +23,8 @@ type Props = {
   item: PlanItemDTO;
   /** False while the panel slides out; it unmounts (onExited) when that finishes. */
   open: boolean;
+  /** The event was deleted elsewhere while the panel was open (TRIP-11): it shows its last details, read-only. */
+  gone?: boolean;
   canEdit: boolean;
   num: { n: number; need: boolean } | null;
   mapsKey: string | null;
@@ -49,12 +52,14 @@ const EXIT_MS = 320;
  * owner edits in place. Previous and next step through the events in page order. Escape, the close
  * button or a click on the faded page closes it and returns focus to the event.
  */
-export function EventPanel({ trip, item, open, canEdit, num, mapsKey, prev, next, onGo, onClose, onExited, onSaved, onNotesSaved, defaultCurrency, recentCurrencies, initialEditing = false, presentation = "panel", triggerSelector }: Props) {
+export function EventPanel({ trip, item, open, gone = false, canEdit: mayEdit, num, mapsKey, prev, next, onGo, onClose, onExited, onSaved, onNotesSaved, defaultCurrency, recentCurrencies, initialEditing = false, presentation = "panel", triggerSelector }: Props) {
+  const canEdit = mayEdit && !gone;
   const ref = useRef<HTMLElement>(null);
   const notesRef = useRef<NotesEditorHandle>(null);
   const leaving = useRef(false);
   const [editing, setEditing] = useState(initialEditing && canEdit);
-  const [editItem, setEditItem] = useState<PlanItemDTO | null>(null);
+  // The form edits the version it opened with, so a change made meanwhile elsewhere is reported on save, never overwritten.
+  const [editItem, setEditItem] = useState<PlanItemDTO | null>(initialEditing && canEdit ? item : null);
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(false);
   const [waiting, setWaiting] = useState(false);
@@ -181,6 +186,7 @@ export function EventPanel({ trip, item, open, canEdit, num, mapsKey, prev, next
           </div>
         ) : null}
         {waiting ? <p className={styles.waiting} role="status">Saving notes…</p> : null}
+        {gone ? <Banner tone="info" role="status">This event was deleted elsewhere: in another tab or window, by someone you share the trip with, or by a connected chat.</Banner> : null}
 
         {editing ? (
           <div className={styles.body}>

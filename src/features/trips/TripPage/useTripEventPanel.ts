@@ -23,6 +23,8 @@ export function useTripEventPanel({ tripId, items, shown, day, view, initialEven
   const current = panel ? items.find((candidate) => candidate.id === panel.id) : null;
   // Keep the last known event visible while a refresh or concurrent edit changes its version.
   const item = panel ? (current && current.version >= panel.snapshot.version ? current : panel.snapshot) : null;
+  // The open event was deleted elsewhere (TRIP-11): the panel keeps its last view and says so.
+  const gone = !!panel && !current;
   const at = item ? shown.findIndex((candidate) => candidate.id === item.id) : -1;
 
   function open(event: PlanItemDTO, { editing = false, trigger, replace = false }: OpenOptions = {}) {
@@ -63,6 +65,7 @@ export function useTripEventPanel({ tripId, items, shown, day, view, initialEven
   return {
     panel,
     item,
+    gone,
     previous: at > 0 ? (shown[at - 1] ?? null) : null,
     next: at >= 0 ? (shown[at + 1] ?? null) : null,
     open,

@@ -16,8 +16,9 @@ export type NotesEditorHandle = { flush: () => Promise<NotesFlushResult> };
 
 /**
  * TRIP-10: the owner's notes for one event, saved as they type (after a short pause), when the
- * field loses focus and when the panel closes. A failed save keeps the text; a newer version
- * elsewhere is reported instead of being overwritten.
+ * field loses focus and when the panel closes. A failed save keeps the text; notes changed
+ * elsewhere are reported instead of being overwritten. A newer version of the event that left the
+ * notes alone (a connected chat moved it, TRIP-11) is simply taken on.
  */
 export const NotesEditor = forwardRef<NotesEditorHandle, Props>(function NotesEditor({ tripId, item, onSaved }, ref) {
   const id = useId();
@@ -31,6 +32,21 @@ export const NotesEditor = forwardRef<NotesEditorHandle, Props>(function NotesEd
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inFlight = useRef<Promise<NotesFlushResult> | null>(null);
   const blocked = useRef(false);
+  // The newest version of the event this page has seen, for a save that crossed a live update.
+  const known = useRef(item);
+  useEffect(() => {
+    known.current = item;
+    if (item.version <= version.current) return;
+    const theirs = item.notes ?? "";
+    if (theirs === saved.current) version.current = item.version;
+    else if (latest.current === saved.current && !inFlight.current && !blocked.current) {
+      // Nothing typed here since the last save: show the notes as they are now.
+      saved.current = theirs;
+      latest.current = theirs;
+      version.current = item.version;
+      setText(theirs);
+    }
+  }, [item]);
 
   async function save(): Promise<NotesFlushResult> {
     if (timer.current) clearTimeout(timer.current);
@@ -43,7 +59,21 @@ export const NotesEditor = forwardRef<NotesEditorHandle, Props>(function NotesEd
     }
     if (value === saved.current.trim()) return { ok: true };
     setStatus("saving");
-    const request = api<PlanItemDTO>("PATCH", `/api/trips/${tripId}/items/${item.id}/notes`, { notes: value || null, expectedVersion: version.current }).then((r): NotesFlushResult => {
+    const base = saved.current;
+    let sent = version.current;
+    const send = () => {
+      sent = version.current;
+      return api<PlanItemDTO>("PATCH", `/api/trips/${tripId}/items/${item.id}/notes`, { notes: value || null, expectedVersion: sent });
+    };
+    const request = send().then(async (first) => {
+      // The event moved on while this was on its way, without its notes changing: send again on the newer version.
+      const fresh = known.current;
+      if (!first.ok && first.status === 409 && fresh.version > sent && (fresh.notes ?? "") === base) {
+        version.current = fresh.version;
+        return send();
+      }
+      return first;
+    }).then((r): NotesFlushResult => {
       if (r.ok) {
         version.current = r.data.version;
         saved.current = r.data.notes ?? "";
@@ -55,7 +85,7 @@ export const NotesEditor = forwardRef<NotesEditorHandle, Props>(function NotesEd
       if (r.status === 409) {
         blocked.current = true;
         setStatus("conflict");
-        setError("This event changed in another tab or window, so your notes weren't saved. Your text is still here: copy it, reload the page, then add it again.");
+        setError("These notes were changed elsewhere (in another tab or window, by someone you share the trip with, or by a connected chat), so yours weren't saved. Your text is still here: copy it, close and reopen the event to see the notes as they are now, then add yours again.");
       } else {
         setStatus("error");
         setError(r.message);

@@ -145,7 +145,9 @@ export function ItemForm({ tripId, tripTitle, tripDestination, tripZone, tripDat
       return;
     }
     setErrors(r.fields);
-    setMessage(r.message);
+    setMessage(r.code === "version_conflict"
+      ? "This event was changed elsewhere while you were editing (in another tab or window, by someone you share the trip with, or by a connected chat), so this wasn't saved. Your changes are still here: copy what you need, then go back to the event to see it as it is now."
+      : r.message);
     const first = r.fields[0]?.path;
     const idFor: Record<string, string> = {
       localTime: "item-time", localDate: "item-localDate", timeDisambiguation: "item-choice", title: "item-title", mapUrl: "item-map",

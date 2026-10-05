@@ -11,6 +11,7 @@ import { liveItems } from "@/server/modules/items/items.repository";
 import { matchDestination } from "@/server/modules/places/catalog";
 import type { TripDetailDTO, TripSummaryDTO } from "@/shared/dto";
 import { trimAmount } from "@/shared/money";
+import { tripRevision } from "@/shared/revision";
 import type { TripInput, TripPatch } from "@/shared/schemas";
 import { dateInZone } from "@/shared/time";
 import { budgetComparison, plannedTotals, recentCurrencies } from "./budget.repository";
@@ -37,6 +38,15 @@ export async function getTripDetail(db: Kysely<DB>, actor: Actor, tripId: string
     budgetComparison: await budgetComparison(db, trip.id),
     recentCurrencies: role === "owner" ? await recentCurrencies(db, actor.userId) : [],
   };
+}
+
+/**
+ * Live updates (TRIP-11): the revision of the trip page, which the open page asks for every few seconds. Any role that can
+ * read the trip; anyone else gets the same 404 as for the trip itself.
+ */
+export async function getTripRevision(db: Kysely<DB>, actor: Actor, tripId: string): Promise<{ revision: string }> {
+  const { trip, role } = await requireTripRead(db, actor, tripId);
+  return { revision: tripRevision({ version: trip.version, role }) };
 }
 
 /**
