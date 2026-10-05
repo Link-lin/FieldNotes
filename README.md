@@ -84,7 +84,7 @@ Field Notes can act as a custom connector, so you can ask Claude or ChatGPT abou
 **Connect an app.** **Account menu** → **AI connector** shows the address, with a copy button, and the apps you have connected. Then:
 
 - **Claude** (claude.ai and the desktop app): **Customize** → **Connectors** → **Add custom connector**, and paste the address. The steps differ a little by plan; see [Claude's guide](https://claude.com/docs/connectors/custom/add-unlisted).
-- **ChatGPT:** **Settings** → **Security and login** → turn on **Developer mode** (Plus, Pro, Business, Enterprise or Education), create a developer-mode app for a remote MCP server with the address and **OAuth** sign-in, then pick it from the **Developer mode** tool in a chat. See [OpenAI's guide](https://developers.openai.com/api/docs/guides/developer-mode).
+- **ChatGPT:** **Settings** → **Security and login** → turn on **Developer mode** (Plus, Pro, Business, Enterprise or Education), create a developer-mode app for a remote MCP server with the address and **OAuth** sign-in (the form's optional **Icon** takes `<APP_ORIGIN>/icon.png`, a 128 px image the dialog also links), then pick it from the **Developer mode** tool in a chat. See [OpenAI's guide](https://developers.openai.com/api/docs/guides/developer-mode).
 - **Claude Code:** add the server, then run `/mcp` inside Claude Code to sign in.
 
 ```bash
@@ -167,7 +167,7 @@ Book-by dates are relative to the day you run it, so re-run it to reset the over
 
 ```text
 src/
-  app/                  routes: pages and API route handlers (thin)
+  app/                  routes: pages and API route handlers (thin), and the site icons
   features/             screens, one folder per component, children nested inside
     dashboard/Dashboard/        Hero, TripList, Globe, ...
     trips/TripPage/             TripHeader, TripViewNav, BookingList, DayTabs, Timeline, MapPanel, EventPanel, CostsSection, ShareDialog, ...

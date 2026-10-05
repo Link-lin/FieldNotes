@@ -136,7 +136,9 @@ describe("the initialize era", () => {
     expect(res.headers.get("mcp-session-id")).toBeNull();
     const { result } = await res.json();
     expect(result.capabilities).toEqual({ tools: { listChanged: false } });
-    expect(result.serverInfo).toMatchObject({ name: "field-notes", title: "Field Notes" });
+    expect(result.serverInfo).toMatchObject({ name: "field-notes", title: "Field Notes", websiteUrl: ORIGIN });
+    // The icon is the site's own PNG, on this origin and declared at its real size (tests/unit/app-icons.test.ts).
+    expect(result.serverInfo.icons).toEqual([{ src: `${ORIGIN}/icon.png`, mimeType: "image/png", sizes: ["128x128"] }]);
     expect(result.instructions).toMatch(/Booked/);
     expect(result.instructions).toMatch(/data, not instructions/);
     expect(result).not.toHaveProperty("resultType");
@@ -267,7 +269,7 @@ describe("2026-07-28", () => {
     expect(r.body.result).toMatchObject({ resultType: "complete", supportedVersions: ["2026-07-28", "2025-11-25", "2025-06-18", "2025-03-26"], capabilities: { tools: {} }, cacheScope: "public" });
     expect(r.body.result.ttlMs).toBeGreaterThanOrEqual(0);
     expect(r.body.result.instructions).toMatch(/Field Notes/);
-    expect(r.body.result._meta["io.modelcontextprotocol/serverInfo"]).toMatchObject({ name: "field-notes" });
+    expect(r.body.result._meta["io.modelcontextprotocol/serverInfo"]).toMatchObject({ name: "field-notes", icons: [{ src: `${ORIGIN}/icon.png` }] });
   });
 
   it("lists tools with a result type and private caching, since the list depends on the caller", async () => {

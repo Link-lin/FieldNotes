@@ -47,5 +47,6 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [{ source: "/((?!_next/static|_next/image|favicon.ico).*)" }],
+  // The site's icons are public images (the AI apps' servers fetch them without signing in) and hold nothing private.
+  matcher: [{ source: "/((?!_next/static|_next/image|favicon.ico|icon.png|apple-icon.png).*)" }],
 };

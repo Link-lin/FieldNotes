@@ -1,4 +1,5 @@
 import "server-only";
+import { appOrigin } from "@/server/core/env";
 import { callTool, INSTRUCTIONS, listTools, type ToolContext } from "./mcp.tools";
 
 /*
@@ -31,6 +32,15 @@ function headerValue(value: string | null): string | null {
   return m ? Buffer.from(m[1]!, "base64").toString("utf8") : value;
 }
 
+/**
+ * What the server calls itself, which a chat app shows beside its tools: the name, the site and an icon. The icon is the
+ * site's own small PNG (`src/app/icon.png`), on this origin as the spec asks, and public, because the app's servers fetch it.
+ */
+function serverInfo() {
+  const origin = appOrigin();
+  return { ...SERVER_INFO, title: "Field Notes", websiteUrl: origin, icons: [{ src: `${origin}/icon.png`, mimeType: "image/png", sizes: ["128x128"] }] };
+}
+
 const idOf = (body: unknown): Id => (record(body) && (typeof body.id === "string" || typeof body.id === "number") ? body.id : null);
 
 export async function handleMcpMessage(ctx: ToolContext, headers: McpHeaders, body: unknown): Promise<McpReply> {
@@ -61,7 +71,7 @@ export async function handleMcpMessage(ctx: ToolContext, headers: McpHeaders, bo
 
   const reply = (result: Record<string, unknown>): McpReply => ({
     status: 200,
-    body: { jsonrpc: "2.0", id, result: modern ? { resultType: "complete", ...result, _meta: { ...(record(result._meta) ? result._meta : {}), [META_SERVER_INFO]: SERVER_INFO } } : result },
+    body: { jsonrpc: "2.0", id, result: modern ? { resultType: "complete", ...result, _meta: { ...(record(result._meta) ? result._meta : {}), [META_SERVER_INFO]: serverInfo() } } : result },
   });
   const notFound = (): McpReply => ({ status: modern ? 404 : 200, body: rpcError(id, -32601, `Method not found: ${method}`) });
 
@@ -70,7 +80,7 @@ export async function handleMcpMessage(ctx: ToolContext, headers: McpHeaders, bo
       if (modern) return notFound();
       const asked = typeof params.protocolVersion === "string" ? params.protocolVersion : null;
       const protocolVersion = asked && (LEGACY_VERSIONS as readonly string[]).includes(asked) ? asked : LEGACY_VERSIONS[0];
-      return reply({ protocolVersion, capabilities: { tools: { listChanged: false } }, serverInfo: { ...SERVER_INFO, title: "Field Notes" }, instructions: INSTRUCTIONS });
+      return reply({ protocolVersion, capabilities: { tools: { listChanged: false } }, serverInfo: serverInfo(), instructions: INSTRUCTIONS });
     }
     case "ping":
       return reply({});
