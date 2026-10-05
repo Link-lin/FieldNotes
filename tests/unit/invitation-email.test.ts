@@ -13,7 +13,7 @@ const input: InvitationEmailInput = {
 describe("invitation email", () => {
   it("names the inviter, the trip, what the role allows, the link and the expiry date", () => {
     const mail = invitationEmail(input);
-    expect(mail.subject).toBe('Link Lin shared "Hawaii test trip" with you on Field Notes');
+    expect(mail.subject).toBe("Link Lin shared \u201cHawaii test trip\u201d with you on Field Notes");
     for (const part of [mail.text, mail.html]) {
       expect(part).toContain("Link Lin");
       expect(part).toContain("Hawaii test trip");
@@ -40,10 +40,22 @@ describe("invitation email", () => {
     expect(invitationEmail({ ...input, url: 'https://x.example/invite#a"b' }).html).toContain('href="https://x.example/invite#a&quot;b"');
   });
 
+  it("loads nothing from anywhere: its only links are the invitation, with no images, style sheets or web fonts", () => {
+    const html = invitationEmail(input).html;
+    expect(html.startsWith("<!doctype html>")).toBe(true);
+    expect(html).toContain('<html lang="en">');
+    const links = [...html.matchAll(/\b(?:href|src)="([^"]*)"/g)].map((m) => m[1]);
+    expect(links.length).toBeGreaterThan(0);
+    expect(new Set(links)).toEqual(new Set([input.url]));
+    for (const remote of ["<img", "<link", "@import", "url(", "src="]) expect(html).not.toContain(remote);
+    // The role is named in the ticket as well as described in words.
+    expect(html).toContain("Editor");
+  });
+
   it("cannot be used to start a new header from the trip title or the name", () => {
     const mail = invitationEmail({ ...input, tripTitle: "Trip\r\nBcc: attacker@evil.example", inviterName: "Link\nSubject: spoofed" });
     expect(mail.subject).not.toMatch(/[\r\n]/);
-    expect(mail.subject).toBe('Link Subject: spoofed shared "Trip Bcc: attacker@evil.example" with you on Field Notes');
+    expect(mail.subject).toBe("Link Subject: spoofed shared \u201cTrip Bcc: attacker@evil.example\u201d with you on Field Notes");
     expect(mail.text.split("\n")[0]).not.toMatch(/\r/);
   });
 });

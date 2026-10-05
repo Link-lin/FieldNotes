@@ -72,10 +72,10 @@ describe("an account without an email address", () => {
     await giveRole(tripId, mei, "owner");
     await createInvitation(db(), mei, tripId, "newcomer@example.com", NOW);
     expect(mail.sent[0]).toMatchObject({ to: "newcomer@example.com", replyTo: undefined });
-    expect(mail.sent[0]!.subject).toBe(`Mei shared "${tripInput.title}" with you on Field Notes`);
+    expect(mail.sent[0]!.subject).toBe(`Mei shared \u201c${tripInput.title}\u201d with you on Field Notes`);
     await db().updateTable("User").set({ name: null }).where("id", "=", mei.userId).execute();
     await createInvitation(db(), mei, tripId, "other@example.com", NOW);
-    expect(mail.sent[1]!.subject).toBe(`Someone shared "${tripInput.title}" with you on Field Notes`);
+    expect(mail.sent[1]!.subject).toBe(`Someone shared \u201c${tripInput.title}\u201d with you on Field Notes`);
   });
 
   it("can delete its account, which only removes its own grants", async () => {

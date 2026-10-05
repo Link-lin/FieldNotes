@@ -40,7 +40,7 @@ describe("emailing invitations", () => {
     expect(mail.sent).toHaveLength(1);
     const sent = mail.sent[0]!;
     expect(sent).toMatchObject({ to: "newcomer@example.com", replyTo: "owner@example.com" });
-    expect(sent.subject).toBe('Link Lin shared "Hawaii & friends" with you on Field Notes');
+    expect(sent.subject).toBe("Link Lin shared \u201cHawaii & friends\u201d with you on Field Notes");
     expect(sent.text).toContain(link.invitationUrl);
     expect(sent.text).toContain("change its events, bookings and notes");
     expect(sent.html).toContain("Hawaii &amp; friends");
@@ -51,7 +51,7 @@ describe("emailing invitations", () => {
   it("falls back to the owner's email when they have no name", async () => {
     await db().updateTable("User").set({ name: null }).where("id", "=", owner.userId).execute();
     await createInvitation(db(), owner, tripId, "newcomer@example.com", NOW);
-    expect(mail.sent[0]!.subject).toBe('owner@example.com shared "Hawaii & friends" with you on Field Notes');
+    expect(mail.sent[0]!.subject).toBe("owner@example.com shared \u201cHawaii & friends\u201d with you on Field Notes");
   });
 
   it("sends nothing when email isn't set up, and the owner copies the link as before", async () => {
