@@ -1,9 +1,8 @@
 import type { FieldError, TripSummaryDTO } from "@/shared/dto";
-import { tripFieldsOf, type TripFields } from "@/shared/fields";
+import { sameValue, type TripFields } from "@/shared/fields";
 import { api } from "@/lib/api";
 import type { FieldSaveResult } from "@/lib/use-inline-field";
 
-export type Trip = Parameters<typeof tripFieldsOf>[0] & { id: string };
 type Fail = { ok: false; status: number; code: string; message: string; fields: FieldError[] };
 
 /**
@@ -16,7 +15,7 @@ export async function saveTripFields(
   start: Partial<TripFields>,
   zone?: { confirmTimeZoneImpact: true; timeDisambiguationByItem: Record<string, "earlier" | "later"> },
 ): Promise<{ ok: true; trip: TripSummaryDTO } | Fail> {
-  const changes = Object.fromEntries(Object.entries(next).filter(([k, v]) => JSON.stringify(v ?? null) !== JSON.stringify(start[k as keyof TripFields] ?? null)));
+  const changes = Object.fromEntries(Object.entries(next).filter(([k, v]) => !sameValue(v, start[k as keyof TripFields])));
   const base = Object.fromEntries(Object.keys(changes).map((k) => [k, start[k as keyof TripFields] ?? null]));
   const r = await api<TripSummaryDTO>("PATCH", `/api/trips/${tripId}/fields`, { changes, base, ...zone });
   return r.ok ? { ok: true, trip: r.data } : r;
