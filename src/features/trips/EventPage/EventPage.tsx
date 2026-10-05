@@ -9,6 +9,7 @@ import type { PlanItemDTO, TripDetailDTO } from "@/shared/dto";
 import { tripRevision } from "@/shared/revision";
 import { canEdit } from "@/shared/roles";
 import { EventPanel } from "../TripPage/EventPanel/EventPanel";
+import { REVIEW_CHANGED, sendReview } from "../TripPage/review-events";
 import { tripDays, tripStops } from "../TripPage/trip-days";
 
 type Props = { data: TripDetailDTO; itemId: string; selectedDay: string | null; fromBookings: boolean; initialEditing: boolean; mapsKey: string | null };
@@ -60,6 +61,16 @@ export function EventPage({ data, itemId, selectedDay, fromBookings, initialEdit
       onExited={() => {}}
       onSaved={(updated) => { setSaved(updated); router.refresh(); toast({ message: "Event updated." }); }}
       onNotesSaved={(updated) => { setSaved(updated); router.refresh(); }}
+      onReview={canEdit(trip.role) ? async (target, reviewed) => {
+        const r = await sendReview(trip.id, [target], reviewed);
+        router.refresh();
+        if (!r.ok) {
+          toast({ message: r.status === 409 ? REVIEW_CHANGED : r.message });
+          return null;
+        }
+        setSaved(r.data[0]!);
+        return r.data[0]!;
+      } : undefined}
     />
   );
 }

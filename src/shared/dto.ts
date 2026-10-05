@@ -57,6 +57,8 @@ export type PlanItemDTO = {
   type: ItemType;
   title: string;
   source: "ai" | "manual";
+  /** When a person marked this AI draft reviewed; an AI item without it is an unverified draft (IMPORT-7). */
+  reviewedAt: string | null;
   location: string | null;
   notes: string | null;
   links: Array<{ label: string; url: string }>;

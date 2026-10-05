@@ -155,6 +155,18 @@ export const itemPatchSchema = z
 /** TRIP-10: the owner edits an event's notes from its side panel; the rest of the event is unchanged. */
 export const itemNotesSchema = z.object({ notes: optionalText(5000), expectedVersion: z.number().int().min(1) }).strict();
 export const versionSchema = z.object({ expectedVersion: z.number().int().min(1) }).strict();
+/** IMPORT-7: mark AI drafts reviewed, one event or a whole trip's at once; `reviewed: false` undoes it. */
+export const itemReviewSchema = z
+  .object({
+    items: z
+      .array(z.object({ id: z.string().uuid(), expectedVersion: z.number().int().min(1) }).strict())
+      .min(1)
+      .max(250)
+      .refine((list) => new Set(list.map((i) => i.id)).size === list.length, { message: "List each event once." }),
+    reviewed: z.boolean(),
+  })
+  .strict();
+export type ItemReview = z.infer<typeof itemReviewSchema>;
 /** BOOK-3, BOOK-4: a booking-list action. Booked clears the book-by date; the service checks FLIGHT-2. */
 export const itemBookingSchema = z
   .object({ bookingStatus: z.enum(["needs_booking", "booked"]), bookingDueDate: dateStr.nullable(), expectedVersion: z.number().int().min(1) })

@@ -6,12 +6,12 @@ import type { Actor } from "@/server/auth/actor";
 import { requireTripEditor, requireTripRead } from "@/server/auth/access";
 import { bumpTripVersion } from "@/server/modules/trips/trips.repository";
 import type { PlanItemDTO } from "@/shared/dto";
-import { itemInputSchema, toFieldErrors, type ItemInput } from "@/shared/schemas";
+import { itemInputSchema, toFieldErrors, type ItemInput, type ItemReview } from "@/shared/schemas";
 import { dateInZone, resolveLocal } from "@/shared/time";
 import { itemDto } from "./items.mapper";
 import * as repo from "./items.repository";
 import { canMarkBooked, scheduleErrors, toValues } from "./items.rules";
-import { applyAiPatch, priceChanged, type AiItemPatch } from "./items.ai";
+import { applyAiPatch, itemInputOf, priceChanged, type AiItemPatch } from "./items.ai";
 import { countUsage } from "@/server/modules/usage/usage.service";
 import type { UsageEvent } from "@/server/modules/usage/usage.rules";
 
@@ -197,6 +197,30 @@ export async function duplicateItem(db: Kysely<DB>, actor: Actor, tripId: string
   });
 }
 
+/**
+ * IMPORT-7: an owner or editor marks AI drafts reviewed (or, to undo, unreviewed), all in one go or not at all. Each event
+ * must be an AI draft of the trip at the version the person saw, so nothing they haven't seen is swept in. An event
+ * already in the asked-for state is left as it is.
+ */
+export async function reviewItems(db: Kysely<DB>, actor: Actor, tripId: string, body: ItemReview, now = new Date()): Promise<PlanItemDTO[]> {
+  return db.transaction().execute(async (tx) => {
+    const { trip } = await requireTripEditor(tx, actor, tripId, true);
+    await repo.purgeExpired(tx, trip.id);
+    const rows = new Map((await repo.loadItemsForUpdate(tx, trip.id, body.items.map((i) => i.id))).map((r) => [r.id, r]));
+    body.items.forEach(({ id, expectedVersion }, index) => {
+      const row = rows.get(id)!;
+      if (row.version !== expectedVersion) throw conflict();
+      if (row.source !== "ai") throw invalid([{ path: `items[${index}].id`, code: "not_ai_draft", message: "Only an AI draft can be marked reviewed." }]);
+    });
+    const toChange = body.items.map((i) => rows.get(i.id)!).filter((r) => (r.reviewed_at !== null) !== body.reviewed).map((r) => r.id);
+    if (toChange.length) {
+      for (const row of await repo.setReviewed(tx, toChange, body.reviewed ? now : null)) rows.set(row.id, row);
+      await bumpTripVersion(tx, trip.id);
+    }
+    return body.items.map((i) => dto(rows.get(i.id)!, trip.time_zone, now));
+  });
+}
+
 /** CONNECT-3: read one item in full (a connected chat's `get_item`). Any role that can read the trip. */
 export async function getItem(db: Kysely<DB>, actor: Actor, tripId: string, itemId: string, now = new Date()): Promise<PlanItemDTO> {
   const { trip } = await requireTripRead(db, actor, tripId);
@@ -208,7 +232,8 @@ export async function getItem(db: Kysely<DB>, actor: Actor, tripId: string, item
  * CONNECT-3, CONNECT-4: a connected AI chat changes some fields of an item. The change merges onto the item as it
  * stands under the trip lock and goes through the same schema and schedule checks as an edit in the app, so a field it
  * does not name is never overwritten. `source` is kept; a new or changed price becomes an AI estimate; a place change
- * clears the map pin. The edit counts nothing in the pilot totals, which measure people correcting AI output.
+ * clears the map pin; and an AI draft the person had reviewed becomes a draft again once its content changes. The edit
+ * counts nothing in the pilot totals, which measure people correcting AI output.
  */
 export async function updateItemByAi(
   db: Kysely<DB>,
@@ -232,6 +257,8 @@ export async function updateItemByAi(
     const values = toValues(parsed.data, current);
     if ("path" in values) throw invalid([values]);
     if (priceChanged(before.plannedPrice, parsed.data.plannedPrice)) values.price_source = "ai";
+    // What the person reviewed was the item as it was; a change the chat makes needs reviewing again.
+    if (current.source === "ai" && current.reviewed_at !== null && JSON.stringify(parsed.data) !== JSON.stringify(itemInputSchema.parse(itemInputOf(before)))) values.reviewed_at = null;
     const row = await repo.updateItemRow(tx, current.id, current.version, values);
     if (!row) throw conflict();
     await bumpTripVersion(tx, trip.id);

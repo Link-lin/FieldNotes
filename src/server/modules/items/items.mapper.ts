@@ -12,7 +12,8 @@ const iso = (v: Date | string) => (v instanceof Date ? v.toISOString() : new Dat
 
 /**
  * Plan item row to the API shape: timeline date and sort instant from the schedule, coordinates
- * from the map link (or a flight's arrival airport for manual or booked flights), due state.
+ * from the map link (or a flight's arrival airport for a flight a person entered, reviewed or
+ * booked), due state.
  */
 export function itemDto(row: PlanItemRow, tripZone: string, today: string): PlanItemDTO {
   const isFlight = row.type === "flight";
@@ -36,7 +37,7 @@ export function itemDto(row: PlanItemRow, tripZone: string, today: string): Plan
   let coordinates: PlanItemDTO["coordinates"] = null;
   if (row.latitude !== null && row.longitude !== null) {
     coordinates = { latitude: Number(row.latitude), longitude: Number(row.longitude), source: "map_link" };
-  } else if (isFlight && (row.source === "manual" || row.booking_status === "booked")) {
+  } else if (isFlight && (row.source === "manual" || row.reviewed_at !== null || row.booking_status === "booked")) {
     const p = airportPoint(row.arrival_airport_code);
     if (p) coordinates = { ...p, source: "airport" };
   }
@@ -46,6 +47,7 @@ export function itemDto(row: PlanItemRow, tripZone: string, today: string): Plan
     type: row.type,
     title: row.title,
     source: row.source,
+    reviewedAt: row.reviewed_at ? iso(row.reviewed_at) : null,
     location: row.location,
     notes: row.notes,
     links: row.links ?? [],

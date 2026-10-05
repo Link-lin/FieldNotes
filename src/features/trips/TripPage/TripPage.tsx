@@ -11,12 +11,14 @@ import { api, lastWriteAt } from "@/lib/api";
 import { clearEventReturn } from "@/lib/event-return";
 import { fmtDay } from "@/lib/format";
 import { useLiveRevision } from "@/lib/use-live-revision";
+import { isAiDraft } from "@/shared/drafts";
 import { tripRevision } from "@/shared/revision";
 import { canEdit as mayEdit, canManage as mayManage } from "@/shared/roles";
 import { AddFab } from "./AddFab/AddFab";
 import { BookingList } from "./BookingList/BookingList";
 import { CostsSection } from "./CostsSection/CostsSection";
 import { DaySection, SubHeading, TodayMark } from "./DaySection/DaySection";
+import { DraftsNote } from "./DraftsNote/DraftsNote";
 import { EventPanel } from "./EventPanel/EventPanel";
 import { DayTabs } from "./DayTabs/DayTabs";
 import { GlobeLocation } from "./GlobeLocation/GlobeLocation";
@@ -31,6 +33,7 @@ import { TripHighlights } from "./TripHighlights/TripHighlights";
 import { TripViewNav, type TripView } from "./TripViewNav/TripViewNav";
 import { dayNumber, isOutside, pad2, tripDays, tripStops } from "./trip-days";
 import { changesMessage, liveChanges } from "./live-changes";
+import { REVIEW_CHANGED, sendReview } from "./review-events";
 import styles from "./TripPage.module.css";
 import { animateDayEnter } from "./day-motion";
 import { useTripEventPanel } from "./useTripEventPanel";
@@ -206,6 +209,34 @@ export function TripPage({ data, initialDay, initialEvent, initialView, mapsKey,
     toast({ message: "Event deleted.", actionLabel: "Undo", afterFocus: after, onAction: () => restoreEvent(item) });
   }
 
+  // IMPORT-7: events the person has checked lose the AI draft tag; one at a time, or every draft at once, with Undo.
+  const drafts = items.filter(isAiDraft);
+  const [reviewing, setReviewing] = useState(false);
+  async function review(list: PlanItemDTO[], reviewed: boolean): Promise<PlanItemDTO[] | null> {
+    const r = await sendReview(trip.id, list, reviewed);
+    router.refresh();
+    if (!r.ok) {
+      toast({ message: r.status === 409 ? REVIEW_CHANGED : r.message });
+      return null;
+    }
+    r.data.forEach((saved) => eventPanel.acceptSaved(saved));
+    return r.data;
+  }
+  async function reviewEvents(list: PlanItemDTO[], afterFocus?: string) {
+    setMenuFor(null);
+    setReviewing(true);
+    const saved = await review(list, true);
+    setReviewing(false);
+    if (!saved) return;
+    const one = saved.length === 1;
+    toast({
+      message: one ? `"${saved[0]!.title}" marked as reviewed.` : `${saved.length} events marked as reviewed.`,
+      actionLabel: "Undo",
+      afterFocus,
+      onAction: () => void review(saved, false).then((back) => back && toast({ message: one ? "It is an AI draft again." : `${back.length} events are AI drafts again.` })),
+    });
+  }
+
   async function duplicateEvent(item: PlanItemDTO) {
     setMenuFor(null);
     const r = await api<PlanItemDTO>("POST", `/api/trips/${trip.id}/items/${item.id}/duplicate`, { expectedVersion: item.version });
@@ -247,6 +278,7 @@ export function TripPage({ data, initialDay, initialEvent, initialView, mapsKey,
       onMenu={setMenuFor}
       onOpen={(i) => eventPanel.open(i)}
       onEdit={(i) => eventPanel.open(i, { editing: true })}
+      onReview={(i) => void reviewEvents([i], `[data-menu="${i.id}"]`)}
       onDuplicate={duplicateEvent}
       onDelete={deleteEvent}
     />
@@ -268,6 +300,7 @@ export function TripPage({ data, initialDay, initialEvent, initialView, mapsKey,
           <BookingList trip={trip} items={items} canEdit={canEdit} onOpen={(i) => eventPanel.open(i, { trigger: `[data-task-open="${i.id}"]` })} />
         ) : (
           <>
+            {canEdit && drafts.length ? <DraftsNote count={drafts.length} busy={reviewing} onReviewAll={() => void reviewEvents(drafts)} /> : null}
             <DayTabs trip={trip} days={days} byDate={byDate} eventCount={items.length} pinCount={allStops.length} selected={day} onSelect={selectDay} />
 
             <div id="trip-panel" role="tabpanel" aria-labelledby={`tab-${day}`} className={styles.grid}>
@@ -375,6 +408,7 @@ export function TripPage({ data, initialDay, initialEvent, initialView, mapsKey,
             eventPanel.acceptSaved(saved);
             router.refresh();
           }}
+          onReview={canEdit ? async (i, reviewed) => (await review([i], reviewed))?.[0] ?? null : undefined}
         />
       ) : null}
       {sharing && canManage ? <ShareDialog trip={trip} canEmail={canEmail} onClose={() => setSharing(false)} /> : null}

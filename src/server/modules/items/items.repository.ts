@@ -28,6 +28,24 @@ export async function loadItemForUpdate(tx: Tx, tripId: string, itemId: string, 
   return row;
 }
 
+/** Locks and returns these undeleted items of the trip; 404 when any is missing or deleted. */
+export async function loadItemsForUpdate(tx: Tx, tripId: string, itemIds: string[]): Promise<PlanItemRow[]> {
+  if (!itemIds.length || !itemIds.every(isUuid)) throw notFound();
+  const rows = await tx.selectFrom("plan_items").selectAll().where("trip_id", "=", tripId).where("id", "in", itemIds).where("deleted_at", "is", null).forUpdate().execute();
+  if (rows.length !== new Set(itemIds).size) throw notFound();
+  return rows;
+}
+
+/** Marks AI drafts reviewed (a time) or unreviewed (null). */
+export async function setReviewed(tx: Tx, itemIds: string[], reviewedAt: Date | null): Promise<PlanItemRow[]> {
+  return tx
+    .updateTable("plan_items")
+    .set({ reviewed_at: reviewedAt, version: sql`version + 1`, updated_at: sql`now()` })
+    .where("id", "in", itemIds)
+    .returningAll()
+    .execute();
+}
+
 /** One undeleted item of the trip, without a lock; 404 when missing. */
 export async function liveItem(db: Conn, tripId: string, itemId: string): Promise<PlanItemRow> {
   if (!isUuid(itemId)) throw notFound();

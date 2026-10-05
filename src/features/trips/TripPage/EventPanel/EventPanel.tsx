@@ -3,10 +3,11 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { PlanItemDTO, TripDetailDTO } from "@/shared/dto";
+import { isAiDraft } from "@/shared/drafts";
 import { googleSearchUrl, providerLabel } from "@/shared/map-links";
 import { Banner } from "@/components/ui/Banner/Banner";
 import { Button, ButtonLink } from "@/components/ui/Button/Button";
-import { EditIcon, PinIcon } from "@/components/ui/Icon/icons";
+import { CheckIcon, EditIcon, PinIcon } from "@/components/ui/Icon/icons";
 import { Tag } from "@/components/ui/Tag/Tag";
 import { dueText, fmtDay, priceText, TYPE_LABEL } from "@/lib/format";
 import { useDialog } from "@/lib/use-dialog";
@@ -36,6 +37,8 @@ type Props = {
   onExited: () => void;
   onSaved: (item: PlanItemDTO) => void;
   onNotesSaved: (item: PlanItemDTO) => void;
+  /** Marks this AI draft reviewed, or back to a draft (IMPORT-7); resolves with the saved event, or null if it failed. */
+  onReview?: (item: PlanItemDTO, reviewed: boolean) => Promise<PlanItemDTO | null>;
   defaultCurrency: string;
   recentCurrencies: string[];
   initialEditing?: boolean;
@@ -52,7 +55,7 @@ const EXIT_MS = 320;
  * owner edits in place. Previous and next step through the events in page order. Escape, the close
  * button or a click on the faded page closes it and returns focus to the event.
  */
-export function EventPanel({ trip, item, open, gone = false, canEdit: mayEdit, num, mapsKey, prev, next, onGo, onClose, onExited, onSaved, onNotesSaved, defaultCurrency, recentCurrencies, initialEditing = false, presentation = "panel", triggerSelector }: Props) {
+export function EventPanel({ trip, item, open, gone = false, canEdit: mayEdit, num, mapsKey, prev, next, onGo, onClose, onExited, onSaved, onNotesSaved, onReview, defaultCurrency, recentCurrencies, initialEditing = false, presentation = "panel", triggerSelector }: Props) {
   const canEdit = mayEdit && !gone;
   const ref = useRef<HTMLElement>(null);
   const notesRef = useRef<NotesEditorHandle>(null);
@@ -64,6 +67,9 @@ export function EventPanel({ trip, item, open, gone = false, canEdit: mayEdit, n
   const [busy, setBusy] = useState(false);
   const [waiting, setWaiting] = useState(false);
   const [discard, setDiscard] = useState<"close" | "details" | null>(null);
+  // The event just marked reviewed here, which offers Undo in place (a toast would take focus out of the panel).
+  const [reviewedHere, setReviewedHere] = useState<string | null>(null);
+  const [reviewBusy, setReviewBusy] = useState(false);
   // A way out after the notes failed to save: the owner stays by default, or leaves without them.
   const [unsavedExit, setUnsavedExit] = useState<(() => void) | null>(null);
   const titleId = useId();
@@ -154,8 +160,19 @@ export function EventPanel({ trip, item, open, gone = false, canEdit: mayEdit, n
     });
   }
 
+  async function review(reviewed: boolean) {
+    if (!onReview || reviewBusy) return;
+    setReviewBusy(true);
+    const saved = await onReview(item, reviewed);
+    setReviewBusy(false);
+    if (!saved) return;
+    setReviewedHere(reviewed ? saved.id : null);
+    requestAnimationFrame(() => ref.current?.querySelector<HTMLElement>(reviewed ? "[data-review-undo]" : "[data-review]")?.focus());
+  }
+
   const f = item.flightDetails;
   const day = item.timelineDate;
+  const draft = isAiDraft(item);
   const when = [day ? dayTag(trip, day) : null, day ? fmtDay(day) : null, eventTimeText(item, trip.timeZone)].filter(Boolean).join(" · ");
 
   const surface = (
@@ -229,8 +246,20 @@ export function EventPanel({ trip, item, open, gone = false, canEdit: mayEdit, n
               <Tag tone="soft">{TYPE_LABEL[item.type]}</Tag>
               {item.bookingStatus === "needs_booking" ? <Tag tone="need">Needs booking</Tag> : null}
               {item.bookingStatus === "booked" ? <Tag tone="booked">Booked</Tag> : null}
-              {item.source === "ai" ? <Tag tone="soft">AI draft, unverified</Tag> : null}
+              {draft ? <Tag tone="soft">AI draft, unverified</Tag> : null}
             </div>
+            {draft && canEdit && onReview ? (
+              <p className={styles.review}>
+                <Button variant="quiet" data-review onClick={() => void review(true)} disabled={reviewBusy}><CheckIcon /> Mark as reviewed</Button>
+                <span className="note">When you have checked it: the AI draft tag goes, the price stays an estimate.</span>
+              </p>
+            ) : null}
+            {!draft && reviewedHere === item.id ? (
+              <p className={styles.review} role="status">
+                <span>Marked as reviewed.</span>
+                <Button variant="quiet" data-review-undo onClick={() => void review(false)} disabled={reviewBusy}>Undo</Button>
+              </p>
+            ) : null}
           </header>
 
           <EventMap item={item} destination={trip.destination} mapsKey={mapsKey} />
@@ -261,6 +290,12 @@ export function EventPanel({ trip, item, open, gone = false, canEdit: mayEdit, n
               <>
                 <dt>Planned price</dt>
                 <dd>{priceText(item.plannedPrice)}</dd>
+              </>
+            ) : null}
+            {item.source === "ai" && item.reviewedAt ? (
+              <>
+                <dt>Origin</dt>
+                <dd>AI suggestion, reviewed</dd>
               </>
             ) : null}
             {item.durationMinutes ? (

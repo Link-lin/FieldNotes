@@ -3,7 +3,7 @@ import { changesMessage, liveChanges } from "@/features/trips/TripPage/live-chan
 import type { PlanItemDTO, TripDetailDTO } from "@/shared/dto";
 
 const item = (id: string, over: Partial<PlanItemDTO> = {}): PlanItemDTO => ({
-  id, version: 1, type: "activity", title: `Event ${id}`, source: "ai", location: "Kinkaku-ji, Kyoto", notes: null, links: [], mapUrl: null, mapProvider: null,
+  id, version: 1, type: "activity", title: `Event ${id}`, source: "ai", reviewedAt: null, location: "Kinkaku-ji, Kyoto", notes: null, links: [], mapUrl: null, mapProvider: null,
   coordinates: null, bookingStatus: "not_required", bookingDueDate: null, bookingDueState: null, plannedPrice: null, localDate: "2026-10-20", localTime: "10:00",
   timeZone: null, timeDisambiguation: null, durationMinutes: null, timelineDate: "2026-10-20", sortInstant: "2026-10-20T01:00:00.000Z", flightDetails: null,
   createdAt: "2026-10-04T00:00:00.000Z", updatedAt: "2026-10-04T00:00:00.000Z", ...over,

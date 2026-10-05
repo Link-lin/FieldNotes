@@ -21,6 +21,11 @@ export const ResetIcon = () => (
     <path d="M3 8a5 5 0 1 0 1.7-3.7M3 3v3h3" />
   </svg>
 );
+export const CheckIcon = () => (
+  <svg viewBox="0 0 16 16" strokeWidth={1.8} {...s} aria-hidden="true">
+    <path d="M3 8.5l3.2 3L13 4.5" />
+  </svg>
+);
 export const EditIcon = () => (
   <svg viewBox="0 0 16 16" strokeWidth={1.5} {...s} aria-hidden="true">
     <path d="M2.5 13.5l1-3.5L11 2.5 13.5 5 6 12.5zM9.5 4l2.5 2.5" />

@@ -203,7 +203,7 @@ const TOOLS: Tool[] = [
     name: "update_item",
     title: "Change an item",
     description:
-      "Changes some fields of one item; fields you leave out stay as they are, and null clears an optional field. Use it to move an item, rename it, fix its place or notes, or say whether it needs booking. A new or changed price is saved as an estimate. Changing location removes the item's saved map pin. You cannot mark an item Booked or change one a person marked Booked, set a book-by date or a map link, or turn an item into a flight (or back): delete it and add the right one. Needs edit access to the trip.",
+      "Changes some fields of one item; fields you leave out stay as they are, and null clears an optional field. Use it to move an item, rename it, fix its place or notes, or say whether it needs booking. A new or changed price is saved as an estimate. Changing location removes the item's saved map pin. An item you added that the person marked reviewed (reviewedByPerson) becomes an unverified draft again when you change it. You cannot mark an item Booked or change one a person marked Booked, set a book-by date or a map link, or turn an item into a flight (or back): delete it and add the right one. Needs edit access to the trip.",
     inputSchema: object({ tripId: TRIP_ID, itemId: ITEM_ID, ...patchProperties }, ["tripId", "itemId"]),
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
     access: "write",

@@ -53,6 +53,8 @@ export function itemView(item: PlanItemDTO, notesLimit?: number) {
     bookingDue: item.bookingDueState,
     plannedPrice: item.plannedPrice ? { amount: item.plannedPrice.amount, currency: item.plannedPrice.currency, label: item.plannedPrice.label, setBy: item.plannedPrice.source === "ai" ? "ai" : "person" } : null,
     addedBy: item.source === "ai" ? "ai" : "person",
+    // An AI item the person has checked and kept (IMPORT-7); absent while it is still an unverified draft.
+    reviewedByPerson: item.source === "ai" && item.reviewedAt ? true : undefined,
     onMap: item.coordinates ? true : undefined,
     flightDetails: f
       ? {

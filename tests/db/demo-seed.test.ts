@@ -65,6 +65,10 @@ describe("test trips seed", () => {
     expect(new Set(items.map((i) => i.bookingStatus))).toEqual(new Set(["not_required", "needs_booking", "booked"]));
     expect(items.some((i) => i.source === "ai" && i.plannedPrice?.source === "ai")).toBe(true);
     expect(items.some((i) => i.source === "ai" && i.plannedPrice?.source === "owner")).toBe(true);
+    // AI drafts still to check, and ones the owner has marked reviewed: an event, and a flight now pinned at its arrival airport.
+    expect(items.some((i) => i.source === "ai" && !i.reviewedAt)).toBe(true);
+    expect(items.some((i) => i.source === "ai" && i.reviewedAt && !i.flightDetails)).toBe(true);
+    expect(items.some((i) => i.source === "ai" && i.reviewedAt && i.flightDetails && i.coordinates?.source === "airport")).toBe(true);
     expect(new Set(items.map((i) => i.plannedPrice?.label).filter(Boolean))).toEqual(new Set(["estimate", "quote"]));
     expect(items.some((i) => i.plannedPrice?.amount && Number(i.plannedPrice.amount) === 0)).toBe(true);
     // Flights still to book: one with its FLIGHT-2 fields (Mark booked offered) and placeholders without.

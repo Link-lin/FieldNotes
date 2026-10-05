@@ -44,6 +44,8 @@ type Common = {
   ai?: boolean;
   /** An AI price the owner has confirmed (BUDGET-4): source stays "ai", price becomes the owner's. */
   priceConfirmed?: boolean;
+  /** An AI draft the owner has marked reviewed (IMPORT-7): no draft tag, and a flight gets its arrival-airport pin. */
+  reviewed?: boolean;
 };
 type EventSpec = Common & {
   type: "lodging" | "transport" | "meal" | "activity" | "other";
@@ -214,6 +216,7 @@ export function demoTrips(today: string): TripSpec[] {
         bookingStatus: "not_required",
         price: usd("32", "estimate"),
         ai: true,
+        reviewed: true, // an AI draft the owner has checked: no draft tag, the price still an AI estimate
       },
 
       // Day 3 — snorkel, North Shore, luau. Two events share 07:30 to check ordering.
@@ -420,6 +423,7 @@ export function demoTrips(today: string): TripSpec[] {
         bookingDueDate: due(1),
         price: usd("120", "estimate"),
         ai: true,
+        reviewed: true, // a reviewed AI flight placeholder: pinned at its arrival airport
       },
       {
         type: "lodging",
@@ -735,6 +739,7 @@ export async function seedDemoTrips(db: Kysely<DB>, you: { id: string; email: st
         const values = toValues(parsed.data, null);
         if ("path" in values) throw new Error(`Test event "${item.title}" is invalid: ${values.message}`);
         if (item.ai && values.price_source) values.price_source = item.priceConfirmed ? "owner" : "ai";
+        if (item.ai && item.reviewed) values.reviewed_at = now;
         await insertItem(tx, trip.id, item.ai ? "ai" : "manual", values);
       }
 

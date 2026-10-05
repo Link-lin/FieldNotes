@@ -1,9 +1,10 @@
 "use client";
 
 import type { PlanItemDTO } from "@/shared/dto";
+import { isAiDraft } from "@/shared/drafts";
 import { googleSearchUrl } from "@/shared/map-links";
 import { ButtonLink } from "@/components/ui/Button/Button";
-import { CopyIcon, DotsIcon, EditIcon, PinIcon, TrashIcon } from "@/components/ui/Icon/icons";
+import { CheckIcon, CopyIcon, DotsIcon, EditIcon, PinIcon, TrashIcon } from "@/components/ui/Icon/icons";
 import { Menu, MenuItem } from "@/components/ui/Menu/Menu";
 import { Tag } from "@/components/ui/Tag/Tag";
 import { priceText } from "@/lib/format";
@@ -22,6 +23,8 @@ type Props = {
   /** Opens the event's side panel (TRIP-10). */
   onOpen: () => void;
   onEdit: () => void;
+  /** Marks an AI draft reviewed (IMPORT-7); offered only while the event is one. */
+  onReview: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
 };
@@ -32,8 +35,9 @@ type Props = {
  * row opens the event's side panel (TRIP-10) through one stretched button; links and the menu
  * sit above it and keep working.
  */
-export function EventRow({ item, num, canEdit, tripZone, menuOpen, onMenu, onOpen, onEdit, onDuplicate, onDelete }: Props) {
+export function EventRow({ item, num, canEdit, tripZone, menuOpen, onMenu, onOpen, onEdit, onReview, onDuplicate, onDelete }: Props) {
   const f = item.flightDetails;
+  const draft = isAiDraft(item);
   return (
     <li className={styles.event} data-hl={item.id} data-numbered={!!num} data-editable={canEdit} data-menu-open={menuOpen}>
       {num ? <StopNumber n={num.n} need={num.need} className={styles.num} /> : null}
@@ -51,6 +55,7 @@ export function EventRow({ item, num, canEdit, tripZone, menuOpen, onMenu, onOpe
           )}
         >
           <MenuItem icon={<EditIcon />} onClick={onEdit}>Edit event</MenuItem>
+          {draft ? <MenuItem icon={<CheckIcon />} onClick={onReview}>Mark as reviewed</MenuItem> : null}
           <MenuItem icon={<CopyIcon />} onClick={onDuplicate}>Duplicate</MenuItem>
           <MenuItem icon={<TrashIcon />} danger onClick={onDelete}>Delete event</MenuItem>
         </Menu>
@@ -69,12 +74,12 @@ export function EventRow({ item, num, canEdit, tripZone, menuOpen, onMenu, onOpe
         </span>
       ) : null}
       {!num && !f && item.localDate ? <span className={styles.nopin}>Not on the map yet</span> : null}
-      {!f && (item.plannedPrice || item.bookingStatus !== "not_required" || item.source === "ai") ? (
+      {!f && (item.plannedPrice || item.bookingStatus !== "not_required" || draft) ? (
         <span className={styles.tags}>
           {item.plannedPrice ? <Tag tone="price">{priceText(item.plannedPrice)}</Tag> : null}
           {item.bookingStatus === "needs_booking" ? <Tag tone="need">Needs booking</Tag> : null}
           {item.bookingStatus === "booked" ? <Tag tone="booked">Booked</Tag> : null}
-          {item.source === "ai" ? <Tag tone="soft">AI draft, unverified</Tag> : null}
+          {draft ? <Tag tone="soft">AI draft, unverified</Tag> : null}
         </span>
       ) : null}
     </li>

@@ -10,7 +10,7 @@ const trip = (over: Partial<Trip>): Trip => ({
 });
 const endpoint = (airportCode: string | null) => ({ airportCode, localDateTime: null, timeZone: null, timeDisambiguation: null });
 const item = (id: string, timelineDate: string | null, sortInstant: string | null = null, over: Partial<PlanItemDTO> = {}): PlanItemDTO => ({
-  id, version: 1, type: "activity", title: id, source: "manual", location: null, notes: null, links: [], mapUrl: null, mapProvider: null, coordinates: null,
+  id, version: 1, type: "activity", title: id, source: "manual", reviewedAt: null, location: null, notes: null, links: [], mapUrl: null, mapProvider: null, coordinates: null,
   bookingStatus: "not_required", bookingDueDate: null, bookingDueState: null, plannedPrice: null, localDate: timelineDate, localTime: null, timeZone: null,
   timeDisambiguation: null, durationMinutes: null, timelineDate, sortInstant, flightDetails: null, createdAt: "2026-09-01T00:00:00Z", updatedAt: "2026-09-01T00:00:00Z", ...over,
 });

@@ -457,7 +457,7 @@ export function ImportPage() {
       {confirming ? (
         <Modal title="Create this trip?" onClose={() => setConfirming(null)} triggerSelector="[data-import-create]" subtitle="This is the first time the trip and its included items will be saved.">
           <p><strong>{confirming.trip.title}</strong> · {confirming.items.length} {confirming.items.length === 1 ? "item" : "items"}</p>
-          <p className="note">Every imported item will be marked as an unverified AI draft. No item will be marked Booked.</p>
+          <p className="note">Every imported item will be marked as an unverified AI draft until you mark it reviewed on the trip page. No item will be marked Booked.</p>
           <p className="note">{confirming.confirmedMapUrls?.filter(Boolean).length ?? 0} suggested map pins will be saved. Clear venue matches may have been preselected; check unfamiliar matches in the preview before continuing.</p>
           <ModalActions><Button variant="quiet" onClick={() => setConfirming(null)}>Keep reviewing</Button><Button variant="fill" onClick={beginCommit}>Create trip</Button></ModalActions>
         </Modal>

@@ -155,6 +155,8 @@ export interface PlanItemsTable {
   latitude: Numeric | null;
   longitude: Numeric | null;
   source: "ai" | "manual";
+  /** When a person marked this AI draft reviewed (IMPORT-7); null while it is an unverified draft, and for manual items. */
+  reviewed_at: Date | null;
   local_date: DateText | null;
   local_time: string | null;
   time_zone: string | null;
