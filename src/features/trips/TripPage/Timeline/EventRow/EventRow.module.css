@@ -1,4 +1,4 @@
-.event { position: relative; display: grid; gap: var(--space-1); isolation: isolate; }
+.event { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-1); isolation: isolate; }
 /* A plain bullet on the line for rows without a stop number. */
 .event::before { content: ""; position: absolute; left: -24px; top: 5px; width: 11px; height: 11px; border-radius: 50%; background: var(--paper); border: 2px solid var(--ink); transition: background 0.2s, border-color 0.2s, transform 0.2s; }
 .event[data-numbered="true"]::before { display: none; }
@@ -12,7 +12,7 @@
 .open { position: absolute; inset: -10px -14px -10px -10px; z-index: 0; border: 0; padding: 0; background: none; border-radius: var(--radius-lg); cursor: pointer; }
 .open:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 .num { z-index: 1; }
-.links > a { position: relative; z-index: 1; flex: none; }
+.links > a { position: relative; z-index: 1; flex: 0 1 auto; min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
 .event[data-lit] .num { box-shadow: 0 0 0 4px var(--vermilion-soft), 0 0 0 5px rgba(222, 79, 42, 0.35); }
 /* Room for the three-dot button. */
 .event[data-editable="true"] > :is(.time, .title, .flight) { margin-right: 40px; }
@@ -24,8 +24,8 @@
 .kebab svg { width: 16px; height: 16px; }
 .kebab:hover, .kebab[aria-expanded="true"] { border-color: var(--ink); background: var(--card); color: var(--ink); }
 
-.time { font: 500 12px var(--mono); color: var(--ink-3); letter-spacing: 0.06em; }
-.title { font-weight: 500; }
+.time { overflow-wrap: anywhere; font: 500 12px var(--mono); color: var(--ink-3); letter-spacing: 0.06em; }
+.title { font-weight: 500; overflow-wrap: anywhere; }
 .flight {}
 .tags { display: flex; flex-wrap: wrap; gap: 6px; }
 .links { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }

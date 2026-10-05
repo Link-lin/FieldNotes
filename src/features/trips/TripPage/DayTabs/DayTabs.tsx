@@ -1,5 +1,7 @@
 import { useEffect, useRef } from "react";
 import type { PlanItemDTO, TripDetailDTO } from "@/shared/dto";
+import { Button } from "@/components/ui/Button/Button";
+import { Field } from "@/components/ui/Field/Field";
 import { cx } from "@/lib/cx";
 import { fmtDay, plural } from "@/lib/format";
 import { dayTag, isOutside } from "../trip-days";
@@ -15,27 +17,43 @@ type Props = {
   onSelect: (day: string, focus: boolean) => void;
 };
 
-/** TRIP-2: Whole trip, then one tab per date. WAI-ARIA tabs: arrows, Home and End move between them. */
+/** TRIP-2: desktop tabs and a phone day picker share the same selection and dates. */
 export function DayTabs({ trip, days, byDate, eventCount, pinCount, selected, onSelect }: Props) {
+  const keys = ["all", ...days];
+  const index = keys.indexOf(selected);
+  const list = byDate.get(selected) ?? [];
+  const summary = selected === "all"
+    ? `${plural(eventCount, "event")}, ${plural(pinCount, "pin")}`
+    : list.length ? `${plural(list.length, "event")}, ${plural(list.filter((i) => i.coordinates).length, "pin")}` : "Nothing planned";
+
+  const hint = selected === "all" ? summary : `${dayTag(trip, selected)}${selected === trip.today ? " · Today" : ""} · ${summary}`;
+
   // Keep the chosen tab in view in the scrolling strip, gliding there unless motion is reduced.
   const strip = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const list = strip.current;
-    const tab = list?.querySelector<HTMLElement>(`[aria-selected="true"]`);
-    if (!list || !tab) return;
-    const left = tab.offsetLeft - list.offsetLeft;
-    const right = left + tab.offsetWidth;
-    const pad = 24;
-    let to: number | null = null;
-    if (left - pad < list.scrollLeft) to = Math.max(0, left - pad);
-    else if (right + pad > list.scrollLeft + list.clientWidth) to = right + pad - list.clientWidth;
-    if (to === null) return;
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    list.scrollTo({ left: to, behavior: reduce ? "auto" : "smooth" });
+    if (!list) return;
+    const keepInView = () => {
+      const tab = list.querySelector<HTMLElement>(`[aria-selected="true"]`);
+      if (!tab || !list.clientWidth) return;
+      const left = tab.offsetLeft - list.offsetLeft;
+      const right = left + tab.offsetWidth;
+      const pad = 24;
+      let to: number | null = null;
+      if (left - pad < list.scrollLeft) to = Math.max(0, left - pad);
+      else if (right + pad > list.scrollLeft + list.clientWidth) to = right + pad - list.clientWidth;
+      if (to === null) return;
+      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      list.scrollTo({ left: to, behavior: reduce ? "auto" : "smooth" });
+    };
+    // Also reveal the selected day when widening the phone picker back into tabs.
+    const observer = new ResizeObserver(keepInView);
+    observer.observe(list);
+    keepInView();
+    return () => observer.disconnect();
   }, [selected]);
   function onKeyDown(e: React.KeyboardEvent) {
-    const keys = ["all", ...days];
-    const i = keys.indexOf(selected);
+    const i = index;
     let n = -1;
     if (e.key === "ArrowRight") n = (i + 1) % keys.length;
     else if (e.key === "ArrowLeft") n = (i - 1 + keys.length) % keys.length;
@@ -47,24 +65,40 @@ export function DayTabs({ trip, days, byDate, eventCount, pinCount, selected, on
     }
   }
   return (
-    <div className={styles.tabs} role="tablist" aria-label="Whole trip or one day" onKeyDown={onKeyDown} ref={strip}>
-      <Tab id="all" selected={selected === "all"} onSelect={() => onSelect("all", false)} top="Whole trip" mid="All days" bottom={`${plural(eventCount, "event")}, ${plural(pinCount, "pin")}`} />
-      {days.map((d) => {
-        const list = byDate.get(d) ?? [];
-        const pins = list.filter((i) => i.coordinates).length;
-        return (
-          <Tab
-            key={d}
-            id={d}
-            selected={selected === d}
-            outside={isOutside(trip, d)}
-            onSelect={() => onSelect(d, false)}
-            top={<>{dayTag(trip, d)}{d === trip.today ? <span className={styles.today}> · Today</span> : null}</>}
-            mid={fmtDay(d)}
-            bottom={list.length ? `${plural(list.length, "event")}, ${plural(pins, "pin")}` : "Nothing planned"}
-          />
-        );
-      })}
+    <div className={styles.days}>
+      <Field className={styles.picker} label="Day view" htmlFor="trip-day" hint={hint} hintId="trip-day-summary">
+        <div className={styles.controls}>
+          <Button className={styles.step} variant="quiet" aria-label={keys[index - 1] === "all" ? "Show whole trip" : "Previous day"} disabled={index === 0} onClick={() => onSelect(keys[index - 1]!, false)}>
+            <span aria-hidden="true">←</span>
+          </Button>
+          <select id="trip-day" value={selected} aria-controls="trip-panel" aria-describedby="trip-day-summary" onChange={(e) => onSelect(e.target.value, false)}>
+            <option value="all">Whole trip</option>
+            {days.map((d) => <option key={d} value={d}>{fmtDay(d)} · {dayTag(trip, d)}{d === trip.today ? " · Today" : ""}</option>)}
+          </select>
+          <Button className={styles.step} variant="quiet" aria-label="Next day" disabled={index === keys.length - 1} onClick={() => onSelect(keys[index + 1]!, false)}>
+            <span aria-hidden="true">→</span>
+          </Button>
+        </div>
+      </Field>
+      <div className={styles.tabs} role="tablist" aria-label="Whole trip or one day" onKeyDown={onKeyDown} ref={strip}>
+        <Tab id="all" selected={selected === "all"} onSelect={() => onSelect("all", false)} top="Whole trip" mid="All days" bottom={`${plural(eventCount, "event")}, ${plural(pinCount, "pin")}`} />
+        {days.map((d) => {
+          const list = byDate.get(d) ?? [];
+          const pins = list.filter((i) => i.coordinates).length;
+          return (
+            <Tab
+              key={d}
+              id={d}
+              selected={selected === d}
+              outside={isOutside(trip, d)}
+              onSelect={() => onSelect(d, false)}
+              top={<>{dayTag(trip, d)}{d === trip.today ? <span className={styles.today}> · Today</span> : null}</>}
+              mid={fmtDay(d)}
+              bottom={list.length ? `${plural(list.length, "event")}, ${plural(pins, "pin")}` : "Nothing planned"}
+            />
+          );
+        })}
+      </div>
     </div>
   );
 }

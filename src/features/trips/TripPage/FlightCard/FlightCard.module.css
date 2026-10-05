@@ -7,3 +7,9 @@
 .slim { padding: 10px 14px; gap: 6px; }
 .slimRoute { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--pass-ink); font-size: 13px; letter-spacing: 0.06em; }
 .slimRoute svg { width: 18px; height: 8px; flex: none; opacity: 0.7; }
+
+@media (max-width: 600px) {
+  .route { font-size: 22px; gap: var(--space-2); }
+  .pass { padding-inline: var(--space-3); overflow-wrap: anywhere; }
+  .slimRoute { flex-wrap: wrap; min-width: 0; }
+}

@@ -469,7 +469,7 @@ export function DayMap({ stops, focus, onPin }: { stops: Stop[]; focus: MapFocus
             </ul>
           </div>
         ) : null}
-        {pointers.map((ptr) => (
+        {screenW > 0 && pointers.map((ptr) => (
           <button
             key={ptr.first.id}
             type="button"

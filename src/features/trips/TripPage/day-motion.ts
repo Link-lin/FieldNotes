@@ -1,7 +1,8 @@
 /**
  * Day-tab switch motion (TRIP-2). The new day's timeline slides in from the side the tab lies on
  * (later days from the right, earlier ones from the left) and its events settle in one after
- * another. Web Animations, so nothing is left behind in the DOM; skipped for reduced motion.
+ * another. Phones only fade, so the slide cannot widen the page. Web Animations leave nothing
+ * behind in the DOM; skipped for reduced motion.
  */
 const EASE = "cubic-bezier(0.2, 0.7, 0.2, 1)";
 const SHIFT_PX = 28;
@@ -15,8 +16,9 @@ export function prefersReducedMotion(): boolean {
 export function animateDayEnter(main: HTMLElement, direction: number): void {
   if (prefersReducedMotion() || typeof main.animate !== "function") return;
   main.getAnimations().forEach((a) => a.cancel());
+  const shift = window.matchMedia("(max-width: 600px)").matches ? 0 : direction * SHIFT_PX;
   main.animate(
-    [{ opacity: 0, transform: `translateX(${direction * SHIFT_PX}px)` }, { opacity: 1, transform: "none" }],
+    [{ opacity: 0, transform: `translateX(${shift}px)` }, { opacity: 1, transform: "none" }],
     { duration: 320, easing: EASE },
   );
   const rows = Array.from(main.querySelectorAll<HTMLElement>("[data-hl]")).slice(0, MAX_STAGGERED);

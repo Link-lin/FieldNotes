@@ -7,7 +7,7 @@
 /* Timeline on the left; the sticky map on the right, in a column capped at 560 px so the timeline gets the width. */
 .grid { display: grid; grid-template-columns: minmax(0, 1fr) clamp(340px, 30vw, 560px); gap: var(--space-10); align-items: start; min-width: 0; }
 .mainColumn { display: grid; gap: var(--space-10); align-content: start; min-width: 0; }
-.main { display: grid; gap: var(--space-7); align-content: start; min-width: 0; }
+.main { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-7); align-content: start; min-width: 0; }
 .location { max-width: 520px; }
 @media (max-width: 1060px) {
   .grid { grid-template-columns: minmax(0, 1fr); gap: var(--space-7); }
