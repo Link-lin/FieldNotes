@@ -1,4 +1,5 @@
 import "server-only";
+import { appOrigin } from "@/server/core/env";
 import type { PlanItemDTO, PlannedTotalDTO, TripDetailDTO, TripSummaryDTO } from "@/shared/dto";
 
 /*
@@ -68,6 +69,9 @@ export function itemView(item: PlanItemDTO, notesLimit?: number) {
   });
 }
 
+/** Where the person opens a trip in Field Notes, for the chat to hand over (it updates there as the chat works, TRIP-11). */
+export const tripUrl = (tripId: string): string => `${appOrigin()}/trips/${tripId}`;
+
 export function tripView(trip: TripSummaryDTO) {
   return compact({
     id: trip.id,
@@ -78,6 +82,7 @@ export function tripView(trip: TripSummaryDTO) {
     timeZone: trip.timeZone,
     status: trip.status,
     role: trip.role,
+    url: tripUrl(trip.id),
   });
 }
 

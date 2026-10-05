@@ -82,6 +82,7 @@ export function AiConnectorDialog({ url, onClose, returnFocus }: { url: string; 
         <li><b>Claude Code:</b> run <code className={styles.command}>claude mcp add --transport http field-notes {url}</code>, then <code className={styles.command}>/mcp</code> to sign in.</li>
         <li>Sign in to Field Notes in the window that opens and choose what to allow.</li>
       </ol>
+      <p className="note">Keep the trip open here while you chat: it updates within a few seconds as the chat adds or changes events. What the chat adds stays an AI draft until you mark it reviewed.</p>
       {!url.startsWith("https://") ? (
         <Banner tone="info">This address isn&apos;t a public https address, so Claude and ChatGPT can&apos;t reach it yet. It works once Field Notes is served over https.</Banner>
       ) : null}

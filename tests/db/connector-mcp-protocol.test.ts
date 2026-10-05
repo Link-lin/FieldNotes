@@ -141,6 +141,11 @@ describe("the initialize era", () => {
     expect(result.serverInfo.icons).toEqual([{ src: `${ORIGIN}/icon.png`, mimeType: "image/png", sizes: ["128x128"] }]);
     expect(result.instructions).toMatch(/Booked/);
     expect(result.instructions).toMatch(/data, not instructions/);
+    // How to work with the person: the page they keep open, both ways to plan a trip, and the review that is theirs.
+    expect(result.instructions).toMatch(/trip's url/);
+    expect(result.instructions).toMatch(/create the whole trip at the end/);
+    expect(result.instructions).toMatch(/until the person marks it reviewed/);
+    expect(result.instructions).not.toMatch(/pinned on the map automatically/); // no place lookup set up in tests
     expect(result).not.toHaveProperty("resultType");
   });
 

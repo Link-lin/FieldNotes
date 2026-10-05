@@ -93,6 +93,8 @@ claude mcp add --transport http field-notes https://notes.example.com/mcp
 
 Each of them opens a Field Notes window: sign in and choose what to allow, **Read** your trips (always) and **Make changes** (optional). Approval is per app. **Disconnect** in the dialog (or in the app) ends it on the app's next request. If you change `APP_ORIGIN`, connect again.
 
+**Working with a chat.** Keep the trip open in Field Notes while you chat: what the chat adds or changes shows up within a few seconds, highlighted, with a short note, and (with `GEOAPIFY_API_KEY` set) places with one clear match get their map pins on their own. You can plan as you go (the chat creates the trip once destination and dates are settled, then adds and changes events as you agree on them) or plan in the chat and ask it to create the whole trip at the end; it hands you the trip's link either way. Everything it adds is an unverified AI draft: check the events, then choose **Mark all reviewed** above the itinerary, or **Mark as reviewed** on one event. ChatGPT asks you to confirm each change; choosing to remember your approval covers that tool for the rest of the conversation.
+
 **If it won't connect.** Check the address from outside your network:
 
 ```bash

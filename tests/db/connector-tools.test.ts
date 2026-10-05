@@ -440,3 +440,19 @@ describe("roles apply on the next request", () => {
     expect((await run(tokens, "list_trips")).json).toEqual({});
   });
 });
+
+describe("handing the person over to Field Notes (TRIP-11)", () => {
+  const link = (id: string) => `http://localhost:3000/trips/${id}`;
+
+  it("gives every trip's address, so the chat can send the person to the page it updates", async () => {
+    const listed = await run(owner, "list_trips");
+    expect(listed.json.trips).toEqual([expect.objectContaining({ id: tripId, url: link(tripId) })]);
+    expect((await run(viewer, "get_trip", { tripId })).json.trip.url).toBe(link(tripId));
+    const added = await run(owner, "add_items", { tripId, items: [dinner] });
+    expect(added.json.tripUrl).toBe(link(tripId));
+    expect(added.json.message).toContain(link(tripId));
+    const made = await run(owner, "create_trip", { trip: { title: "Porto", destination: "Porto, Portugal", startDate: "2027-03-05", endDate: "2027-03-07", timeZone: "Europe/Lisbon" } });
+    expect(made.json.trip.url).toBe(link(made.json.trip.id));
+    expect(made.json.message).toContain(link(made.json.trip.id));
+  });
+});

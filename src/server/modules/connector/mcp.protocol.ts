@@ -1,6 +1,6 @@
 import "server-only";
 import { appOrigin } from "@/server/core/env";
-import { callTool, INSTRUCTIONS, listTools, type ToolContext } from "./mcp.tools";
+import { callTool, instructions, listTools, type ToolContext } from "./mcp.tools";
 
 /*
  * The MCP protocol subset the connector speaks (technical design: AI connector), over Streamable HTTP without sessions or
@@ -80,13 +80,13 @@ export async function handleMcpMessage(ctx: ToolContext, headers: McpHeaders, bo
       if (modern) return notFound();
       const asked = typeof params.protocolVersion === "string" ? params.protocolVersion : null;
       const protocolVersion = asked && (LEGACY_VERSIONS as readonly string[]).includes(asked) ? asked : LEGACY_VERSIONS[0];
-      return reply({ protocolVersion, capabilities: { tools: { listChanged: false } }, serverInfo: serverInfo(), instructions: INSTRUCTIONS });
+      return reply({ protocolVersion, capabilities: { tools: { listChanged: false } }, serverInfo: serverInfo(), instructions: instructions() });
     }
     case "ping":
       return reply({});
     case "server/discover":
       if (!modern) return notFound();
-      return reply({ supportedVersions: [...SUPPORTED_VERSIONS], capabilities: { tools: {} }, instructions: INSTRUCTIONS, ttlMs: 300_000, cacheScope: "public" });
+      return reply({ supportedVersions: [...SUPPORTED_VERSIONS], capabilities: { tools: {} }, instructions: instructions(), ttlMs: 300_000, cacheScope: "public" });
     case "tools/list":
       return reply({ tools: listTools(ctx), ...(modern ? { ttlMs: 0, cacheScope: "private" } : {}) });
     case "tools/call": {
