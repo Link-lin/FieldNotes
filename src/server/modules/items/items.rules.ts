@@ -64,6 +64,17 @@ function mapFields(input: ItemInput, current: PlanItemRow | null): MapColumns | 
   return { map_url: clean, latitude: c ? c[0].toFixed(5) : null, longitude: c ? c[1].toFixed(5) : null, pin_source: null };
 }
 
+/** Columns that record when or how a row changed, or what it was made from, rather than what the event says. */
+const BOOKKEEPING = new Set<string>(["id", "trip_id", "version", "created_at", "updated_at", "deleted_at", "reviewed_at", "person_edited_at", "is_copy"]);
+
+/**
+ * Whether a write changed what an event says, or where its price or pin came from, rather than only its version: a
+ * title saved again with a trailing space is trimmed back and changes nothing. Compares the rows as stored before and after.
+ */
+export function contentChanged(before: PlanItemRow, after: PlanItemRow): boolean {
+  return (Object.keys(after) as Array<keyof PlanItemRow>).some((k) => !BOOKKEEPING.has(k) && JSON.stringify(before[k]) !== JSON.stringify(after[k]));
+}
+
 /** An automatic pin (MAP-2) belongs to the place name it was found for: a new name drops it, and the lookup runs again. */
 export const placeChanged = (input: Pick<ItemInput, "location">, current: Pick<PlanItemRow, "location"> | null): boolean =>
   !current || blankText(input.location) !== blankText(current.location);

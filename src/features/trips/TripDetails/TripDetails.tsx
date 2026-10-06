@@ -35,6 +35,8 @@ type Props = {
   triggerSelector?: string | null;
   guardRef?: React.RefObject<(() => boolean) | null>;
   onClose: () => void;
+  /** A new trip was created; without it, its page opens. */
+  onCreated?: (tripId: string) => void;
   onExited: () => void;
 };
 
@@ -44,7 +46,7 @@ type Props = {
  * and Globe point open in place with their own Save. Delete trip sits at the foot and asks for the trip's name. A new
  * trip uses the same layout with every section open and one Create trip button.
  */
-export function TripDetails({ trip, itemDates = [], recentCurrencies, open, focus = "details", triggerSelector, guardRef, onClose, onExited }: Props) {
+export function TripDetails({ trip, itemDates = [], recentCurrencies, open, focus = "details", triggerSelector, guardRef, onClose, onCreated, onExited }: Props) {
   const ref = useRef<HTMLElement>(null);
   const formId = useId();
   const titleId = useId();
@@ -119,7 +121,7 @@ export function TripDetails({ trip, itemDates = [], recentCurrencies, open, focu
           </>
         }
       >
-        <NewTrip formId={formId} recentCurrencies={recentCurrencies} onDirty={(dirty) => { newDirty.current = dirty; }} onBusy={setBusy} />
+        <NewTrip formId={formId} recentCurrencies={recentCurrencies} onDirty={(dirty) => { newDirty.current = dirty; }} onBusy={setBusy} onCreated={onCreated} />
       </SidePanel>
     );
   }

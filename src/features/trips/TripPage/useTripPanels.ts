@@ -3,9 +3,10 @@ import { useRouter } from "next/navigation";
 import type { PlanItemDTO } from "@/shared/dto";
 import { isPhoneWidth } from "@/lib/client-value";
 import { rememberEventReturn } from "@/lib/event-return";
+import { isPanelEntry, keepPanelEntryMark, panelEntry } from "@/lib/panel-history";
 import type { PanelGuard } from "./EventPanel/EventPanel";
 import type { TripView } from "./TripViewNav/TripViewNav";
-import { panelFromParams, type PanelRequest, type TripFocus } from "./panel-request";
+import { panelFromSearch, type PanelRequest, type TripFocus } from "./panel-request";
 
 export type { PanelRequest, TripFocus };
 
@@ -33,16 +34,22 @@ const sameKind = (a: PanelRequest | null, b: Panel | null) => !!a && !!b && a.ki
 /**
  * The trip page's side panels (TRIP-1, TRIP-9, TRIP-10, DASH-6, ACCESS-3): an event, a new event, the trip's details
  * or sharing. Each has an address, so reload restores it and links can point at it. Opening one adds a history entry,
- * so browser Back closes it (asking first about unsaved changes); moving within a panel (Previous and Next, a new event
- * once added) replaces the entry. On phones an event opens as its own page instead (TRIP-10).
+ * so browser Back closes it (asking first about unsaved changes); arriving at one puts an entry for the page without it
+ * underneath, so Back closes it there too rather than leaving the page, and coming back to a panel's entry (Back or
+ * Forward from another page, a reload) reuses it (`panel-history.ts`); moving within a panel (Previous and Next, a new
+ * event once added) replaces the entry. On phones an event opens as its own page instead (TRIP-10).
  */
-export function useTripPanels({ tripId, items, shown, day, view, initial, closeMenu }: {
+
+/** How a panel came to open: from the page (no value), from the page's address on arrival, or by Back or Forward. */
+type From = "address" | "history";
+export function useTripPanels({ tripId, items, shown, day, view, allows, closeMenu }: {
   tripId: string;
   items: PlanItemDTO[];
   shown: PlanItemDTO[];
   day: string;
   view: TripView;
-  initial: PanelRequest | null;
+  /** Whether this person may use a panel the address asks for. */
+  allows: (want: PanelRequest) => boolean;
   closeMenu: () => void;
 }) {
   const router = useRouter();
@@ -64,17 +71,19 @@ export function useTripPanels({ tripId, items, shown, day, view, initial, closeM
   if (panel?.kind === "event" && panel.fresh && current) setPanel({ ...panel, fresh: false });
   const at = item ? shown.findIndex((candidate) => candidate.id === item.id) : -1;
 
-  function show(next: Panel, history: "push" | "replace" | "none") {
+  function show(next: Panel, history: "push" | "replace" | "arrive" | "none") {
     setPanel(next);
     if (history === "none") return;
     const url = urlFor(next);
-    if (history === "push") {
-      window.history.pushState(null, "", url);
+    if (history === "arrive") window.history.replaceState(null, "", urlFor(null));
+    if (history === "push" || history === "arrive") {
+      window.history.pushState(panelEntry(), "", url);
       pushed.current = true;
-    } else window.history.replaceState(null, "", url);
+    } else window.history.replaceState(pushed.current ? panelEntry() : null, "", url);
   }
-  // A panel replaces one that is open; otherwise it adds a history entry (or, arriving from the address, none).
-  const how = (arriving: boolean) => (arriving ? "replace" : live.current.panel?.open ? "replace" : "push");
+  // A panel replaces one that is open, or its own entry that Back, Forward or a reload came back to; arriving at its
+  // address afresh, it goes over an entry for the page without it; otherwise it adds a history entry.
+  const how = (from?: From) => (from === "address" ? "arrive" : from === "history" || live.current.panel?.open ? "replace" : "push");
 
   function phoneEvent(event: PlanItemDTO, editing: boolean, replace: boolean) {
     const query = new URLSearchParams();
@@ -89,29 +98,29 @@ export function useTripPanels({ tripId, items, shown, day, view, initial, closeM
     }
   }
 
-  function openEvent(event: PlanItemDTO, { focusTitle = false, trigger, arriving = false }: { focusTitle?: boolean; trigger?: string; arriving?: boolean } = {}) {
+  function openEvent(event: PlanItemDTO, { focusTitle = false, trigger, from }: { focusTitle?: boolean; trigger?: string; from?: From } = {}) {
     closeMenu();
-    if (isPhoneWidth()) return phoneEvent(event, focusTitle, arriving);
-    show({ kind: "event", id: event.id, open: true, snapshot: event, focusTitle, trigger: trigger ?? (focusTitle ? `[data-menu="${event.id}"]` : `[data-details="${event.id}"]`) }, how(arriving));
+    if (isPhoneWidth()) return phoneEvent(event, focusTitle, !!from);
+    show({ kind: "event", id: event.id, open: true, snapshot: event, focusTitle, trigger: trigger ?? (focusTitle ? `[data-menu="${event.id}"]` : `[data-details="${event.id}"]`) }, how(from));
   }
-  function openAdd(date: string, trigger: string | null, arriving = false) {
+  function openAdd(date: string, trigger: string | null, from?: From) {
     closeMenu();
-    show({ kind: "add", open: true, date, trigger }, how(arriving));
+    show({ kind: "add", open: true, date, trigger }, how(from));
   }
-  function openTrip(focus: TripFocus, trigger: string | null, arriving = false) {
-    show({ kind: "trip", open: true, focus, trigger }, how(arriving));
+  function openTrip(focus: TripFocus, trigger: string | null, from?: From) {
+    show({ kind: "trip", open: true, focus, trigger }, how(from));
   }
-  function openShare(trigger: string | null, arriving = false) {
-    show({ kind: "share", open: true, trigger }, how(arriving));
+  function openShare(trigger: string | null, from?: From) {
+    show({ kind: "share", open: true, trigger }, how(from));
   }
-  function openRequest(want: PanelRequest, arriving: boolean) {
+  function openRequest(want: PanelRequest, from: From) {
     if (want.kind === "event") {
       const event = live.current.items.find((candidate) => candidate.id === want.id);
-      if (event) openEvent(event, { focusTitle: want.focusTitle, arriving });
-      else if (arriving) window.history.replaceState(null, "", urlFor(null));
-    } else if (want.kind === "add") openAdd(want.date, null, arriving);
-    else if (want.kind === "trip") openTrip(want.focus, null, arriving);
-    else openShare(null, arriving);
+      if (event) openEvent(event, { focusTitle: want.focusTitle, from });
+      else window.history.replaceState(null, "", urlFor(null));
+    } else if (want.kind === "add") openAdd(want.date, null, from);
+    else if (want.kind === "trip") openTrip(want.focus, null, from);
+    else openShare(null, from);
   }
 
   // Resolves close() once its Back has landed, so a refresh started after it can't overlap the history change.
@@ -135,15 +144,19 @@ export function useTripPanels({ tripId, items, shown, day, view, initial, closeM
     });
   }
 
-  // The address asked for a panel (a link, a reload, an older ?event= link from the dashboard): open it once. A frame
-  // also survives development's double mount.
-  const arriving = useRef(initial);
+  // The address asked for a panel (a link, a reload, a dashboard card's menu): open it once, or drop it from the address
+  // if this person can't use it. A frame also survives development's double mount.
+  const arriving = useRef(true);
   useEffect(() => {
-    const want = arriving.current;
-    if (!want) return;
+    if (!arriving.current) return;
     const frame = requestAnimationFrame(() => {
-      arriving.current = null;
-      openRequest(want, true);
+      arriving.current = false;
+      const want = panelFromSearch(window.location.search);
+      if (want && allows(want)) {
+        // Back to this panel's own entry from another page, or a reload of it: the entry for the page is already under it.
+        if (isPanelEntry()) pushed.current = true;
+        openRequest(want, isPanelEntry() ? "history" : "address");
+      } else if (want) window.history.replaceState(null, "", urlFor(null));
     });
     return () => cancelAnimationFrame(frame);
   });
@@ -158,13 +171,12 @@ export function useTripPanels({ tripId, items, shown, day, view, initial, closeM
   useEffect(() => {
     const onPop = () => {
       if (closing.current) return closing.current();
-      const q = new URLSearchParams(window.location.search);
-      const want = panelFromParams({ event: q.get("event"), add: q.get("add"), trip: q.get("trip"), share: q.get("share") });
+      const want = panelFromSearch(window.location.search);
       const open = live.current.panel?.open ? live.current.panel : null;
       if (open && !sameKind(want, open)) {
         if (guard.current && !guard.current()) {
           // Unsaved changes: the panel keeps its entry and asks.
-          window.history.pushState(null, "", urlFor(open));
+          window.history.pushState(panelEntry(), "", urlFor(open));
           pushed.current = true;
           return;
         }
@@ -174,12 +186,16 @@ export function useTripPanels({ tripId, items, shown, day, view, initial, closeM
       }
       if (!open && want) {
         pushed.current = true;
-        reopen.current(want, true);
+        reopen.current(want, "history");
       }
     };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
+  // A refresh (after a save, or a change made elsewhere) replaces the entry's history state: keep the panel's mark on it.
+  useEffect(() => {
+    if (panel?.open && pushed.current && sameKind(panelFromSearch(window.location.search), panel)) keepPanelEntryMark();
+  });
 
   return {
     panel,

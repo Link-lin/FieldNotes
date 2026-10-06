@@ -224,7 +224,7 @@ The booking list is derived from plan items marked **Needs booking**; it is not 
 
 Validate the import workflow with real trips before expanding integrations. In a small pilot, observe whether owners can get a usable response from their chosen external AI, how often import succeeds without JSON editing, how many imported items they keep, edit or skip, and whether they use booking due dates. Measure time spent in the app separately from time spent in the external AI chat.
 
-The app records these measures as daily totals only, with no account, trip or content attached: import previews (clean, needing fixes, or rejected), trips created by import and by hand, items created, skipped in preview and later edited or deleted, book-by dates set, and items marked **Booked**. `npm run pilot:report` prints the totals, weekly figures and rates. Time spent and the quality of each external AI's response are observed with the pilot owners, not measured by the app.
+The app records these measures as daily totals only, with no account, trip or content attached: import previews (clean, needing fixes, or rejected), trips created by import and by hand, items created, skipped in preview and later deleted or edited (how many AI items people changed, and how many saves that took), book-by dates set, and items marked **Booked**. `npm run pilot:report` prints the totals, weekly figures and rates. Time spent and the quality of each external AI's response are observed with the pilot owners, not measured by the app.
 
 The MVP is acceptable when:
 

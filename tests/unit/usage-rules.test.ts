@@ -8,11 +8,13 @@ describe("pilot report", () => {
       { day: "2026-09-29", name: "import_preview_needs_fixes", count: 1 },
       { day: "2026-10-04", name: "import_items_created", count: 18 },
       { day: "2026-10-05", name: "import_items_skipped", count: 2 },
+      { day: "2026-10-05", name: "connector_items_created", count: 2 },
       { day: "2026-10-05", name: "ai_item_edited", count: 9 },
+      { day: "2026-10-05", name: "ai_item_first_edited", count: 5 },
     ]);
     expect(s.totals.import_preview_ok).toBe(3);
     expect(s.totals.item_booked).toBe(0);
-    expect(s.rates).toEqual({ cleanPreview: 0.75, rejectedPreview: 0, skippedItems: 0.1, editsPerImportedItem: 0.5 });
+    expect(s.rates).toEqual({ cleanPreview: 0.75, rejectedPreview: 0, skippedItems: 0.1, editedAiItems: 0.25, savesPerEditedItem: 1.8 });
     expect(s.weeks.map((w) => w.week)).toEqual(["2026-09-28", "2026-10-05"]);
   });
 

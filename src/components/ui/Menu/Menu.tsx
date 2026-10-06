@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef } from "react";
 import { cx } from "@/lib/cx";
 import styles from "./Menu.module.css";
@@ -79,6 +80,16 @@ export function MenuItem({ icon, danger, className, children, type = "button", .
       {icon}
       {children}
     </button>
+  );
+}
+
+/** One action in a Menu that goes to another page (a link, so it can also open in a new tab). */
+export function MenuLink({ icon, className, children, ...rest }: { icon?: React.ReactNode } & React.ComponentProps<typeof Link>) {
+  return (
+    <Link role="menuitem" tabIndex={-1} className={cx(styles.item, className)} {...rest}>
+      {icon}
+      {children}
+    </Link>
   );
 }
 

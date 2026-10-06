@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Actor } from "@/server/auth/actor";
 import { commitImport } from "@/server/modules/import/import.service";
-import { createItem, deleteItem, updateItem, updateItemNotes } from "@/server/modules/items/items.service";
+import { createItem, deleteItem, duplicateItem, updateItem, updateItemFields, updateItemNotes } from "@/server/modules/items/items.service";
 import { createTrip } from "@/server/modules/trips/trips.service";
 import { countUsage } from "@/server/modules/usage/usage.service";
 import type { ImportCommitInput, PlanItemDraftDTO } from "@/shared/import";
@@ -79,7 +79,8 @@ describe("pilot counts (PRD: Validation and MVP acceptance)", () => {
     const [one, two] = rows as [(typeof rows)[number], (typeof rows)[number]];
     await updateItem(testDb(), owner, tripId, one.id, { item: event({ title: "Imported one, edited", localDate: "2027-04-15", localTime: null, bookingStatus: "needs_booking", bookingDueDate: "2027-03-01" }), expectedVersion: one.version });
     await updateItemNotes(testDb(), owner, tripId, two.id, { notes: "Bring cash", expectedVersion: two.version });
-    await deleteItem(testDb(), owner, tripId, two.id, two.version + 1);
+    await updateItemNotes(testDb(), owner, tripId, two.id, { notes: "Bring cash and a hat", expectedVersion: two.version + 1 });
+    await deleteItem(testDb(), owner, tripId, two.id, two.version + 2);
 
     const manualTrip = await createTrip(testDb(), owner, tripInput, NOW);
     const manual = await createItem(testDb(), owner, manualTrip.id, event({ bookingStatus: "needs_booking", bookingDueDate: "2026-11-01" }));
@@ -87,13 +88,47 @@ describe("pilot counts (PRD: Validation and MVP acceptance)", () => {
 
     expect(await counts()).toMatchObject({
       import_trip_created: 1,
-      ai_item_edited: 2,
+      ai_item_edited: 3,
+      ai_item_first_edited: 2,
       ai_item_deleted: 1,
       due_date_set: 2,
       manual_trip_created: 1,
       manual_item_created: 1,
       item_booked: 1,
     });
+  });
+
+  it("counts no AI item edit for a save that changes nothing, or for a person's copy of an AI item", async () => {
+    const draft: ImportCommitInput = {
+      expectedFormatVersion: 1, ownerProvidedBudget: null,
+      trip: { title: "Kyoto", destination: "Kyoto, Japan", startDate: "2027-04-14", endDate: "2027-04-18", timeZone: "Asia/Tokyo", budget: null },
+      items: [item({ title: "Imported one", notes: "Bring cash" })],
+    };
+    const { tripId } = await commitImport(testDb(), owner, draft, crypto.randomUUID());
+    const row = await testDb().selectFrom("plan_items").selectAll().where("trip_id", "=", tripId).executeTakeFirstOrThrow();
+    const ai = ["ai_item_edited", "ai_item_first_edited", "ai_item_deleted"];
+    const firstEdited = async (id: string) => (await testDb().selectFrom("plan_items").select("person_edited_at").where("id", "=", id).executeTakeFirstOrThrow()).person_edited_at;
+
+    // The title and the notes saved again with a trailing space are trimmed back to what was there.
+    const same = await updateItemFields(testDb(), owner, tripId, row.id, { changes: { title: "Imported one " }, base: { title: "Imported one" } });
+    const again = await updateItemNotes(testDb(), owner, tripId, row.id, { notes: "Bring cash ", expectedVersion: same.version });
+    expect(again).toMatchObject({ title: "Imported one", notes: "Bring cash", version: row.version + 2 });
+    for (const name of ai) expect(await counts()).not.toHaveProperty(name);
+    expect(await firstEdited(row.id)).toBeNull();
+
+    // Changing and deleting a copy isn't correcting AI output.
+    const copy = await duplicateItem(testDb(), owner, tripId, row.id, again.version);
+    const mine = await updateItemNotes(testDb(), owner, tripId, copy.id, { notes: "Mine now", expectedVersion: copy.version });
+    await deleteItem(testDb(), owner, tripId, copy.id, mine.version);
+    for (const name of ai) expect(await counts()).not.toHaveProperty(name);
+    expect(await firstEdited(copy.id)).toBeNull();
+
+    // The original's first real change counts once, and the next one only as a save.
+    const changed = await updateItemNotes(testDb(), owner, tripId, row.id, { notes: "Bring yen", expectedVersion: again.version });
+    await updateItemFields(testDb(), owner, tripId, row.id, { changes: { title: "Imported one, at dawn" }, base: { title: "Imported one" } });
+    expect(await counts()).toMatchObject({ ai_item_edited: 2, ai_item_first_edited: 1 });
+    expect(await firstEdited(row.id)).toEqual(expect.any(Date));
+    expect(changed.version).toBe(again.version + 1);
   });
 
   it("never fails the owner's action when counting fails", async () => {

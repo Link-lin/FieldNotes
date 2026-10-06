@@ -33,7 +33,7 @@ import { changesMessage, liveChanges } from "./live-changes";
 import { REVIEW_CHANGED, sendReview } from "./review-events";
 import styles from "./TripPage.module.css";
 import { animateDayEnter } from "./day-motion";
-import { useTripPanels, type PanelRequest } from "./useTripPanels";
+import { useTripPanels } from "./useTripPanels";
 
 const LIT = "data-lit";
 /** A change that lands this soon after this tab saved something is taken to be its own (it says so itself). */
@@ -46,7 +46,7 @@ const FRESH_MS = 2400;
  * costs, bookings and globe location. This component holds the page state and actions; each part
  * renders itself.
  */
-export function TripPage({ data, initialDay, initialPanel, initialView, mapsKey, canEmail, placeLookup }: { data: TripDetailDTO; initialDay: string | null; initialPanel: PanelRequest | null; initialView: TripView; mapsKey: string | null; canEmail: boolean; placeLookup: boolean }) {
+export function TripPage({ data, initialDay, initialView, mapsKey, canEmail, placeLookup }: { data: TripDetailDTO; initialDay: string | null; initialView: TripView; mapsKey: string | null; canEmail: boolean; placeLookup: boolean }) {
   const router = useRouter();
   const toast = useToast();
   const { trip, items } = data;
@@ -239,15 +239,13 @@ export function TripPage({ data, initialDay, initialPanel, initialView, mapsKey,
     }),
     ...(all ? [...undatedFlights, ...undated] : []),
   ];
-  // A panel the address asks for, if this person may use it.
-  const allowed = !initialPanel ? null : (initialPanel.kind === "trip" || initialPanel.kind === "share") && !canManage ? null : initialPanel.kind === "add" && !canEdit ? null : initialPanel;
   const panels = useTripPanels({
     tripId: trip.id,
     items,
     shown,
     day,
     view,
-    initial: allowed,
+    allows: (want) => (want.kind === "trip" || want.kind === "share" ? canManage : want.kind === "add" ? canEdit : true),
     closeMenu: () => setMenuFor(null),
   });
   const openPin = (id: string) => {

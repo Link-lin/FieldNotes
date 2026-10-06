@@ -12,7 +12,7 @@ import { itemInputSchema, toFieldErrors, type ItemFieldsPatch, type ItemInput, t
 import { dateInZone, resolveLocal } from "@/shared/time";
 import { itemDto } from "./items.mapper";
 import * as repo from "./items.repository";
-import { canMarkBooked, placeChanged, scheduleErrors, toValues } from "./items.rules";
+import { canMarkBooked, contentChanged, placeChanged, scheduleErrors, toValues } from "./items.rules";
 import type { Later } from "@/server/core/later";
 import { autoPin, wantsAutoPin } from "@/server/modules/places/auto-pin.service";
 import { applyAiPatch, itemInputOf, priceChanged, type AiItemPatch } from "./items.ai";
@@ -68,15 +68,18 @@ export async function updateItem(
   later?: Later,
 ): Promise<PlanItemDTO> {
   let before: PlanItemRow | null = null;
+  let usage: UsageEvent[] = [];
   const saved = await db.transaction().execute(async (tx) => {
     const { trip } = await requireTripEditor(tx, actor, tripId, true);
     await repo.purgeExpired(tx, trip.id);
     const current = await repo.loadItemForUpdate(tx, trip.id, itemId);
     if (current.version !== body.expectedVersion) throw conflict();
     before = current;
-    return writeItem(tx, trip, current, body.item, body, now);
+    const written = await writeItem(tx, trip, current, body.item, body, now);
+    usage = written.usage;
+    return written.item;
   });
-  await afterEdit(db, tripId, before, body.item, saved, later);
+  await afterEdit(db, tripId, before, body.item, saved, usage, later);
   return saved;
 }
 
@@ -88,6 +91,7 @@ export async function updateItem(
 export async function updateItemFields(db: Kysely<DB>, actor: Actor, tripId: string, itemId: string, body: ItemFieldsPatch, now = new Date(), later?: Later): Promise<PlanItemDTO> {
   let before: PlanItemRow | null = null;
   let input: ItemInput | null = null;
+  let usage: UsageEvent[] = [];
   const saved = await db.transaction().execute(async (tx) => {
     const { trip } = await requireTripEditor(tx, actor, tripId, true);
     await repo.purgeExpired(tx, trip.id);
@@ -98,14 +102,16 @@ export async function updateItemFields(db: Kysely<DB>, actor: Actor, tripId: str
     if (!parsed.success) throw invalid(toFieldErrors(parsed.error));
     before = current;
     input = parsed.data;
-    return writeItem(tx, trip, current, parsed.data, body, now);
+    const written = await writeItem(tx, trip, current, parsed.data, body, now);
+    usage = written.usage;
+    return written.item;
   });
-  await afterEdit(db, tripId, before, input!, saved, later);
+  await afterEdit(db, tripId, before, input!, saved, usage, later);
   return saved;
 }
 
-/** The checks and write a person's edit shares, full or field-level. */
-async function writeItem(tx: Tx, trip: TripRow, current: PlanItemRow, input: ItemInput, opts: { confirmTypeChange?: boolean; confirmPrice?: boolean }, now: Date): Promise<PlanItemDTO> {
+/** The checks and write a person's edit shares, full or field-level, with the AI item counts it earns. */
+async function writeItem(tx: Tx, trip: TripRow, current: PlanItemRow, input: ItemInput, opts: { confirmTypeChange?: boolean; confirmPrice?: boolean }, now: Date): Promise<{ item: PlanItemDTO; usage: UsageEvent[] }> {
   const crossesFlight = (current.type === "flight") !== (input.type === "flight");
   if (crossesFlight && !opts.confirmTypeChange) {
     throw new HttpError(409, "type_change_confirmation_required", "Changing to or from a flight clears the schedule fields. Confirm to continue.");
@@ -116,13 +122,28 @@ async function writeItem(tx: Tx, trip: TripRow, current: PlanItemRow, input: Ite
   if ("path" in values) throw invalid([values]);
   const row = await repo.updateItemRow(tx, current.id, current.version, values);
   if (!row) throw conflict();
+  const usage = await recordAiEdit(tx, current, row, now);
   await bumpTripVersion(tx, trip.id);
-  return dto(row, trip.time_zone, now);
+  return { item: dto(row, trip.time_zone, now), usage };
+}
+
+/** An AI item the pilot counts: from an import or a connected chat, not a copy a person made of one. */
+const countedAiItem = (row: PlanItemRow) => row.source === "ai" && !row.is_copy;
+
+/**
+ * A person's save to a counted AI item, inside its transaction: every save that changes what the item says counts, and
+ * the first one per item counts once more and is recorded. A save that changes nothing (a title re-trimmed) counts nothing.
+ */
+async function recordAiEdit(tx: Tx, before: PlanItemRow, after: PlanItemRow, now: Date): Promise<UsageEvent[]> {
+  if (!countedAiItem(before) || !contentChanged(before, after)) return [];
+  if (before.person_edited_at !== null) return [{ name: "ai_item_edited" }];
+  await repo.markPersonEdited(tx, after.id, now);
+  return [{ name: "ai_item_edited" }, { name: "ai_item_first_edited" }];
 }
 
 /** After a person's edit: its pilot counts, and a new place name looked up for a pin (MAP-2). */
-async function afterEdit(db: Kysely<DB>, tripId: string, prior: PlanItemRow | null, input: ItemInput, saved: PlanItemDTO, later?: Later) {
-  await countUsage(db, [...(prior?.source === "ai" ? [{ name: "ai_item_edited" as const }] : []), ...bookingUsage(prior, saved)]);
+async function afterEdit(db: Kysely<DB>, tripId: string, prior: PlanItemRow | null, input: ItemInput, saved: PlanItemDTO, usage: UsageEvent[], later?: Later) {
+  await countUsage(db, [...usage, ...bookingUsage(prior, saved)]);
   // Only a new place name is looked up: a pin the person removed on purpose doesn't come back on the next save.
   if (later && placeChanged(input, prior) && wantsAutoPin(saved)) later(async () => void (await autoPin(db, tripId, [saved.id])));
 }
@@ -136,7 +157,7 @@ export async function updateItemNotes(
   body: { notes: string | null; expectedVersion: number; baseNotes?: string | null },
   now = new Date(),
 ): Promise<PlanItemDTO> {
-  let wasAi = false;
+  let usage: UsageEvent[] = [];
   const saved = await db.transaction().execute(async (tx) => {
     const { trip } = await requireTripEditor(tx, actor, tripId, true);
     await repo.purgeExpired(tx, trip.id);
@@ -148,11 +169,11 @@ export async function updateItemNotes(
     const notes = body.notes?.trim() || null;
     const row = await repo.updateNotes(tx, current.id, current.version, notes);
     if (!row) throw conflict();
+    usage = await recordAiEdit(tx, current, row, now);
     await bumpTripVersion(tx, trip.id);
-    wasAi = current.source === "ai";
     return dto(row, trip.time_zone, now);
   });
-  if (wasAi) await countUsage(db, [{ name: "ai_item_edited" }]);
+  await countUsage(db, usage);
   return saved;
 }
 
@@ -190,16 +211,16 @@ export async function updateItemBooking(
 
 /** TRIP-8: immediate soft delete; restorable for 10 minutes. */
 export async function deleteItem(db: Kysely<DB>, actor: Actor, tripId: string, itemId: string, expectedVersion: number): Promise<void> {
-  const source = await db.transaction().execute(async (tx) => {
+  const counted = await db.transaction().execute(async (tx) => {
     const { trip } = await requireTripEditor(tx, actor, tripId, true);
     await repo.purgeExpired(tx, trip.id);
     const current = await repo.loadItemForUpdate(tx, trip.id, itemId);
     if (current.version !== expectedVersion) throw conflict();
     await repo.softDelete(tx, current.id);
     await bumpTripVersion(tx, trip.id);
-    return current.source;
+    return countedAiItem(current);
   });
-  if (source === "ai") await countUsage(db, [{ name: "ai_item_deleted" }]);
+  if (counted) await countUsage(db, [{ name: "ai_item_deleted" }]);
 }
 
 /** Undo within 10 minutes: the same row comes back, if the cap allows and its time still exists. */
