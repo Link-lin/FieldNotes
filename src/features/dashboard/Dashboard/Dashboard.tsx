@@ -7,6 +7,7 @@ import type { DashboardDTO } from "@/shared/dto";
 import { useToast } from "@/components/ui/Toast/Toast";
 import { TripDetails } from "@/features/trips/TripDetails/TripDetails";
 import { lastWriteAt } from "@/lib/api";
+import { isPanelEntry, keepPanelEntryMark, panelEntry } from "@/lib/panel-history";
 import { useLiveRevision } from "@/lib/use-live-revision";
 import { rememberReturn, innerScroller, takeReturn } from "../dashboard-return";
 import { GlobeLoading } from "./Globe/GlobeLoading/GlobeLoading";
@@ -191,7 +192,7 @@ export function Dashboard({ data, focus, initialFilter }: { data: DashboardDTO; 
   };
   function openNew() {
     showNew(true);
-    window.history.pushState(null, "", newTripUrl(true));
+    window.history.pushState(panelEntry(), "", newTripUrl(true));
     pushed.current = true;
   }
   /** Closes New trip (it has already asked about anything typed). */
@@ -212,8 +213,9 @@ export function Dashboard({ data, focus, initialFilter }: { data: DashboardDTO; 
     }
   }
   // Arriving at ?new=trip opens New trip once, over an entry for the dashboard without it, so Back closes New trip (asking
-  // about anything typed) rather than leaving with it; without permission to create trips the address just drops it.
-  // Read from the address as it is now: Back to the dashboard restores its first render, whose New trip may have closed
+  // about anything typed) rather than leaving with it; coming back to New trip's own entry (Back or Forward from another
+  // page, a reload) reuses it (`panel-history.ts`). Without permission to create trips the address just drops it. Read
+  // from the address as it is now: Back to the dashboard restores its first render, whose New trip may have closed
   // since. A frame also survives development's double mount.
   const arriving = useRef(true);
   const canCreate = useRef(data.canCreateTrips);
@@ -222,9 +224,11 @@ export function Dashboard({ data, focus, initialFilter }: { data: DashboardDTO; 
     const frame = requestAnimationFrame(() => {
       arriving.current = false;
       if (new URLSearchParams(window.location.search).get("new") !== "trip") return;
-      window.history.replaceState(null, "", newTripUrl(false));
-      if (!canCreate.current) return;
-      window.history.pushState(null, "", newTripUrl(true));
+      if (!canCreate.current) return window.history.replaceState(null, "", newTripUrl(false));
+      if (!isPanelEntry()) {
+        window.history.replaceState(null, "", newTripUrl(false));
+        window.history.pushState(panelEntry(), "", newTripUrl(true));
+      }
       pushed.current = true;
       showNew(true);
     });
@@ -237,7 +241,7 @@ export function Dashboard({ data, focus, initialFilter }: { data: DashboardDTO; 
       if (creatingNow.current && !wanted) {
         if (newGuard.current && !newGuard.current()) {
           // Something typed: the panel keeps its entry and asks.
-          window.history.pushState(null, "", newTripUrl(true));
+          window.history.pushState(panelEntry(), "", newTripUrl(true));
           pushed.current = true;
           return;
         }
@@ -251,6 +255,10 @@ export function Dashboard({ data, focus, initialFilter }: { data: DashboardDTO; 
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
+  // A refresh (a trip created or shared elsewhere) replaces the entry's history state: keep New trip's mark on it.
+  useEffect(() => {
+    if (creating?.open && pushed.current && new URLSearchParams(window.location.search).get("new") === "trip") keepPanelEntryMark();
+  });
 
   function onFilter(f: Filter) {
     setFilter(f);

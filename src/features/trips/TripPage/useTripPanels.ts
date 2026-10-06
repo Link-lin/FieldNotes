@@ -3,6 +3,7 @@ import { useRouter } from "next/navigation";
 import type { PlanItemDTO } from "@/shared/dto";
 import { isPhoneWidth } from "@/lib/client-value";
 import { rememberEventReturn } from "@/lib/event-return";
+import { isPanelEntry, keepPanelEntryMark, panelEntry } from "@/lib/panel-history";
 import type { PanelGuard } from "./EventPanel/EventPanel";
 import type { TripView } from "./TripViewNav/TripViewNav";
 import { panelFromSearch, type PanelRequest, type TripFocus } from "./panel-request";
@@ -34,7 +35,8 @@ const sameKind = (a: PanelRequest | null, b: Panel | null) => !!a && !!b && a.ki
  * The trip page's side panels (TRIP-1, TRIP-9, TRIP-10, DASH-6, ACCESS-3): an event, a new event, the trip's details
  * or sharing. Each has an address, so reload restores it and links can point at it. Opening one adds a history entry,
  * so browser Back closes it (asking first about unsaved changes); arriving at one puts an entry for the page without it
- * underneath, so Back closes it there too rather than leaving the page; moving within a panel (Previous and Next, a new
+ * underneath, so Back closes it there too rather than leaving the page, and coming back to a panel's entry (Back or
+ * Forward from another page, a reload) reuses it (`panel-history.ts`); moving within a panel (Previous and Next, a new
  * event once added) replaces the entry. On phones an event opens as its own page instead (TRIP-10).
  */
 
@@ -75,12 +77,12 @@ export function useTripPanels({ tripId, items, shown, day, view, allows, closeMe
     const url = urlFor(next);
     if (history === "arrive") window.history.replaceState(null, "", urlFor(null));
     if (history === "push" || history === "arrive") {
-      window.history.pushState(null, "", url);
+      window.history.pushState(panelEntry(), "", url);
       pushed.current = true;
-    } else window.history.replaceState(null, "", url);
+    } else window.history.replaceState(pushed.current ? panelEntry() : null, "", url);
   }
-  // A panel replaces one that is open, or the entry Back or Forward landed on; arriving, it goes over an entry for the
-  // page without it; otherwise it adds a history entry.
+  // A panel replaces one that is open, or its own entry that Back, Forward or a reload came back to; arriving at its
+  // address afresh, it goes over an entry for the page without it; otherwise it adds a history entry.
   const how = (from?: From) => (from === "address" ? "arrive" : from === "history" || live.current.panel?.open ? "replace" : "push");
 
   function phoneEvent(event: PlanItemDTO, editing: boolean, replace: boolean) {
@@ -150,8 +152,11 @@ export function useTripPanels({ tripId, items, shown, day, view, allows, closeMe
     const frame = requestAnimationFrame(() => {
       arriving.current = false;
       const want = panelFromSearch(window.location.search);
-      if (want && allows(want)) openRequest(want, "address");
-      else if (want) window.history.replaceState(null, "", urlFor(null));
+      if (want && allows(want)) {
+        // Back to this panel's own entry from another page, or a reload of it: the entry for the page is already under it.
+        if (isPanelEntry()) pushed.current = true;
+        openRequest(want, isPanelEntry() ? "history" : "address");
+      } else if (want) window.history.replaceState(null, "", urlFor(null));
     });
     return () => cancelAnimationFrame(frame);
   });
@@ -171,7 +176,7 @@ export function useTripPanels({ tripId, items, shown, day, view, allows, closeMe
       if (open && !sameKind(want, open)) {
         if (guard.current && !guard.current()) {
           // Unsaved changes: the panel keeps its entry and asks.
-          window.history.pushState(null, "", urlFor(open));
+          window.history.pushState(panelEntry(), "", urlFor(open));
           pushed.current = true;
           return;
         }
@@ -187,6 +192,10 @@ export function useTripPanels({ tripId, items, shown, day, view, allows, closeMe
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
+  // A refresh (after a save, or a change made elsewhere) replaces the entry's history state: keep the panel's mark on it.
+  useEffect(() => {
+    if (panel?.open && pushed.current && sameKind(panelFromSearch(window.location.search), panel)) keepPanelEntryMark();
+  });
 
   return {
     panel,
