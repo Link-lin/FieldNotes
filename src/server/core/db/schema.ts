@@ -159,8 +159,10 @@ export interface PlanItemsTable {
   source: "ai" | "manual";
   /** When a person marked this AI draft reviewed (IMPORT-7); null while it is an unverified draft, and for manual items. */
   reviewed_at: Date | null;
-  /** When a person first changed this AI item (a pilot measure); null until then, for manual items, and never set by a chat. */
+  /** When a person first changed this AI item (a pilot measure); null until then, for manual items and copies, and never set by a chat. */
   person_edited_at: Date | null;
+  /** Made with Duplicate (PLAN-3): a person's copy, which the pilot's AI item counts leave out. */
+  is_copy: Generated<boolean>;
   local_date: DateText | null;
   local_time: string | null;
   time_zone: string | null;

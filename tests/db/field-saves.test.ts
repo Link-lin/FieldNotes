@@ -105,10 +105,10 @@ describe("event field saves (TRIP-10)", () => {
     const priced = await updateItemFields(testDb(), owner, t.id, i.id, { changes: { plannedPrice: { amount: "45", currency: "USD", label: "estimate" } }, base: { plannedPrice: { amount: "40", currency: "USD", label: "estimate" } } }, NOW);
     expect(priced.plannedPrice).toMatchObject({ amount: "45", source: "owner" });
     expect(await counts()).toMatchObject({ ai_item_edited: 2, ai_item_first_edited: 1 });
-    // A copy is the person's own: changing it is not a first change to an AI item.
+    // A copy is the person's own: changing it is not a correction of AI output.
     const copy = await duplicateItem(testDb(), owner, t.id, i.id, priced.version, NOW);
     await updateItemFields(testDb(), owner, t.id, copy.id, { changes: { notes: "Copy" }, base: { notes: "Cash only" } }, NOW);
-    expect(await counts()).toMatchObject({ ai_item_edited: 3, ai_item_first_edited: 1 });
+    expect(await counts()).toMatchObject({ ai_item_edited: 2, ai_item_first_edited: 1 });
   });
 
   it("lets owners and editors save over the route; viewers get 403, strangers 404, others 401 or 403", async () => {

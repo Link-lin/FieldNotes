@@ -211,9 +211,10 @@ export function Dashboard({ data, focus, initialFilter }: { data: DashboardDTO; 
       router.push(`/trips/${id}`);
     }
   }
-  // Arriving at ?new=trip opens New trip once; without permission to create trips the address just drops it. Read from
-  // the address as it is now: Back to the dashboard restores its first render, whose New trip may have closed since. A
-  // frame also survives development's double mount.
+  // Arriving at ?new=trip opens New trip once, over an entry for the dashboard without it, so Back closes New trip (asking
+  // about anything typed) rather than leaving with it; without permission to create trips the address just drops it.
+  // Read from the address as it is now: Back to the dashboard restores its first render, whose New trip may have closed
+  // since. A frame also survives development's double mount.
   const arriving = useRef(true);
   const canCreate = useRef(data.canCreateTrips);
   useEffect(() => {
@@ -221,8 +222,11 @@ export function Dashboard({ data, focus, initialFilter }: { data: DashboardDTO; 
     const frame = requestAnimationFrame(() => {
       arriving.current = false;
       if (new URLSearchParams(window.location.search).get("new") !== "trip") return;
-      if (canCreate.current) showNew(true);
-      else window.history.replaceState(null, "", newTripUrl(false));
+      window.history.replaceState(null, "", newTripUrl(false));
+      if (!canCreate.current) return;
+      window.history.pushState(null, "", newTripUrl(true));
+      pushed.current = true;
+      showNew(true);
     });
     return () => cancelAnimationFrame(frame);
   });

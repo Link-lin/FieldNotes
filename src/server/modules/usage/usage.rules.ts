@@ -9,9 +9,9 @@ export const USAGE_NAMES = [
   "import_trip_created", // a confirmed import created a trip (retries not counted)
   "import_items_created",
   "import_items_skipped", // items the owner skipped in the preview
-  "ai_item_edited", // a person saved a change to an AI item (each save: a field, a section, a full edit or notes)
+  "ai_item_edited", // a person saved a change to an AI item (each save that changes it: a field, a section, a full edit or notes)
   "ai_item_first_edited", // a person changed an AI item for the first time (each item once)
-  "ai_item_deleted",
+  "ai_item_deleted", // a person deleted an AI item (the three AI item counts leave out a person's copies)
   "manual_trip_created",
   "manual_item_created",
   "due_date_set", // a book-by date added or changed

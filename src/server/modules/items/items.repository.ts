@@ -73,18 +73,20 @@ export async function updateItemRow(tx: Tx, itemId: string, expectedVersion: num
     .executeTakeFirst();
 }
 
-/**
- * Notes only (and, on a person's first change to an AI item, when that was), when the version still matches; undefined
- * means someone else changed it first.
- */
-export async function updateNotes(tx: Tx, itemId: string, expectedVersion: number, notes: string | null, personEditedAt?: Date): Promise<PlanItemRow | undefined> {
+/** Notes only, when the version still matches; undefined means someone else changed it first. */
+export async function updateNotes(tx: Tx, itemId: string, expectedVersion: number, notes: string | null): Promise<PlanItemRow | undefined> {
   return tx
     .updateTable("plan_items")
-    .set({ notes, ...(personEditedAt ? { person_edited_at: personEditedAt } : {}), version: sql`version + 1`, updated_at: sql`now()` })
+    .set({ notes, version: sql`version + 1`, updated_at: sql`now()` })
     .where("id", "=", itemId)
     .where("version", "=", expectedVersion)
     .returningAll()
     .executeTakeFirst();
+}
+
+/** Records a person's first change to an AI item (a pilot measure), in the transaction that made it. Not a new version. */
+export async function markPersonEdited(tx: Tx, itemId: string, at: Date): Promise<void> {
+  await tx.updateTable("plan_items").set({ person_edited_at: at }).where("id", "=", itemId).execute();
 }
 
 /** Booking state and book-by date only, when the version still matches; undefined means someone else changed it first. */
@@ -108,12 +110,12 @@ export async function undelete(tx: Tx, itemId: string): Promise<PlanItemRow | un
 }
 
 /**
- * A copy of the row with a new id and timestamps; a booked copy becomes "needs booking" without a due date. A copy of an
- * AI item is the person's own (it isn't among the AI items the pilot counts), so changing it never counts as a first edit.
+ * A copy of the row with a new id and timestamps, marked as a copy; a booked copy becomes "needs booking" without a due
+ * date. It keeps the original's provenance, but not when a person first changed it: the pilot doesn't count copies.
  */
 export async function copyItem(tx: Tx, src: PlanItemRow): Promise<PlanItemRow> {
-  const { id: _id, version: _v, created_at: _c, updated_at: _u, deleted_at: _d, links, ...rest } = src;
-  void _id; void _v; void _c; void _u; void _d;
+  const { id: _id, version: _v, created_at: _c, updated_at: _u, deleted_at: _d, person_edited_at: _p, links, ...rest } = src;
+  void _id; void _v; void _c; void _u; void _d; void _p;
   return tx
     .insertInto("plan_items")
     .values({
@@ -121,7 +123,7 @@ export async function copyItem(tx: Tx, src: PlanItemRow): Promise<PlanItemRow> {
       links: JSON.stringify(links),
       booking_status: src.booking_status === "booked" ? "needs_booking" : src.booking_status,
       booking_due_date: null,
-      person_edited_at: src.source === "ai" ? (src.person_edited_at ?? sql`now()`) : null,
+      is_copy: true,
     })
     .returningAll()
     .executeTakeFirstOrThrow();
