@@ -1,16 +1,19 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { PlanItemDTO, TripDetailDTO } from "@/shared/dto";
 import { Button, ButtonLink } from "@/components/ui/Button/Button";
 import { EditIcon, PlusIcon, ShareIcon, StatusIcon } from "@/components/ui/Icon/icons";
 import { Tag } from "@/components/ui/Tag/Tag";
+import { TripCover } from "@/components/ui/TripCover/TripCover";
 import { dashboardUrl } from "@/features/dashboard/dashboard-return";
 import { TripTitleField } from "@/features/trips/TripDetails/TripTitleField/TripTitleField";
 import { cx } from "@/lib/cx";
 import { ROLE_LABEL } from "@/shared/roles";
 import { dateRangeLabel, STATUS_LABEL } from "@/lib/format";
+import { CoverView } from "./CoverView/CoverView";
 import { Stamp } from "./Stamp/Stamp";
 import { UpNext } from "./UpNext/UpNext";
 import styles from "./TripHeader.module.css";
@@ -32,10 +35,12 @@ type Props = {
 
 /**
  * Back to all trips, dates and zone, status and role, the title (an owner changes it in place), the actions your role
- * allows and, when wide, what's up next.
+ * allows, the stamp or the trip's cover (DASH-8, which opens at full size) and, when wide, what's up next.
  */
 export function TripHeader({ trip, canEdit, canManage, compact = false, items, onOpenEvent, onAdd, onEdit, onShare }: Props) {
   const router = useRouter();
+  // The cover open at full size, by version: one replaced or removed elsewhere closes it.
+  const [viewing, setViewing] = useState<string | null>(null);
   return (
     <>
       <Link
@@ -58,7 +63,7 @@ export function TripHeader({ trip, canEdit, canManage, compact = false, items, o
           <Tag tone={trip.status}><StatusIcon status={trip.status} />{STATUS_LABEL[trip.status]}</Tag>
           <Tag tone="soft">{ROLE_LABEL[trip.role]}{!trip.primaryOwner && trip.ownerName ? `, shared by ${trip.ownerName}` : ""}</Tag>
         </div>
-        {!compact ? <Stamp className={styles.stamp} city={trip.destination.split(",")[0] ?? trip.destination} start={trip.startDate} days={trip.dayCount} status={trip.status} /> : null}
+        {!compact && !trip.cover ? <Stamp className={styles.stamp} city={trip.destination.split(",")[0] ?? trip.destination} start={trip.startDate} days={trip.dayCount} status={trip.status} /> : null}
         <TripTitleField tripId={trip.id} title={trip.title} canEdit={canManage} as="h1" headingId="trip-title" className={styles.title} focusable />
         <p className={styles.dest}>{trip.destination}</p>
         <div className={styles.actions}>
@@ -72,7 +77,14 @@ export function TripHeader({ trip, canEdit, canManage, compact = false, items, o
           {trip.atlasLocation ? <ButtonLink variant={canEdit ? "quiet" : "outline"} href={`/?focus=${trip.id}`}>Show on globe</ButtonLink> : null}
         </div>
         {!compact && items && onOpenEvent ? <UpNext className={styles.upNext} trip={trip} items={items} onOpen={onOpenEvent} /> : null}
+        {/* Placed in the stamp's corner by CSS; last in the header so focus reaches it after the actions. */}
+        {!compact && trip.cover ? (
+          <button type="button" className={styles.cover} data-cover-open onClick={() => setViewing(trip.cover?.version ?? null)} aria-label="Show the trip's cover">
+            <TripCover cover={trip.cover} size="small" />
+          </button>
+        ) : null}
       </header>
+      {trip.cover && viewing === trip.cover.version ? <CoverView title={trip.title} cover={trip.cover} onClose={() => setViewing(null)} /> : null}
     </>
   );
 }

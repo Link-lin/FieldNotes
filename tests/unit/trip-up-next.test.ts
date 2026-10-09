@@ -5,7 +5,7 @@ import { flightRoute, upNext } from "@/features/trips/TripPage/trip-days";
 type Trip = TripDetailDTO["trip"];
 const trip = (over: Partial<Trip>): Trip => ({
   id: "t", title: "Trip", destination: "Honolulu", startDate: "2026-10-19", endDate: "2026-10-26", timeZone: "Pacific/Honolulu",
-  status: "upcoming", daysToStart: 21, dayIndex: null, daysSinceEnd: null, dayCount: 8, role: "owner", ownerName: null, creatorGone: false, atlasLocation: null,
+  status: "upcoming", daysToStart: 21, dayIndex: null, daysSinceEnd: null, dayCount: 8, role: "owner", ownerName: null, creatorGone: false, atlasLocation: null, cover: null,
   version: 1, budget: null, today: "2026-09-28", primaryOwner: true, ...over,
 });
 const endpoint = (airportCode: string | null) => ({ airportCode, localDateTime: null, timeZone: null, timeDisambiguation: null });

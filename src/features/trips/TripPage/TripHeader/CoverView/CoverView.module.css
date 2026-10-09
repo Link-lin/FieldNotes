@@ -1,0 +1,2 @@
+/* As large as the dialog and 70% of the window's height allow, in its own shape. */
+.image { justify-self: center; width: min(100%, calc(70vh * var(--cover-ratio))); border: 1px solid var(--line); border-radius: var(--radius-2xs); }

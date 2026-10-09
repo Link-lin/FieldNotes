@@ -41,6 +41,6 @@ export function changesMessage(c: LiveChanges, before: TripDetailDTO["trip"], af
     if (ids.length) parts.push(`${count(ids.length, parts.length === 0)} ${word}`);
   }
   if (parts.length) return `Trip updated: ${parts.join(", ")}.`;
-  const tripChanged = before.title !== after.title || before.destination !== after.destination || before.startDate !== after.startDate || before.endDate !== after.endDate || before.timeZone !== after.timeZone || JSON.stringify(before.budget) !== JSON.stringify(after.budget);
+  const tripChanged = before.title !== after.title || before.destination !== after.destination || before.startDate !== after.startDate || before.endDate !== after.endDate || before.timeZone !== after.timeZone || JSON.stringify(before.budget) !== JSON.stringify(after.budget) || before.cover?.version !== after.cover?.version;
   return tripChanged ? "Trip updated." : null;
 }

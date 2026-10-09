@@ -1,0 +1,2 @@
+/* The paper behind it shows until it loads; each place sets its width from --cover-ratio, and the height follows. */
+.cover { display: block; max-width: 100%; height: auto; background: var(--line); }

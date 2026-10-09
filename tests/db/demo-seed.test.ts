@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { listOwnedTrips } from "@/server/modules/account/account.service";
+import { readTripCover } from "@/server/modules/covers/cover.service";
 import { getDashboard } from "@/server/modules/dashboard/dashboard.service";
 import { listInvitations } from "@/server/modules/invitations/invitations.service";
 import { getTripDetail } from "@/server/modules/trips/trips.service";
@@ -98,6 +99,11 @@ describe("test trips seed", () => {
     expect(byTitle[LISBON_TITLE]).toMatchObject({ role: "owner", primaryOwner: true, status: "upcoming", atlasLocation: null });
     // Trips someone else made, with each role you can hold on them.
     expect(byTitle[KYOTO_TITLE]).toMatchObject({ role: "viewer", primaryOwner: false });
+    // Covers (DASH-8): your Hawaii trip and the Kyoto trip you only view have one; the others keep the stamp.
+    expect(byTitle[HAWAII_TITLE]!.cover).toMatchObject({ width: 1067, height: 1600, small: expect.stringContaining(`/api/trips/${ids[HAWAII_TITLE]}/cover?size=small&v=`) });
+    expect(byTitle[KYOTO_TITLE]!.cover).toMatchObject({ width: 1067, height: 1600 });
+    expect(byTitle[LISBON_TITLE]!.cover).toBeNull();
+    expect((await readTripCover(testDb(), owner, ids[KYOTO_TITLE]!, "small")).subarray(0, 2)).toEqual(Buffer.from([0xff, 0xd8]));
     expect(byTitle[OSAKA_TITLE]).toMatchObject({ role: "editor", primaryOwner: false, ownerName: TEST_FRIEND.name });
     expect(byTitle[SEOUL_TITLE]).toMatchObject({ role: "owner", primaryOwner: false, ownerName: TEST_FRIEND.name });
     // Booking counts cover the trips you can edit (yours, the editor trip and the co-owned one), never the viewer trip.

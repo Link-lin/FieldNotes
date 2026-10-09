@@ -1,0 +1,10 @@
+/* The current cover beside its notes and buttons; without one, just the notes and Choose image. */
+.body { display: grid; gap: var(--space-4); align-items: start; }
+.body[data-has-cover] { grid-template-columns: auto minmax(0, 1fr); }
+.preview { width: min(128px, calc(168px * var(--cover-ratio))); border: 4px solid var(--card); border-radius: var(--radius-2xs); box-shadow: var(--shadow-sm); }
+.side { display: grid; gap: var(--space-3); justify-items: start; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; }
+
+@media (max-width: 600px) {
+  .preview { width: min(96px, calc(128px * var(--cover-ratio))); }
+}

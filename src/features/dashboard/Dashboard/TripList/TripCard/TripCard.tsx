@@ -7,6 +7,7 @@ import { Button, ButtonLink } from "@/components/ui/Button/Button";
 import { DotsIcon, EditIcon, ShareIcon, StatusIcon } from "@/components/ui/Icon/icons";
 import { Menu, MenuLink } from "@/components/ui/Menu/Menu";
 import { Tag } from "@/components/ui/Tag/Tag";
+import { TripCover } from "@/components/ui/TripCover/TripCover";
 import { cx } from "@/lib/cx";
 import { dateRangeLabel, relativeLabel, STATUS_LABEL } from "@/lib/format";
 import { canManage, ROLE_LABEL } from "@/shared/roles";
@@ -14,12 +15,13 @@ import styles from "./TripCard.module.css";
 
 /**
  * One trip in the list, with a compact route to its booking work when needed. An owner's card has a three-dot menu that
- * opens the trip page with its Trip details or Share panel (DASH-6, ACCESS-3).
+ * opens the trip page with its Trip details or Share panel (DASH-6, ACCESS-3). A trip's cover sits beside its title and
+ * opens the trip too (DASH-8).
  */
 export function TripCard({ trip, booking, index, selected, onShowOnGlobe }: { trip: TripSummaryDTO; booking?: { total: number; overdue: number }; index: number; selected: boolean; onShowOnGlobe: () => void }) {
   const [menuOpen, setMenuOpen] = useState(false);
   return (
-    <li className={styles.card} data-trip={trip.id} data-status={trip.status} data-selected={selected} data-menu-open={menuOpen || undefined} style={{ animationDelay: `${index * 70}ms` }}>
+    <li className={styles.card} data-trip={trip.id} data-status={trip.status} data-selected={selected} data-menu-open={menuOpen || undefined} data-cover={trip.cover ? true : undefined} style={{ animationDelay: `${index * 70}ms` }}>
       <div className={styles.top}>
         <span className={cx("mono", styles.when)}>
           {dateRangeLabel(trip)} · <b>{relativeLabel(trip)}</b>
@@ -52,6 +54,12 @@ export function TripCard({ trip, booking, index, selected, onShowOnGlobe }: { tr
         {trip.destination}
         {!trip.primaryOwner && trip.ownerName ? <span className="muted"> · shared by {trip.ownerName}</span> : null}
       </p>
+      {trip.cover ? (
+        // The title is the card's link; this one only gives the picture the same target for a pointer.
+        <Link className={styles.cover} href={`/trips/${trip.id}`} tabIndex={-1} aria-hidden data-trip-link={trip.id}>
+          <TripCover cover={trip.cover} size="small" />
+        </Link>
+      ) : null}
       <div className={styles.actions}>
         <ButtonLink variant="link" href={`/trips/${trip.id}`} data-open={trip.id} data-trip-link={trip.id}>Open trip</ButtonLink>
         {booking?.total ? (

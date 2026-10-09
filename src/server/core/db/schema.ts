@@ -57,9 +57,21 @@ export interface TripsTable {
   time_zone: string;
   budget_amount: Numeric | null;
   budget_currency: string | null;
+  /** DASH-8: the stored full cover image's SHA-256 (hex) and its size in pixels; all three set or all null. */
+  cover_hash: string | null;
+  cover_width: number | null;
+  cover_height: number | null;
   version: Generated<number>;
   created_at: Stamp;
   updated_at: Stamp;
+}
+
+/** DASH-8: a trip's cover at two sizes, written only with the `trips.cover_*` columns. */
+export interface TripCoversTable {
+  trip_id: string;
+  full_jpeg: Buffer;
+  small_jpeg: Buffer;
+  created_at: Generated<Date>;
 }
 
 export interface TripViewersTable {
@@ -197,6 +209,7 @@ export interface DB {
   Session: SessionTable;
   VerificationToken: VerificationTokenTable;
   trips: TripsTable;
+  trip_covers: TripCoversTable;
   trip_viewers: TripViewersTable;
   import_receipts: ImportReceiptsTable;
   plan_items: PlanItemsTable;

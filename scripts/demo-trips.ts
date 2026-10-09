@@ -6,8 +6,12 @@
  * app (itemInputSchema, scheduleErrors, toValues), so the data is always something the app
  * could have written. Never run this against production.
  */
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import type { Kysely } from "kysely";
 import type { DB } from "@/server/core/db/schema";
+import { saveCover, type StoredCover } from "@/server/modules/covers/cover.repository";
+import { cleanJpeg } from "@/server/modules/covers/jpeg";
 import { hashInvitationToken, newInvitationToken } from "@/server/modules/invitations/invitations.rules";
 import { insertItem } from "@/server/modules/items/items.repository";
 import { scheduleErrors, toValues } from "@/server/modules/items/items.rules";
@@ -83,6 +87,8 @@ export type TripSpec = {
   budget: Money | null;
   /** Owner-set globe point; otherwise the catalog is matched as the app does. */
   ownerPoint?: { latitude: number; longitude: number };
+  /** A cover (DASH-8) from `scripts/demo-covers`: original abstract pictures, made for these test trips. */
+  cover?: "hawaii" | "kyoto";
   items: ItemSpec[];
   viewers: Viewer[];
 };
@@ -106,6 +112,7 @@ export function demoTrips(today: string): TripSpec[] {
     timeZone: HAWAII_ZONE,
     budget: { amount: "7500", currency: "USD" },
     ownerPoint: { latitude: 20.8, longitude: -156.33 },
+    cover: "hawaii",
     viewers: [
       { kind: "accepted-friend", role: "editor" },
       { kind: "pending", email: "jordan.test@example.com", role: "owner" },
@@ -494,6 +501,7 @@ export function demoTrips(today: string): TripSpec[] {
     owner: "friend",
     title: KYOTO_TITLE,
     destination: "Kyoto, Japan", // matches the bundled catalog: globe point from the catalog
+    cover: "kyoto",
     startDate: k,
     endDate: kd(3),
     timeZone: "Asia/Tokyo",
@@ -695,6 +703,18 @@ function toInput(spec: ItemSpec): unknown {
 
 export type SeedResult = { trips: Array<{ id: string; title: string; items: number; viewers: number }> };
 
+/** A test cover, checked and stored as an upload would be (DASH-8). */
+function demoCover(name: NonNullable<TripSpec["cover"]>): StoredCover {
+  const image = (size: "full" | "small") => {
+    const img = cleanJpeg(readFileSync(new URL(`./demo-covers/${name}-${size}.jpg`, import.meta.url)));
+    if (!img) throw new Error(`Test cover ${name}-${size}.jpg isn't a JPEG the app stores.`);
+    return img;
+  };
+  const full = image("full");
+  const small = image("small");
+  return { hash: createHash("sha256").update(full.bytes).digest("hex"), width: full.width, height: full.height, full: full.bytes, small: small.bytes };
+}
+
 /**
  * Replaces the test trips: deletes your trips with the test titles and every trip owned by the
  * made-up friend, then inserts the three trips in one transaction. Nothing else is touched.
@@ -742,6 +762,8 @@ export async function seedDemoTrips(db: Kysely<DB>, you: { id: string; email: st
         if (item.ai && item.reviewed) values.reviewed_at = now;
         await insertItem(tx, trip.id, item.ai ? "ai" : "manual", values);
       }
+
+      if (spec.cover && !(await saveCover(tx, trip.id, trip.version, demoCover(spec.cover)))) throw new Error(`Couldn't store the cover of "${spec.title}".`);
 
       for (const v of spec.viewers) {
         const base = { trip_id: trip.id, accepted_at: null, revoked_at: null, viewer_user_id: null };

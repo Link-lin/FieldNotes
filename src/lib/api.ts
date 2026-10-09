@@ -11,9 +11,12 @@ export function lastWriteAt(): number {
   return writing > 0 ? Date.now() : lastWrite;
 }
 
-/** Same-origin JSON call to a Route Handler. The browser sends Origin; the server checks it. */
+/**
+ * Same-origin call to a Route Handler with a JSON body, or a `FormData` one (the trip cover's upload). The browser sends
+ * Origin; the server checks it.
+ */
 export async function api<T>(
-  method: "GET" | "POST" | "PATCH" | "DELETE",
+  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
   url: string,
   body?: unknown,
   options?: { headers?: Record<string, string> },
@@ -34,8 +37,9 @@ async function call<T>(method: string, url: string, body: unknown, options?: { h
     res = await fetch(url, {
       method,
       credentials: "same-origin",
-      headers: { ...(body === undefined ? {} : { "Content-Type": "application/json" }), ...options?.headers },
-      body: body === undefined ? undefined : JSON.stringify(body),
+      // A form sets its own multipart type, with the boundary.
+      headers: { ...(body === undefined || body instanceof FormData ? {} : { "Content-Type": "application/json" }), ...options?.headers },
+      body: body === undefined ? undefined : body instanceof FormData ? body : JSON.stringify(body),
     });
   } catch {
     return { ok: false, status: 0, code: "network", message: "Couldn't reach the server. Check your connection and try again.", fields: [] };
