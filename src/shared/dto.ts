@@ -23,7 +23,11 @@ export type TripSummaryDTO = {
   ownerName: string | null; // who created it, for everyone else ("shared by")
   creatorGone: boolean; // the creator deleted their account, so the trip belongs to its owners
   atlasLocation: (LatLon & { source: "catalog" | "owner" }) | null;
+  cover: TripCoverDTO | null;
 };
+
+/** DASH-8: a trip's cover: its version, the addresses of its small and full images, and the full one's size in pixels. */
+export type TripCoverDTO = { version: string; full: string; small: string; width: number; height: number };
 
 export type BookingTaskDTO = {
   tripId: string;

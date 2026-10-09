@@ -81,6 +81,8 @@ export const tripFieldsPatchSchema = fieldSaveRules(
 export type TripFieldsPatch = z.infer<typeof tripFieldsPatchSchema>;
 
 export const tripDeleteSchema = z.object({ confirm: z.literal(true), expectedVersion: z.number().int().min(1) }).strict();
+/** DASH-8: removing a trip's cover names the cover it removes (its version, "" for none), so one changed elsewhere stays. */
+export const coverRemoveSchema = z.object({ base: z.string().regex(/^([0-9a-f]{16})?$/) }).strict();
 
 const link = z
   .object({

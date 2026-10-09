@@ -11,6 +11,7 @@ import * as m0009 from "./migrations/0009_item_review";
 import * as m0010 from "./migrations/0010_auto_pins";
 import * as m0011 from "./migrations/0011_person_edited";
 import * as m0012 from "./migrations/0012_item_copies";
+import * as m0013 from "./migrations/0013_trip_covers";
 
 /** Migrations are listed explicitly so every runtime (tsx, tests) sees the same set. */
 const migrations: Record<string, Migration> = {
@@ -26,6 +27,7 @@ const migrations: Record<string, Migration> = {
   "0010_auto_pins": m0010,
   "0011_person_edited": m0011,
   "0012_item_copies": m0012,
+  "0013_trip_covers": m0013,
 };
 
 const provider: MigrationProvider = { getMigrations: async () => migrations };

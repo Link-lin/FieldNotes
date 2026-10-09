@@ -1,7 +1,17 @@
 import "server-only";
 import type { TripRow } from "@/server/core/db/schema";
-import type { Role, TripSummaryDTO } from "@/shared/dto";
+import type { Role, TripCoverDTO, TripSummaryDTO } from "@/shared/dto";
 import { dateInZone, daysBetween, tripStatus } from "@/shared/time";
+
+/** DASH-8: a cover's version, the first 16 hex characters of its stored image's hash ("" for no cover). */
+export const coverVersion = (hash: string | null): string => (hash ? hash.slice(0, 16) : "");
+
+function coverDto(trip: TripRow): TripCoverDTO | null {
+  if (!trip.cover_hash || !trip.cover_width || !trip.cover_height) return null;
+  const version = coverVersion(trip.cover_hash);
+  const at = (size: "full" | "small") => `/api/trips/${trip.id}/cover?size=${size}&v=${version}`;
+  return { version, full: at("full"), small: at("small"), width: trip.cover_width, height: trip.cover_height };
+}
 
 /**
  * Trip row to the summary every screen uses. Day counts are computed in the trip's own time zone.
@@ -30,5 +40,6 @@ export function tripSummary(trip: TripRow & { owner_name?: string | null }, acce
       trip.atlas_latitude !== null && trip.atlas_longitude !== null && trip.atlas_source
         ? { latitude: Number(trip.atlas_latitude), longitude: Number(trip.atlas_longitude), source: trip.atlas_source }
         : null,
+    cover: coverDto(trip),
   };
 }

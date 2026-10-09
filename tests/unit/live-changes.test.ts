@@ -34,6 +34,12 @@ describe("live changes (TRIP-11)", () => {
     expect(changesMessage(none, t, t)).toBeNull();
     expect(changesMessage(none, t, trip({ endDate: "2026-10-25" }))).toBe("Trip updated.");
     expect(changesMessage(none, t, trip({ budget: { amount: "1000", currency: "JPY" } }))).toBe("Trip updated.");
+    // A cover added, replaced or removed elsewhere (DASH-8).
+    const covered = trip({ cover: { version: "0123456789abcdef", full: "/f", small: "/s", width: 1067, height: 1600 } });
+    expect(changesMessage(none, t, covered)).toBe("Trip updated.");
+    expect(changesMessage(none, covered, trip({ cover: { ...covered.cover!, version: "fedcba9876543210" } }))).toBe("Trip updated.");
+    expect(changesMessage(none, covered, t)).toBe("Trip updated.");
+    expect(changesMessage(none, covered, trip({ cover: { version: "0123456789abcdef", full: "/f", small: "/s", width: 1067, height: 1600 } }))).toBeNull();
     expect(changesMessage(none, t, trip({ role: "viewer" }))).toBe("You can now only view this trip.");
     expect(changesMessage(none, trip({ role: "viewer" }), trip({ role: "editor" }))).toBe("You can now edit this trip's events.");
     expect(changesMessage(none, trip({ role: "editor" }), trip({ role: "owner" }))).toBe("You are now an owner of this trip.");

@@ -23,6 +23,11 @@
 .dest { color: var(--ink-2); margin: -4px 0 0; }
 .actions { display: flex; gap: var(--space-2); flex-wrap: wrap; padding: 4px 0 6px; border-top: 1px dashed var(--line); }
 .actions .urgent { color: var(--vermilion-ink); }
+/* DASH-8: a trip's cover, a small print beside its title and destination. */
+.card[data-cover] { grid-template-columns: minmax(0, 1fr) auto; }
+.card[data-cover] > :is(.top, .actions) { grid-column: 1 / -1; }
+.cover { grid-column: 2; grid-row: 2 / span 2; align-self: center; border: 3px solid var(--card); border-radius: var(--radius-2xs); box-shadow: var(--shadow-sm); transform: rotate(2deg); line-height: 0; }
+.cover img { width: min(46px, calc(60px * var(--cover-ratio))); }
 
 @media (min-width: 901px) and (min-height: 620px) {
   .card { padding: var(--space-3) 18px 4px; gap: 6px; border-radius: var(--radius-xl); }

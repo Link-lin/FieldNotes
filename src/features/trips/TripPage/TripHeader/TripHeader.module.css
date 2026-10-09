@@ -18,8 +18,13 @@
   .head:has(> .upNext) { grid-template-columns: minmax(0, 1fr) fit-content(460px) auto; column-gap: var(--space-10); }
   .head:has(> .upNext) > :is(.meta, .title, .dest, .actions) { grid-column: 1; padding-right: 0; }
   .head > .upNext { display: grid; grid-column: 2; grid-row: 1 / span 4; align-self: center; }
-  .head:has(> .upNext) > .stamp { position: static; grid-column: 3; grid-row: 1 / span 4; align-self: center; margin-left: var(--space-4); }
+  .head:has(> .upNext) > :is(.stamp, .cover) { position: static; grid-column: 3; grid-row: 1 / span 4; align-self: center; margin-left: var(--space-4); }
+  .head:has(> .upNext) > .cover img { width: min(132px, calc(182px * var(--cover-ratio))); }
 }
+/* DASH-8: a trip's cover takes the stamp's place, as a small print that opens at full size. */
+.cover { position: absolute; right: 4px; top: 0; padding: 0; border: 4px solid var(--card); border-radius: var(--radius-2xs); background: var(--card); box-shadow: var(--shadow-sm); transform: rotate(2.5deg); cursor: zoom-in; transition: transform 0.25s var(--ease-out), box-shadow 0.25s; animation: var(--kf-rise) 0.5s 0.15s both; }
+.cover img { width: min(104px, calc(142px * var(--cover-ratio))); }
+.cover:hover { transform: rotate(1deg) translateY(-2px); box-shadow: var(--shadow); }
 .head[data-compact] { gap: var(--space-2); }
 .head[data-compact] .meta, .head[data-compact] .title, .head[data-compact] .dest { padding-right: 0; }
 .head[data-compact] .title { font-size: clamp(30px, 3.5vw, 42px); }
@@ -27,6 +32,8 @@
 @media (max-width: 560px) {
   .title, .dest { padding-right: 76px; }
   .meta { padding-right: 72px; }
+  .cover { border-width: 3px; }
+  .cover img { width: min(58px, calc(80px * var(--cover-ratio))); }
 }
 /* While the owner renames the trip, the field reads at a title's size. */
 .title input { font-family: var(--serif); font-size: clamp(26px, 3.6vw, 40px); font-weight: 700; padding-block: var(--space-2); }

@@ -12,6 +12,7 @@ import { defaultCurrency } from "@/features/currency/CurrencyOptions/CurrencyOpt
 import { MoneyInput } from "@/features/currency/MoneyInput/MoneyInput";
 import { formatMoney } from "@/shared/money";
 import { PanelEdits, useInlineField, usePanelEdits } from "@/lib/use-inline-field";
+import { CoverSection } from "./CoverSection/CoverSection";
 import { DatesSection } from "./DatesSection/DatesSection";
 import { DeleteTripDialog } from "./DeleteTripDialog/DeleteTripDialog";
 import { DestinationInput } from "./DestinationInput/DestinationInput";
@@ -41,10 +42,11 @@ type Props = {
 };
 
 /**
- * DASH-3, DASH-6, ATLAS-4: the trip's details in a side panel, shown and edited in one layout. The owner changes each
- * value where it is: the name, destination and budget save on their own; Dates, Time zone (after showing what it does)
- * and Globe point open in place with their own Save. Delete trip sits at the foot and asks for the trip's name. A new
- * trip uses the same layout with every section open and one Create trip button.
+ * DASH-3, DASH-6, ATLAS-4, DASH-8: the trip's details in a side panel, shown and edited in one layout. The owner changes
+ * each value where it is: the name, destination and budget save on their own; Dates, Time zone (after showing what it
+ * does) and Globe point open in place with their own Save; a cover saves as soon as it is chosen. Delete trip sits at
+ * the foot and asks for the trip's name. A new trip uses the same layout with every section open and one Create trip
+ * button.
  */
 export function TripDetails({ trip, itemDates = [], recentCurrencies, open, focus = "details", triggerSelector, guardRef, onClose, onCreated, onExited }: Props) {
   const ref = useRef<HTMLElement>(null);
@@ -155,6 +157,7 @@ export function TripDetails({ trip, itemDates = [], recentCurrencies, open, focu
       </SectionFrame>
 
       <GlobePoint tripId={trip.id} point={trip.atlasLocation} setByYou={trip.primaryOwner} startOpen={focus === "globe"} />
+      <CoverSection trip={trip} />
 
       <section className={styles.danger} aria-labelledby={`${titleId}-danger`}>
         <h3 id={`${titleId}-danger`}>Delete this trip</h3>
