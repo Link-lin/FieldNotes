@@ -9,13 +9,24 @@ import { updateTripRow } from "@/server/modules/trips/trips.repository";
 export type StoredCover = { hash: string; width: number; height: number; full: Buffer; small: Buffer };
 
 /** Stores the cover's two images and its trip columns; undefined when the trip's version moved first. */
-export async function saveCover(tx: Tx, tripId: string, expectedVersion: number, cover: StoredCover): Promise<TripRow | undefined> {
+export async function saveCover(
+  tx: Tx,
+  tripId: string,
+  expectedVersion: number,
+  cover: StoredCover,
+): Promise<TripRow | undefined> {
   await tx
     .insertInto("trip_covers")
     .values({ trip_id: tripId, full_jpeg: cover.full, small_jpeg: cover.small })
-    .onConflict((oc) => oc.column("trip_id").doUpdateSet({ full_jpeg: cover.full, small_jpeg: cover.small, created_at: sql`now()` }))
+    .onConflict((oc) =>
+      oc.column("trip_id").doUpdateSet({ full_jpeg: cover.full, small_jpeg: cover.small, created_at: sql`now()` }),
+    )
     .execute();
-  return updateTripRow(tx, tripId, expectedVersion, { cover_hash: cover.hash, cover_width: cover.width, cover_height: cover.height });
+  return updateTripRow(tx, tripId, expectedVersion, {
+    cover_hash: cover.hash,
+    cover_width: cover.width,
+    cover_height: cover.height,
+  });
 }
 
 /** Removes the cover and clears its trip columns; undefined when the trip's version moved first. */

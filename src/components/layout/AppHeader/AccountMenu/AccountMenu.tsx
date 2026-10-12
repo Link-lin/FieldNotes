@@ -52,7 +52,9 @@ export function AccountMenu({ name, email, ownedCount, sharedCount, signOut, met
         <MenuHeader>
           <b>{name}</b>
           {email ? <span>{email}</span> : null}
-          <span className="mono">Owner of {plural(ownedCount, "trip")} · invited to {sharedCount}</span>
+          <span className="mono">
+            Owner of {plural(ownedCount, "trip")} · invited to {sharedCount}
+          </span>
         </MenuHeader>
         <form action={signOut}>
           <MenuItem type="submit">Sign out</MenuItem>
@@ -88,9 +90,15 @@ export function AccountMenu({ name, email, ownedCount, sharedCount, signOut, met
           Delete my account
         </MenuItem>
       </Menu>
-      {choosing && methods ? <SignInMethodsDialog methods={methods} onClose={() => setChoosing(false)} returnFocus={() => avatar.current} /> : null}
-      {connecting && connectorUrl ? <AiConnectorDialog url={connectorUrl} onClose={() => setConnecting(false)} returnFocus={() => avatar.current} /> : null}
-      {confirming ? <DeleteAccountDialog onClose={() => setConfirming(false)} returnFocus={() => avatar.current} /> : null}
+      {choosing && methods ? (
+        <SignInMethodsDialog methods={methods} onClose={() => setChoosing(false)} returnFocus={() => avatar.current} />
+      ) : null}
+      {connecting && connectorUrl ? (
+        <AiConnectorDialog url={connectorUrl} onClose={() => setConnecting(false)} returnFocus={() => avatar.current} />
+      ) : null}
+      {confirming ? (
+        <DeleteAccountDialog onClose={() => setConfirming(false)} returnFocus={() => avatar.current} />
+      ) : null}
     </>
   );
 }

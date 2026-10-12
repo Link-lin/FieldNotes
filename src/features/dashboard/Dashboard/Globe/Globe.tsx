@@ -36,7 +36,24 @@ export function Globe({ trips, selectedId, focusKey, onSelect, className }: Prop
   const callout = useRef<HTMLDivElement>(null);
   const [failed, setFailed] = useState(false);
   const [hintGone, setHintGone] = useState(false);
-  const state = useRef<GlobeView & Motion & { lastAct: number; anim: number; intro: boolean; lastFrame: number }>({ rot: [HOME[0] + 90, HOME[1] + 14], zoom: 0.8, target: 0.8, vel: [0, 0], lastFrame: 0, w: 0, h: 0, sx: 0, sy: 0, sw: 0, sh: 0, dpr: 1, pulse: 0, lastAct: 0, anim: 0, intro: true });
+  const state = useRef<GlobeView & Motion & { lastAct: number; anim: number; intro: boolean; lastFrame: number }>({
+    rot: [HOME[0] + 90, HOME[1] + 14],
+    zoom: 0.8,
+    target: 0.8,
+    vel: [0, 0],
+    lastFrame: 0,
+    w: 0,
+    h: 0,
+    sx: 0,
+    sy: 0,
+    sw: 0,
+    sh: 0,
+    dpr: 1,
+    pulse: 0,
+    lastAct: 0,
+    anim: 0,
+    intro: true,
+  });
   const data = useRef({ trips, selectedId, groups: groupsOf(trips) });
   const pins = useRef<Pin[]>([]);
   const reduce = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -51,7 +68,17 @@ export function Globe({ trips, selectedId, focusKey, onSelect, className }: Prop
       return;
     }
     const s = state.current;
-    const colors = { oceanA: css("--ocean-a"), oceanB: css("--ocean-b"), land: css("--land"), landLine: css("--land-line"), ink: css("--ink"), ink3: css("--ink-3"), paper: css("--paper"), card: css("--card"), verm: css("--vermilion") };
+    const colors = {
+      oceanA: css("--ocean-a"),
+      oceanB: css("--ocean-b"),
+      land: css("--land"),
+      landLine: css("--land-line"),
+      ink: css("--ink"),
+      ink3: css("--ink-3"),
+      paper: css("--paper"),
+      card: css("--card"),
+      verm: css("--vermilion"),
+    };
     const projection = geoOrthographic().clipAngle(90).precision(0.3);
     const path = geoPath(projection, ctx);
 
@@ -98,12 +125,30 @@ export function Globe({ trips, selectedId, focusKey, onSelect, className }: Prop
       setHintGone(true);
     };
     // During a drag we also track the recent angular speed, so a release can coast.
-    let drag: { x: number; y: number; rot: [number, number]; moved: boolean; lx: number; ly: number; lt: number; v: [number, number] } | null = null;
+    let drag: {
+      x: number;
+      y: number;
+      rot: [number, number];
+      moved: boolean;
+      lx: number;
+      ly: number;
+      lt: number;
+      v: [number, number];
+    } | null = null;
     const onDown = (e: PointerEvent) => {
       touch();
       el.setPointerCapture(e.pointerId);
       s.vel = [0, 0];
-      drag = { x: e.clientX, y: e.clientY, rot: [...s.rot] as [number, number], moved: false, lx: e.clientX, ly: e.clientY, lt: performance.now(), v: [0, 0] };
+      drag = {
+        x: e.clientX,
+        y: e.clientY,
+        rot: [...s.rot] as [number, number],
+        moved: false,
+        lx: e.clientX,
+        ly: e.clientY,
+        lt: performance.now(),
+        v: [0, 0],
+      };
       cancelAnimationFrame(s.anim);
     };
     const onMove = (e: PointerEvent) => {
@@ -259,7 +304,10 @@ export function Globe({ trips, selectedId, focusKey, onSelect, className }: Prop
     s.intro = false;
     s.vel = [0, 0];
     s.lastAct = performance.now();
-    const target: [number, number] = [-t.atlasLocation.longitude, -Math.max(-45, Math.min(50, t.atlasLocation.latitude))];
+    const target: [number, number] = [
+      -t.atlasLocation.longitude,
+      -Math.max(-45, Math.min(50, t.atlasLocation.latitude)),
+    ];
     if (reduce) {
       s.rot = target;
       drawRef.current();
@@ -300,7 +348,13 @@ export function Globe({ trips, selectedId, focusKey, onSelect, className }: Prop
       ) : (
         <>
           <div className={styles.stage} ref={stage} aria-hidden="true" />
-          <canvas ref={canvas} className={styles.canvas} tabIndex={0} role="img" aria-label="Globe with one marker per located trip. Drag to turn, scroll to zoom, or use the arrow keys and plus and minus. The trip list shows every trip." />
+          <canvas
+            ref={canvas}
+            className={styles.canvas}
+            tabIndex={0}
+            role="img"
+            aria-label="Globe with one marker per located trip. Drag to turn, scroll to zoom, or use the arrow keys and plus and minus. The trip list shows every trip."
+          />
           <GlobeControls
             hintGone={hintGone}
             onZoomIn={() => zoomBy(1.25)}
@@ -311,7 +365,9 @@ export function Globe({ trips, selectedId, focusKey, onSelect, className }: Prop
               zoomBy(1 / state.current.target);
             }}
           />
-          {selected ? <GlobeCallout ref={callout} selected={selected} trips={trips} onSelect={(id) => onSelect(id, true)} /> : null}
+          {selected ? (
+            <GlobeCallout ref={callout} selected={selected} trips={trips} onSelect={(id) => onSelect(id, true)} />
+          ) : null}
         </>
       )}
     </section>

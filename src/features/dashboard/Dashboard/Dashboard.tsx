@@ -51,7 +51,15 @@ function newTripUrl(open: boolean) {
  * The atlas (DASH-1, ATLAS-1): intro and trips on the left, the globe on the right. On desktop it
  * is one screen (data-one-screen); the left column scrolls and a zoomed globe fades under it.
  */
-export function Dashboard({ data, focus, initialFilter }: { data: DashboardDTO; focus: string | null; initialFilter: Filter }) {
+export function Dashboard({
+  data,
+  focus,
+  initialFilter,
+}: {
+  data: DashboardDTO;
+  focus: string | null;
+  initialFilter: Filter;
+}) {
   const router = useRouter();
   const splitRef = useRef<HTMLDivElement>(null);
   const leftRef = useRef<HTMLDivElement>(null);
@@ -63,7 +71,10 @@ export function Dashboard({ data, focus, initialFilter }: { data: DashboardDTO; 
   const [leftRatio, setLeftRatio] = useState<number | null>(null);
   const [resizing, setResizing] = useState(false);
   const [paneSize, setPaneSize] = useState({ total: 0, left: 0 });
-  const visible = useMemo(() => data.trips.filter((t) => filter === "all" || t.status === filter), [data.trips, filter]);
+  const visible = useMemo(
+    () => data.trips.filter((t) => filter === "all" || t.status === filter),
+    [data.trips, filter],
+  );
 
   // TRIP-11: trips created or shared elsewhere (a connected chat, another tab) appear on their own, with a short note.
   useLiveRevision("/api/dashboard/revision", data.revision);
@@ -89,7 +100,9 @@ export function Dashboard({ data, focus, initialFilter }: { data: DashboardDTO; 
           restoreFrame = window.requestAnimationFrame(() => setLeftRatio(ratio));
         }
       }
-    } catch { /* A private browser can deny local storage; resizing still works. */ }
+    } catch {
+      /* A private browser can deny local storage; resizing still works. */
+    }
 
     const split = splitRef.current;
     const left = leftRef.current;
@@ -97,7 +110,7 @@ export function Dashboard({ data, focus, initialFilter }: { data: DashboardDTO; 
     const measure = () => {
       const total = Math.round(split.getBoundingClientRect().width);
       const leftWidth = Math.round(left.getBoundingClientRect().width);
-      setPaneSize((old) => old.total === total && old.left === leftWidth ? old : { total, left: leftWidth });
+      setPaneSize((old) => (old.total === total && old.left === leftWidth ? old : { total, left: leftWidth }));
     };
     const observer = new ResizeObserver(measure);
     observer.observe(split);
@@ -115,7 +128,11 @@ export function Dashboard({ data, focus, initialFilter }: { data: DashboardDTO; 
     const ratio = clampLeft(value, total) / total;
     setLeftRatio(ratio);
     if (persist) {
-      try { window.localStorage.setItem(SPLIT_KEY, String(ratio)); } catch { /* Keep this session's width. */ }
+      try {
+        window.localStorage.setItem(SPLIT_KEY, String(ratio));
+      } catch {
+        /* Keep this session's width. */
+      }
     }
   }
 
@@ -146,13 +163,18 @@ export function Dashboard({ data, focus, initialFilter }: { data: DashboardDTO; 
 
   function resetDivider() {
     setLeftRatio(null);
-    try { window.localStorage.removeItem(SPLIT_KEY); } catch { /* The default still applies. */ }
+    try {
+      window.localStorage.removeItem(SPLIT_KEY);
+    } catch {
+      /* The default still applies. */
+    }
   }
 
-  const minPercent = paneSize.total ? Math.round(splitBounds(paneSize.total).min / paneSize.total * 100) : 0;
-  const maxPercent = paneSize.total ? Math.round(splitBounds(paneSize.total).max / paneSize.total * 100) : 100;
-  const currentPercent = paneSize.total ? Math.round(paneSize.left / paneSize.total * 100) : 38;
-  const splitStyle = leftRatio === null ? undefined : { "--requested-left-w": `${leftRatio * 100}%` } as CSSProperties;
+  const minPercent = paneSize.total ? Math.round((splitBounds(paneSize.total).min / paneSize.total) * 100) : 0;
+  const maxPercent = paneSize.total ? Math.round((splitBounds(paneSize.total).max / paneSize.total) * 100) : 100;
+  const currentPercent = paneSize.total ? Math.round((paneSize.left / paneSize.total) * 100) : 38;
+  const splitStyle =
+    leftRatio === null ? undefined : ({ "--requested-left-w": `${leftRatio * 100}%` } as CSSProperties);
 
   function select(id: string | null, fromGlobe: boolean) {
     setSelected(id);
@@ -164,7 +186,9 @@ export function Dashboard({ data, focus, initialFilter }: { data: DashboardDTO; 
   useEffect(() => {
     const saved = takeReturn();
     if (!saved?.trip || focus) return;
-    const booking = saved.booking ? document.querySelector<HTMLElement>(`[data-booking-link="${CSS.escape(saved.trip)}"]`) : null;
+    const booking = saved.booking
+      ? document.querySelector<HTMLElement>(`[data-booking-link="${CSS.escape(saved.trip)}"]`)
+      : null;
     const link = booking ?? document.querySelector<HTMLElement>(`[data-open="${CSS.escape(saved.trip)}"]`);
     if (!link) return;
     const list = innerScroller();
@@ -257,7 +281,8 @@ export function Dashboard({ data, focus, initialFilter }: { data: DashboardDTO; 
   }, []);
   // A refresh (a trip created or shared elsewhere) replaces the entry's history state: keep New trip's mark on it.
   useEffect(() => {
-    if (creating?.open && pushed.current && new URLSearchParams(window.location.search).get("new") === "trip") keepPanelEntryMark();
+    if (creating?.open && pushed.current && new URLSearchParams(window.location.search).get("new") === "trip")
+      keepPanelEntryMark();
   });
 
   function onFilter(f: Filter) {
@@ -287,7 +312,10 @@ export function Dashboard({ data, focus, initialFilter }: { data: DashboardDTO; 
             canCreate={data.canCreateTrips}
             onCreate={openNew}
           />
-          <p className={styles.foot}>Markers are approximate destinations, never live location. The globe uses bundled map data and sends nothing to a map service.</p>
+          <p className={styles.foot}>
+            Markers are approximate destinations, never live location. The globe uses bundled map data and sends nothing
+            to a map service.
+          </p>
         </div>
         <Globe className={styles.globe} trips={visible} selectedId={selected} focusKey={focusKey} onSelect={select} />
         <div
@@ -309,7 +337,9 @@ export function Dashboard({ data, focus, initialFilter }: { data: DashboardDTO; 
             setResizing(true);
             fromPointer(event, false);
           }}
-          onPointerMove={(event) => { if (event.currentTarget.hasPointerCapture(event.pointerId)) fromPointer(event, false); }}
+          onPointerMove={(event) => {
+            if (event.currentTarget.hasPointerCapture(event.pointerId)) fromPointer(event, false);
+          }}
           onPointerUp={(event) => {
             if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
             fromPointer(event, true);
@@ -319,9 +349,23 @@ export function Dashboard({ data, focus, initialFilter }: { data: DashboardDTO; 
           onPointerCancel={() => setResizing(false)}
           onKeyDown={onDividerKey}
           onDoubleClick={resetDivider}
-        ><span className={styles.grip} aria-hidden="true">⋮</span></div>
+        >
+          <span className={styles.grip} aria-hidden="true">
+            ⋮
+          </span>
+        </div>
       </div>
-      {creating ? <TripDetails trip={null} open={creating.open} recentCurrencies={data.recentCurrencies} guardRef={newGuard} onClose={closeNew} onCreated={onTripCreated} onExited={() => setCreating(null)} /> : null}
+      {creating ? (
+        <TripDetails
+          trip={null}
+          open={creating.open}
+          recentCurrencies={data.recentCurrencies}
+          guardRef={newGuard}
+          onClose={closeNew}
+          onCreated={onTripCreated}
+          onExited={() => setCreating(null)}
+        />
+      ) : null}
     </div>
   );
 }

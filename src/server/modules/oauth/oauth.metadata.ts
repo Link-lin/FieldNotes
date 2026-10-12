@@ -52,7 +52,12 @@ export function protectedResourceMetadata() {
 
 /** The `WWW-Authenticate` challenge of a 401 from /mcp: where to find the discovery document, and what to ask for. */
 export function bearerChallenge(invalidToken: boolean): string {
-  const parts = ['realm="Field Notes"', `resource_metadata="${connectorUrls().protectedResourceMetadata}"`, `scope="${SCOPE_READ} ${SCOPE_WRITE}"`];
-  if (invalidToken) parts.push('error="invalid_token"', 'error_description="The access token is missing, expired or revoked."');
+  const parts = [
+    'realm="Field Notes"',
+    `resource_metadata="${connectorUrls().protectedResourceMetadata}"`,
+    `scope="${SCOPE_READ} ${SCOPE_WRITE}"`,
+  ];
+  if (invalidToken)
+    parts.push('error="invalid_token"', 'error_description="The access token is missing, expired or revoked."');
   return `Bearer ${parts.join(", ")}`;
 }

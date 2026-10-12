@@ -80,11 +80,17 @@ export const PlaneIcon = () => (
 );
 export const StatusIcon = ({ status }: { status: "upcoming" | "ongoing" | "past" }) =>
   status === "upcoming" ? (
-    <svg viewBox="0 0 10 10" aria-hidden="true"><circle cx="5" cy="5" r="4" fill="currentColor" /></svg>
+    <svg viewBox="0 0 10 10" aria-hidden="true">
+      <circle cx="5" cy="5" r="4" fill="currentColor" />
+    </svg>
   ) : status === "ongoing" ? (
-    <svg viewBox="0 0 10 10" aria-hidden="true"><path d="M5 .5L9.5 5 5 9.5.5 5z" fill="currentColor" /></svg>
+    <svg viewBox="0 0 10 10" aria-hidden="true">
+      <path d="M5 .5L9.5 5 5 9.5.5 5z" fill="currentColor" />
+    </svg>
   ) : (
-    <svg viewBox="0 0 10 10" aria-hidden="true"><circle cx="5" cy="5" r="3.2" fill="none" stroke="currentColor" strokeWidth="1.6" /></svg>
+    <svg viewBox="0 0 10 10" aria-hidden="true">
+      <circle cx="5" cy="5" r="3.2" fill="none" stroke="currentColor" strokeWidth="1.6" />
+    </svg>
   );
 /** Apple's mark, for the Continue with Apple button; it takes the button's text color. */
 export const AppleIcon = () => (

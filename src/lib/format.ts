@@ -38,7 +38,10 @@ export const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" :
  * a surrogate pair never shows alone. A WeChat nickname is often a name in Chinese, with symbols or emoji.
  */
 export function initials(name: string): string {
-  const letters = name.split(/\s+/).map((word) => word.match(/[\p{L}\p{N}]/u)?.[0] ?? "").join("");
+  const letters = name
+    .split(/\s+/)
+    .map((word) => word.match(/[\p{L}\p{N}]/u)?.[0] ?? "")
+    .join("");
   return Array.from(letters).slice(0, 2).join("").toUpperCase() || "?";
 }
 
@@ -53,7 +56,14 @@ export function relativeLabel(t: TripSummaryDTO): string {
 }
 
 export const STATUS_LABEL = { upcoming: "Upcoming", ongoing: "Ongoing", past: "Past" } as const;
-export const TYPE_LABEL = { flight: "Flight", lodging: "Stay", transport: "Transport", meal: "Meal", activity: "Activity", other: "Other" } as const;
+export const TYPE_LABEL = {
+  flight: "Flight",
+  lodging: "Stay",
+  transport: "Transport",
+  meal: "Meal",
+  activity: "Activity",
+  other: "Other",
+} as const;
 
 /** Book-by wording for a booking task (BOOK-2). */
 export function dueText(due: string | null, state: string): string {

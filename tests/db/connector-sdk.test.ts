@@ -54,7 +54,13 @@ class TestProvider implements OAuthClientProvider {
     return CLAUDE;
   }
   get clientMetadata() {
-    return { client_name: "SDK test client", redirect_uris: [CLAUDE], grant_types: ["authorization_code", "refresh_token"], response_types: ["code"], token_endpoint_auth_method: "none" };
+    return {
+      client_name: "SDK test client",
+      redirect_uris: [CLAUDE],
+      grant_types: ["authorization_code", "refresh_token"],
+      response_types: ["code"],
+      token_endpoint_auth_method: "none",
+    };
   }
   state() {
     return "state-123";
@@ -120,17 +126,34 @@ beforeEach(async () => {
   resetRateLimits();
   seen.length = 0;
   ann = await makeActor("owner@example.com", "Ann");
-  tripId = (await createTrip(testDb(), ann, { title: "Lisbon", destination: "Lisbon, Portugal", startDate: "2026-11-01", endDate: "2026-11-05", timeZone: "Europe/Lisbon", budget: null })).id;
+  tripId = (
+    await createTrip(testDb(), ann, {
+      title: "Lisbon",
+      destination: "Lisbon, Portugal",
+      startDate: "2026-11-01",
+      endDate: "2026-11-05",
+      timeZone: "Europe/Lisbon",
+      budget: null,
+    })
+  ).id;
 });
 
-const text = (result: unknown): string => ((result as { content: Array<{ text: string }> }).content[0]?.text ?? "");
+const text = (result: unknown): string => (result as { content: Array<{ text: string }> }).content[0]?.text ?? "";
 
 describe("the MCP SDK client", () => {
   it("discovers the server from the 401, registers itself, goes through consent and PKCE, and lists the tools", async () => {
     const provider = new TestProvider();
     const client = await connectClient(provider, ann);
     // It followed the protocol: the 401, the resource document, the authorization server document, registration, the token exchange.
-    expect(seen).toEqual(expect.arrayContaining(["POST /mcp", "GET /.well-known/oauth-protected-resource/mcp", "GET /.well-known/oauth-authorization-server", "POST /oauth/register", "POST /oauth/token"]));
+    expect(seen).toEqual(
+      expect.arrayContaining([
+        "POST /mcp",
+        "GET /.well-known/oauth-protected-resource/mcp",
+        "GET /.well-known/oauth-authorization-server",
+        "POST /oauth/register",
+        "POST /oauth/token",
+      ]),
+    );
     expect(provider.registrations).toBe(1);
     expect(provider.authorizationUrl!.searchParams.get("code_challenge_method")).toBe("S256");
     expect(provider.authorizationUrl!.searchParams.get("resource")).toBe(RESOURCE);
@@ -141,7 +164,16 @@ describe("the MCP SDK client", () => {
     expect(client.getInstructions()).toMatch(/Field Notes/);
 
     const { tools } = await client.listTools();
-    expect(tools.map((t) => t.name)).toEqual(["list_trips", "get_trip", "get_item", "add_items", "update_item", "delete_item", "restore_item", "create_trip"]);
+    expect(tools.map((t) => t.name)).toEqual([
+      "list_trips",
+      "get_trip",
+      "get_item",
+      "add_items",
+      "update_item",
+      "delete_item",
+      "restore_item",
+      "create_trip",
+    ]);
     await client.close();
   });
 
@@ -156,7 +188,25 @@ describe("the MCP SDK client", () => {
     const listed = JSON.parse(text(await client.callTool({ name: "list_trips", arguments: {} })));
     expect(listed.trips).toEqual([expect.objectContaining({ id: tripId, title: "Lisbon", role: "owner" })]);
 
-    const added = JSON.parse(text(await client.callTool({ name: "add_items", arguments: { tripId, items: [{ type: "activity", title: "Alfama walk", bookingStatus: "Not required", localDate: "2026-11-02", localTime: "10:00" }] } })));
+    const added = JSON.parse(
+      text(
+        await client.callTool({
+          name: "add_items",
+          arguments: {
+            tripId,
+            items: [
+              {
+                type: "activity",
+                title: "Alfama walk",
+                bookingStatus: "Not required",
+                localDate: "2026-11-02",
+                localTime: "10:00",
+              },
+            ],
+          },
+        }),
+      ),
+    );
     const id = added.added[0].id as string;
     expect(added.added[0]).toMatchObject({ title: "Alfama walk", addedBy: "ai" });
 
@@ -164,7 +214,10 @@ describe("the MCP SDK client", () => {
     expect(moved.isError).toBeFalsy();
     expect(JSON.parse(text(moved)).item.localTime).toBe("11:00");
 
-    const rejected = await client.callTool({ name: "update_item", arguments: { tripId, itemId: id, bookingStatus: "Booked" } });
+    const rejected = await client.callTool({
+      name: "update_item",
+      arguments: { tripId, itemId: id, bookingStatus: "Booked" },
+    });
     expect(rejected.isError).toBe(true);
 
     const trip = JSON.parse(text(await client.callTool({ name: "get_trip", arguments: { tripId } })));
@@ -203,7 +256,10 @@ describe("the MCP SDK client", () => {
     const client = await connectClient(new TestProvider(), ann, false);
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name)).toEqual(["list_trips", "get_trip", "get_item"]);
-    const attempt = await client.callTool({ name: "add_items", arguments: { tripId, items: [{ type: "other", title: "x", bookingStatus: "Not required" }] } });
+    const attempt = await client.callTool({
+      name: "add_items",
+      arguments: { tripId, items: [{ type: "other", title: "x", bookingStatus: "Not required" }] },
+    });
     expect(attempt.isError).toBe(true);
     expect(text(attempt)).toMatch(/read-only/);
     await client.close();
@@ -213,8 +269,13 @@ describe("the MCP SDK client", () => {
     const vera = await makeActor("vera@example.com", "Vera");
     await grant(tripId, vera, "accepted", "viewer");
     const client = await connectClient(new TestProvider(), vera);
-    expect(JSON.parse(text(await client.callTool({ name: "list_trips", arguments: {} }))).trips[0]).toMatchObject({ role: "viewer" });
-    const attempt = await client.callTool({ name: "add_items", arguments: { tripId, items: [{ type: "other", title: "x", bookingStatus: "Not required" }] } });
+    expect(JSON.parse(text(await client.callTool({ name: "list_trips", arguments: {} }))).trips[0]).toMatchObject({
+      role: "viewer",
+    });
+    const attempt = await client.callTool({
+      name: "add_items",
+      arguments: { tripId, items: [{ type: "other", title: "x", bookingStatus: "Not required" }] },
+    });
     expect(attempt.isError).toBe(true);
     expect(text(attempt)).toMatch(/isn't allowed/);
     await client.close();
@@ -227,16 +288,36 @@ describe("the tool schemas", () => {
     const { tools } = await client.listTools();
     const validator = new AjvJsonSchemaValidator();
     const byName = Object.fromEntries(tools.map((t) => [t.name, validator.getValidator(t.inputSchema)]));
-    const item = { type: "meal", title: "Dinner", bookingStatus: "Not required", localDate: "2026-11-02", localTime: "20:00", plannedPrice: { amount: "45.50", currency: "EUR" } };
+    const item = {
+      type: "meal",
+      title: "Dinner",
+      bookingStatus: "Not required",
+      localDate: "2026-11-02",
+      localTime: "20:00",
+      plannedPrice: { amount: "45.50", currency: "EUR" },
+    };
     const valid = (name: string, args: unknown) => (byName[name]!(args) as { valid: boolean }).valid;
     expect(valid("add_items", { tripId, items: [item] })).toBe(true);
     expect(valid("add_items", { tripId, items: [{ ...item, bookingStatus: "Booked" }] })).toBe(false);
     expect(valid("add_items", { tripId, items: [{ ...item, mapUrl: "https://x.example" }] })).toBe(false);
     expect(valid("add_items", { tripId, items: [] })).toBe(false);
     expect(valid("add_items", { tripId: "nope", items: [item] })).toBe(false);
-    expect(valid("update_item", { tripId, itemId: tripId, localTime: "09:00", location: null, plannedPrice: { amount: "1", currency: "EUR" } })).toBe(true);
+    expect(
+      valid("update_item", {
+        tripId,
+        itemId: tripId,
+        localTime: "09:00",
+        location: null,
+        plannedPrice: { amount: "1", currency: "EUR" },
+      }),
+    ).toBe(true);
     expect(valid("update_item", { tripId, itemId: tripId, bookingStatus: "Booked" })).toBe(false);
-    expect(valid("create_trip", { trip: { title: "T", destination: "D", startDate: "2027-01-01", endDate: "2027-01-02", timeZone: "UTC" }, items: [item] })).toBe(true);
+    expect(
+      valid("create_trip", {
+        trip: { title: "T", destination: "D", startDate: "2027-01-01", endDate: "2027-01-02", timeZone: "UTC" },
+        items: [item],
+      }),
+    ).toBe(true);
     expect(valid("create_trip", { trip: { title: "T" } })).toBe(false);
     expect(valid("list_trips", {})).toBe(true);
     expect(valid("list_trips", { x: 1 })).toBe(false);
@@ -246,7 +327,11 @@ describe("the tool schemas", () => {
 
 describe("what the client never sees", () => {
   it("is nothing about a trip before it is authorized", async () => {
-    const res = await appFetch(RESOURCE, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }) });
+    const res = await appFetch(RESOURCE, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }),
+    });
     expect(res.status).toBe(401);
     expect(await res.text()).not.toMatch(/Lisbon|trip/i);
     vi.restoreAllMocks();

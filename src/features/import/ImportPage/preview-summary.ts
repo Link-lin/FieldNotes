@@ -6,8 +6,10 @@ type Values = ImportPreviewDTO["items"][number]["values"];
 /** What a collapsed preview card shows on one line. A part is null when the item has none. */
 export type PreviewGlance = { time: string | null; place: string | null; price: string | null };
 
-const record = (value: unknown): Record<string, unknown> => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
-const text = (value: unknown): string | null => typeof value === "string" ? value.trim() || null : typeof value === "number" ? String(value) : null;
+const record = (value: unknown): Record<string, unknown> =>
+  value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+const text = (value: unknown): string | null =>
+  typeof value === "string" ? value.trim() || null : typeof value === "number" ? String(value) : null;
 
 /** One end of a flight as "SFO 08:05": its airport code and local time, as far as they are known. */
 function flightEnd(value: unknown): string | null {
@@ -39,6 +41,8 @@ export function previewGlance(values: Values, tripZone: string | null): PreviewG
   return {
     time,
     place: text(values.location),
-    price: isMoney(values.plannedPrice) ? formatMoney(price.amount as string, price.currency as string) : [amount, currency].filter(Boolean).join(" ") || null,
+    price: isMoney(values.plannedPrice)
+      ? formatMoney(price.amount as string, price.currency as string)
+      : [amount, currency].filter(Boolean).join(" ") || null,
   };
 }

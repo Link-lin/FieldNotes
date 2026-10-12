@@ -25,9 +25,13 @@ export function Field({ label, htmlFor, hint, hintId, error, errorId, wide, clas
       <label htmlFor={htmlFor}>{label}</label>
       {children}
       {error ? (
-        <span className={styles.error} id={errorId}>{error}</span>
+        <span className={styles.error} id={errorId}>
+          {error}
+        </span>
       ) : hint ? (
-        <p className={styles.hint} id={hintId}>{hint}</p>
+        <p className={styles.hint} id={hintId}>
+          {hint}
+        </p>
       ) : null}
     </div>
   );
@@ -39,7 +43,11 @@ export function FieldGrid({ className, children }: { className?: string; childre
 }
 
 /** A labelled checkbox or radio. */
-export function CheckField({ label, className, ...input }: { label: React.ReactNode; className?: string } & React.InputHTMLAttributes<HTMLInputElement>) {
+export function CheckField({
+  label,
+  className,
+  ...input
+}: { label: React.ReactNode; className?: string } & React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <label className={cx(styles.check, className)}>
       <input type="checkbox" {...input} /> {label}

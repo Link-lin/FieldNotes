@@ -24,8 +24,16 @@ function allZoneIds(): string[] {
 const NO_ZONES: string[] = [];
 
 const REGIONS: Array<[string, string]> = [
-  ["Africa", "Africa"], ["America", "Americas"], ["Antarctica", "Antarctica"], ["Arctic", "Arctic"], ["Asia", "Asia"],
-  ["Atlantic", "Atlantic Ocean"], ["Australia", "Australia"], ["Europe", "Europe"], ["Indian", "Indian Ocean"], ["Pacific", "Pacific Ocean"],
+  ["Africa", "Africa"],
+  ["America", "Americas"],
+  ["Antarctica", "Antarctica"],
+  ["Arctic", "Arctic"],
+  ["Asia", "Asia"],
+  ["Atlantic", "Atlantic Ocean"],
+  ["Australia", "Australia"],
+  ["Europe", "Europe"],
+  ["Indian", "Indian Ocean"],
+  ["Pacific", "Pacific Ocean"],
 ];
 
 /** Every zone, by region, west to east within a region. */
@@ -65,7 +73,20 @@ type Props = {
  * Trip time zone: the destination's zones and this device's zone on top, then a short list of
  * about 60 zones by offset ("GMT-7 · Los Angeles, Vancouver"), with every IANA zone one click away.
  */
-export function TimeZoneSelect({ id, value, onChange, place, currentZone, fromPlace, error, label = "Trip time zone", hint: hintText, empty, wide = true, errorId }: Props) {
+export function TimeZoneSelect({
+  id,
+  value,
+  onChange,
+  place,
+  currentZone,
+  fromPlace,
+  error,
+  label = "Trip time zone",
+  hint: hintText,
+  empty,
+  wide = true,
+  errorId,
+}: Props) {
   // This device's zone and the full zone list come from the browser, after hydration (B1).
   const deviceZone = useClientValue<string | null>(browserZone, null);
   const allIds = useClientValue(allZoneIds, NO_ZONES);
@@ -82,11 +103,12 @@ export function TimeZoneSelect({ id, value, onChange, place, currentZone, fromPl
 
   const hint = (
     <>
-      {hintText ?? (place && suggested.length && fromPlace && value === suggested[0]
-        ? suggested.length > 1
-          ? `Set from ${place.label}, which has ${suggested.length} time zones. Pick the one where most of the trip happens.`
-          : `Set from ${place.label}.`
-        : "Book-by dates and times without their own zone use this zone.")}{" "}
+      {hintText ??
+        (place && suggested.length && fromPlace && value === suggested[0]
+          ? suggested.length > 1
+            ? `Set from ${place.label}, which has ${suggested.length} time zones. Pick the one where most of the trip happens.`
+            : `Set from ${place.label}.`
+          : "Book-by dates and times without their own zone use this zone.")}{" "}
       <Button variant="link" className={styles.toggle} onClick={() => setShowAll((x) => !x)} aria-controls={id}>
         {showAll ? "Show fewer" : allIds.length ? `Not listed? Show all ${allIds.length}` : "Not listed? Show all"}
       </Button>
@@ -95,11 +117,21 @@ export function TimeZoneSelect({ id, value, onChange, place, currentZone, fromPl
 
   return (
     <Field label={label} htmlFor={id} wide={wide} hint={hint} hintId={hintId} error={error} errorId={errId}>
-      <select id={id} value={value} onChange={(e) => onChange(e.target.value)} aria-describedby={error ? errId : hintId} aria-invalid={error ? true : undefined}>
+      <select
+        id={id}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        aria-describedby={error ? errId : hintId}
+        aria-invalid={error ? true : undefined}
+      >
         {empty !== undefined ? <option value="">{empty}</option> : null}
         {place && suggested.length ? (
           <optgroup label={`Suggested for ${place.label}`}>
-            {suggested.map((z) => <option key={`s-${z}`} value={z}>{zoneLabel(z)}</option>)}
+            {suggested.map((z) => (
+              <option key={`s-${z}`} value={z}>
+                {zoneLabel(z)}
+              </option>
+            ))}
           </optgroup>
         ) : null}
         {deviceZone && !suggested.includes(deviceZone) ? (
@@ -119,7 +151,13 @@ export function TimeZoneSelect({ id, value, onChange, place, currentZone, fromPl
         ) : null}
         {main.map((g) => (
           <optgroup key={g.label} label={showAll ? `All time zones · ${g.label}` : g.label}>
-            {g.zones.filter((z) => !above.has(z.id)).map((z) => <option key={z.id} value={z.id}>{z.label}</option>)}
+            {g.zones
+              .filter((z) => !above.has(z.id))
+              .map((z) => (
+                <option key={z.id} value={z.id}>
+                  {z.label}
+                </option>
+              ))}
           </optgroup>
         ))}
       </select>

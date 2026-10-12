@@ -13,7 +13,10 @@ export function noContent(): Response {
 }
 
 function errorResponse(err: HttpError): Response {
-  return json({ error: { code: err.code, message: err.message, ...(err.fields ? { fields: err.fields } : {}) } }, err.status);
+  return json(
+    { error: { code: err.code, message: err.message, ...(err.fields ? { fields: err.fields } : {}) } },
+    err.status,
+  );
 }
 
 /**
@@ -25,7 +28,8 @@ export function errorTag(err: unknown): string {
   if (!(err instanceof Error)) return "Unknown error";
   const extra = err as Error & { code?: unknown; constraint?: unknown };
   const code = typeof extra.code === "string" && /^[0-9A-Z]{5}$/.test(extra.code) ? extra.code : null;
-  const constraint = typeof extra.constraint === "string" && /^[a-z0-9_]{1,63}$/.test(extra.constraint) ? extra.constraint : null;
+  const constraint =
+    typeof extra.constraint === "string" && /^[a-z0-9_]{1,63}$/.test(extra.constraint) ? extra.constraint : null;
   return [err.name, code, constraint].filter(Boolean).join(" ");
 }
 
@@ -39,6 +43,9 @@ export async function handle(fn: () => Promise<Response>): Promise<Response> {
     // Provider/database errors can include submitted values in their messages.
     // Keep diagnostic context without logging trip content or a pasted AI response.
     console.error(`[${requestId}] ${errorTag(err)}`);
-    return json({ error: { code: "server_error", message: `Something went wrong. Try again. (Reference ${requestId})` } }, 500);
+    return json(
+      { error: { code: "server_error", message: `Something went wrong. Try again. (Reference ${requestId})` } },
+      500,
+    );
   }
 }

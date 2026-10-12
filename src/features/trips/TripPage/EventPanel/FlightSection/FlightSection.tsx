@@ -26,7 +26,11 @@ export function FlightSection({ trip, item, canEdit, onSaved }: Props) {
       const day = (d: FlightDraft) => (d.dep.dt ? d.dep.dt.slice(0, 10) : d.plannedDate) || null;
       if (day(start) === day(next)) return { ok: true };
       const to = day(next);
-      return { ok: true, note: to ? `Moved to ${fmtShort(to)}.` : "Moved to Undated flights.", undo: () => save(start, next) };
+      return {
+        ok: true,
+        note: to ? `Moved to ${fmtShort(to)}.` : "Moved to Undated flights.",
+        undo: () => save(start, next),
+      };
     },
   });
 
@@ -42,7 +46,12 @@ export function FlightSection({ trip, item, canEdit, onSaved }: Props) {
       onUndo={() => void field.undo()}
       view={<FlightCard item={item} />}
     >
-      <FlightFields value={field.draft} onChange={(patch) => field.setDraft((d) => ({ ...d, ...patch }))} error={field.error} bookedNote={item.bookingStatus === "booked"} />
+      <FlightFields
+        value={field.draft}
+        onChange={(patch) => field.setDraft((d) => ({ ...d, ...patch }))}
+        error={field.error}
+        bookedNote={item.bookingStatus === "booked"}
+      />
     </EditSection>
   );
 }

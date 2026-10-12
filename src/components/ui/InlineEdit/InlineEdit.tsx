@@ -43,7 +43,26 @@ type Props = {
  * clicking it, Enter or Space opens its controls in place, focused. Enter, picking a value or leaving the controls
  * saves; Escape goes back. Saving…, Saved (with Undo where offered) and errors show under it. Others see plain text.
  */
-export function InlineEdit({ label, valueText, children, placeholder, empty = false, canEdit, editing, onEdit, onCommit, onCancel, controls, status, onUndo, enterSaves = true, className, as: Tag = "div", headingId, focusable = false }: Props) {
+export function InlineEdit({
+  label,
+  valueText,
+  children,
+  placeholder,
+  empty = false,
+  canEdit,
+  editing,
+  onEdit,
+  onCommit,
+  onCancel,
+  controls,
+  status,
+  onUndo,
+  enterSaves = true,
+  className,
+  as: Tag = "div",
+  headingId,
+  focusable = false,
+}: Props) {
   const id = useId();
   const statusId = `${id}-status`;
   const box = useRef<HTMLDivElement>(null);
@@ -68,7 +87,12 @@ export function InlineEdit({ label, valueText, children, placeholder, empty = fa
   const statusLine = <SaveStatus id={statusId} status={status} onUndo={onUndo} showError />;
 
   const tabIndex = focusable ? -1 : undefined;
-  if (!canEdit) return <Tag className={cx(styles.value, className)} id={headingId} tabIndex={tabIndex}>{children}</Tag>;
+  if (!canEdit)
+    return (
+      <Tag className={cx(styles.value, className)} id={headingId} tabIndex={tabIndex}>
+        {children}
+      </Tag>
+    );
 
   if (!editing) {
     return (
@@ -79,11 +103,20 @@ export function InlineEdit({ label, valueText, children, placeholder, empty = fa
             ref={trigger}
             className={styles.trigger}
             data-inline-edit={label}
-            aria-label={`Edit ${label.toLowerCase()}${empty ? "" : `, ${valueText ?? (typeof children === "string" ? children : "")}`}`.replace(/, $/, "")}
+            aria-label={`Edit ${label.toLowerCase()}${empty ? "" : `, ${valueText ?? (typeof children === "string" ? children : "")}`}`.replace(
+              /, $/,
+              "",
+            )}
             onClick={onEdit}
           >
-            {empty ? <span className={styles.placeholder}>{placeholder ?? `Add ${label.toLowerCase()}`}</span> : children}
-            <span className={styles.pencil} aria-hidden="true"><EditIcon /></span>
+            {empty ? (
+              <span className={styles.placeholder}>{placeholder ?? `Add ${label.toLowerCase()}`}</span>
+            ) : (
+              children
+            )}
+            <span className={styles.pencil} aria-hidden="true">
+              <EditIcon />
+            </span>
           </button>
         </Tag>
         {status.state !== "idle" ? statusLine : null}
@@ -106,7 +139,12 @@ export function InlineEdit({ label, valueText, children, placeholder, empty = fa
           e.stopPropagation();
           e.preventDefault();
           onCancel();
-        } else if (e.key === "Enter" && !e.shiftKey && enterSaves && (e.target as HTMLElement).matches("input:not([type=checkbox]), textarea")) {
+        } else if (
+          e.key === "Enter" &&
+          !e.shiftKey &&
+          enterSaves &&
+          (e.target as HTMLElement).matches("input:not([type=checkbox]), textarea")
+        ) {
           e.preventDefault();
           onCommit();
         }

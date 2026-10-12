@@ -1,5 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { canonicalTimeZone, dateInZone, dueState, isDate, isLocalDateTime, isTimeZone, localCandidates, resolveLocal, tripStatus, dateRange, daysBetween } from "@/shared/time";
+import {
+  canonicalTimeZone,
+  dateInZone,
+  dueState,
+  isDate,
+  isLocalDateTime,
+  isTimeZone,
+  localCandidates,
+  resolveLocal,
+  tripStatus,
+  dateRange,
+  daysBetween,
+} from "@/shared/time";
 
 describe("calendar values", () => {
   it("accepts only real dates", () => {

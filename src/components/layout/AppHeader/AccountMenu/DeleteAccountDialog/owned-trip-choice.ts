@@ -7,7 +7,10 @@ import type { OwnedTripDTO } from "@/shared/dto";
 export type Choice = string;
 
 /** The decision `DELETE /api/account` takes for a trip (ACCESS-10). */
-export type Decision = { tripId: string; action: "keep" } | { tripId: string; action: "delete" } | { tripId: string; action: "transfer"; personId: string };
+export type Decision =
+  | { tripId: string; action: "keep" }
+  | { tripId: string; action: "delete" }
+  | { tripId: string; action: "transfer"; personId: string };
 
 /** Where a trip starts: with its other owners, else with the next person in line, else deleted (nobody else is on it). */
 export function defaultChoice(trip: OwnedTripDTO): Choice {
@@ -31,7 +34,8 @@ export function validChoice(trip: OwnedTripDTO, choice: Choice | undefined): cho
  */
 export function toDecision(trip: OwnedTripDTO, choice: Choice): Decision | null {
   if (choice === "keep") return { tripId: trip.id, action: "keep" };
-  if (choice === "delete") return trip.otherOwners.length || trip.people.length ? { tripId: trip.id, action: "delete" } : null;
+  if (choice === "delete")
+    return trip.otherOwners.length || trip.people.length ? { tripId: trip.id, action: "delete" } : null;
   return { tripId: trip.id, action: "transfer", personId: choice };
 }
 

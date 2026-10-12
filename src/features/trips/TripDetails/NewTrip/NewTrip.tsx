@@ -14,7 +14,13 @@ import { DestinationInput } from "../DestinationInput/DestinationInput";
 import { TimeZoneSelect } from "../TimeZoneSelect/TimeZoneSelect";
 import styles from "./NewTrip.module.css";
 
-type Props = { formId: string; recentCurrencies: string[]; onDirty: (dirty: boolean) => void; onBusy: (busy: boolean) => void; onCreated?: (tripId: string) => void };
+type Props = {
+  formId: string;
+  recentCurrencies: string[];
+  onDirty: (dirty: boolean) => void;
+  onBusy: (busy: boolean) => void;
+  onCreated?: (tripId: string) => void;
+};
 
 /**
  * New trip (DASH-3) in the trip details' own layout: name and destination, then Dates, Time zone and Budget, all open,
@@ -23,7 +29,15 @@ type Props = { formId: string; recentCurrencies: string[]; onDirty: (dirty: bool
 export function NewTrip({ formId, recentCurrencies, onDirty, onBusy, onCreated }: Props) {
   const router = useRouter();
   const browserZone = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC", []);
-  const [initial] = useState(() => ({ title: "", destination: "", startDate: "", endDate: "", timeZone: browserZone, budgetAmount: "", budgetCurrency: defaultCurrency(recentCurrencies) }));
+  const [initial] = useState(() => ({
+    title: "",
+    destination: "",
+    startDate: "",
+    endDate: "",
+    timeZone: browserZone,
+    budgetAmount: "",
+    budgetCurrency: defaultCurrency(recentCurrencies),
+  }));
   const [v, setV] = useState(initial);
   const [place, setPlace] = useState<PlaceDTO | null>(null);
   const [zoneTouched, setZoneTouched] = useState(false);
@@ -63,13 +77,36 @@ export function NewTrip({ formId, recentCurrencies, onDirty, onBusy, onCreated }
   return (
     <form id={formId} className={styles.form} onSubmit={submit} noValidate>
       <p className={styles.alt}>
-        Planning with an AI chat already? <ButtonLink variant="link" href="/import">Start from an AI plan instead</ButtonLink>
+        Planning with an AI chat already?{" "}
+        <ButtonLink variant="link" href="/import">
+          Start from an AI plan instead
+        </ButtonLink>
       </p>
       <header className={styles.head}>
-        <Field label="Trip name" htmlFor="nt-title" className={styles.title} error={err("title")} errorId="nt-title-err">
-          <input id="nt-title" value={v.title} onChange={(e) => up({ title: e.target.value })} maxLength={120} placeholder="Kyoto in autumn" {...aria("title")} />
+        <Field
+          label="Trip name"
+          htmlFor="nt-title"
+          className={styles.title}
+          error={err("title")}
+          errorId="nt-title-err"
+        >
+          <input
+            id="nt-title"
+            value={v.title}
+            onChange={(e) => up({ title: e.target.value })}
+            maxLength={120}
+            placeholder="Kyoto in autumn"
+            {...aria("title")}
+          />
         </Field>
-        <Field label="Main destination" htmlFor="nt-destination" error={err("destination")} errorId="nt-destination-err" hint="Pick a suggestion to pin the trip on the globe, or type any name for a multi-stop trip." hintId="nt-destination-hint">
+        <Field
+          label="Main destination"
+          htmlFor="nt-destination"
+          error={err("destination")}
+          errorId="nt-destination-err"
+          hint="Pick a suggestion to pin the trip on the globe, or type any name for a multi-stop trip."
+          hintId="nt-destination-hint"
+        >
           <DestinationInput
             id="nt-destination"
             value={v.destination}
@@ -98,13 +135,24 @@ export function NewTrip({ formId, recentCurrencies, onDirty, onBusy, onCreated }
               onChange={(e) => {
                 const start = e.target.value;
                 // The end date follows the start date, so its picker opens on the right month.
-                setV((o) => ({ ...o, startDate: start, endDate: start && (!o.endDate || o.endDate < start) ? start : o.endDate }));
+                setV((o) => ({
+                  ...o,
+                  startDate: start,
+                  endDate: start && (!o.endDate || o.endDate < start) ? start : o.endDate,
+                }));
               }}
               {...aria("startDate")}
             />
           </Field>
           <Field label="End date" htmlFor="nt-endDate" error={err("endDate")} errorId="nt-endDate-err">
-            <input id="nt-endDate" type="date" value={v.endDate} min={v.startDate || undefined} onChange={(e) => up({ endDate: e.target.value })} {...aria("endDate")} />
+            <input
+              id="nt-endDate"
+              type="date"
+              value={v.endDate}
+              min={v.startDate || undefined}
+              onChange={(e) => up({ endDate: e.target.value })}
+              {...aria("endDate")}
+            />
           </Field>
         </FieldGrid>
       </SectionFrame>
@@ -113,7 +161,10 @@ export function NewTrip({ formId, recentCurrencies, onDirty, onBusy, onCreated }
         <TimeZoneSelect
           id="nt-timeZone"
           value={v.timeZone}
-          onChange={(z) => { up({ timeZone: z }); setZoneTouched(true); }}
+          onChange={(z) => {
+            up({ timeZone: z });
+            setZoneTouched(true);
+          }}
           place={place}
           currentZone={null}
           fromPlace={!zoneTouched}
@@ -123,7 +174,16 @@ export function NewTrip({ formId, recentCurrencies, onDirty, onBusy, onCreated }
       </SectionFrame>
 
       <SectionFrame title="Budget">
-        <Field label={<>Budget <span className="muted">optional</span></>} htmlFor="nt-budget" error={err("budget")} errorId="nt-budget-err">
+        <Field
+          label={
+            <>
+              Budget <span className="muted">optional</span>
+            </>
+          }
+          htmlFor="nt-budget"
+          error={err("budget")}
+          errorId="nt-budget-err"
+        >
           <MoneyInput
             amountId="nt-budget"
             currencyId="nt-budgetCurrency"

@@ -54,8 +54,28 @@ const EXIT_MS = 320;
  * back to the trigger on close (useDialog). At phone widths it fills the screen.
  */
 export function SidePanel({
-  open, onClose, onExited, label, labelledBy, bar, actions, notices, footer, children, presentation = "panel", size = "medium",
-  closeLabel, closeText, closeDisabled = false, triggerSelector, fallbackFocus, initialFocus, contentKey, panelRef, className, barWraps = false,
+  open,
+  onClose,
+  onExited,
+  label,
+  labelledBy,
+  bar,
+  actions,
+  notices,
+  footer,
+  children,
+  presentation = "panel",
+  size = "medium",
+  closeLabel,
+  closeText,
+  closeDisabled = false,
+  triggerSelector,
+  fallbackFocus,
+  initialFocus,
+  contentKey,
+  panelRef,
+  className,
+  barWraps = false,
 }: Props) {
   const own = useRef<HTMLElement>(null);
   const ref = panelRef ?? own;
@@ -96,13 +116,22 @@ export function SidePanel({
         <div className={styles.barStart}>{bar}</div>
         <div className={styles.barActions}>
           {actions}
-          <button type="button" className={styles.close} data-panel-close aria-label={closeLabel} disabled={closeDisabled} onClick={close}>
+          <button
+            type="button"
+            className={styles.close}
+            data-panel-close
+            aria-label={closeLabel}
+            disabled={closeDisabled}
+            onClick={close}
+          >
             {!isPanel && closeText ? closeText : "×"}
           </button>
         </div>
       </div>
       {notices}
-      <div className={styles.body} key={contentKey}>{children}</div>
+      <div className={styles.body} key={contentKey}>
+        {children}
+      </div>
       {footer ? <div className={styles.footer}>{footer}</div> : null}
     </section>
   );
@@ -114,7 +143,9 @@ export function SidePanel({
       data-modal
       data-state={open ? "open" : "closing"}
       onMouseDown={(e) => e.target === e.currentTarget && close()}
-      onAnimationEnd={(e) => { if (!open && e.target === e.currentTarget) onExited?.(); }}
+      onAnimationEnd={(e) => {
+        if (!open && e.target === e.currentTarget) onExited?.();
+      }}
     >
       {surface}
     </div>,

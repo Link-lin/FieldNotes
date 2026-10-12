@@ -42,7 +42,9 @@ export function summarizeUsage(rows: UsageRow[]) {
   const reviewed = t("import_items_created") + t("import_items_skipped");
   return {
     totals: Object.fromEntries(USAGE_NAMES.map((n) => [n, t(n)])) as Record<UsageName, number>,
-    weeks: [...weeks.entries()].sort(([a], [b]) => (a < b ? -1 : 1)).map(([week, w]) => ({ week, counts: Object.fromEntries(w) })),
+    weeks: [...weeks.entries()]
+      .sort(([a], [b]) => (a < b ? -1 : 1))
+      .map(([week, w]) => ({ week, counts: Object.fromEntries(w) })),
     rates: {
       /** Previews that needed no fixing, of all previews. */
       cleanPreview: ratio(t("import_preview_ok"), previews),

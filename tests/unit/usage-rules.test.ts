@@ -14,7 +14,13 @@ describe("pilot report", () => {
     ]);
     expect(s.totals.import_preview_ok).toBe(3);
     expect(s.totals.item_booked).toBe(0);
-    expect(s.rates).toEqual({ cleanPreview: 0.75, rejectedPreview: 0, skippedItems: 0.1, editedAiItems: 0.25, savesPerEditedItem: 1.8 });
+    expect(s.rates).toEqual({
+      cleanPreview: 0.75,
+      rejectedPreview: 0,
+      skippedItems: 0.1,
+      editedAiItems: 0.25,
+      savesPerEditedItem: 1.8,
+    });
     expect(s.weeks.map((w) => w.week)).toEqual(["2026-09-28", "2026-10-05"]);
   });
 

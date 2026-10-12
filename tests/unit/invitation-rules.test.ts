@@ -36,8 +36,12 @@ describe("invitation status", () => {
 describe("staging cookie", () => {
   const hash = hashInvitationToken("t".repeat(43));
   it("uses a __Host- Secure cookie over HTTPS and a plain one on http://localhost", () => {
-    expect(stageCookie("https://fieldnotes.example", hash)).toBe(`__Host-fieldnotes-invite=${hash.toString("hex")}; Path=/; Max-Age=900; HttpOnly; SameSite=Lax; Secure`);
-    expect(stageCookie("http://localhost:3000", hash)).toBe(`fieldnotes-invite=${hash.toString("hex")}; Path=/; Max-Age=900; HttpOnly; SameSite=Lax`);
+    expect(stageCookie("https://fieldnotes.example", hash)).toBe(
+      `__Host-fieldnotes-invite=${hash.toString("hex")}; Path=/; Max-Age=900; HttpOnly; SameSite=Lax; Secure`,
+    );
+    expect(stageCookie("http://localhost:3000", hash)).toBe(
+      `fieldnotes-invite=${hash.toString("hex")}; Path=/; Max-Age=900; HttpOnly; SameSite=Lax`,
+    );
     expect(clearStageCookie("https://fieldnotes.example")).toContain("Max-Age=0");
   });
 

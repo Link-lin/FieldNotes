@@ -17,7 +17,16 @@ const AIRPORTS_URL = "https://raw.githubusercontent.com/davidmegginson/ourairpor
 
 /** `tz`: IANA zones, most likely first. A city has one; a country lists the zones its places use. */
 /** `rank`: Natural Earth scale rank (0 = most prominent); countries use 1, after the most prominent cities. */
-type Place = { id: string; name: string; country: string; lat: number; lon: number; kind: "city" | "country"; tz: string[]; rank: number };
+type Place = {
+  id: string;
+  name: string;
+  country: string;
+  lat: number;
+  lon: number;
+  kind: "city" | "country";
+  tz: string[];
+  rank: number;
+};
 
 const validZone = (z: unknown): z is string => {
   if (typeof z !== "string" || !z.includes("/")) return false;
@@ -44,12 +53,16 @@ function parseCsvLine(line: string): string[] {
   for (let i = 0; i < line.length; i++) {
     const c = line[i]!;
     if (q) {
-      if (c === '"' && line[i + 1] === '"') { cur += '"'; i++; }
-      else if (c === '"') q = false;
+      if (c === '"' && line[i + 1] === '"') {
+        cur += '"';
+        i++;
+      } else if (c === '"') q = false;
       else cur += c;
     } else if (c === '"') q = true;
-    else if (c === ",") { out.push(cur); cur = ""; }
-    else cur += c;
+    else if (c === ",") {
+      out.push(cur);
+      cur = "";
+    } else cur += c;
   }
   out.push(cur);
   return out;
@@ -62,7 +75,16 @@ for (const f of countries.features) {
   const name = f.properties?.name;
   if (!name) continue;
   const [lon, lat] = geoCentroid(f);
-  places.push({ id: `country:${f.id ?? name}`, name, country: name, lat: round(lat), lon: round(lon), kind: "country", tz: [], rank: 1 });
+  places.push({
+    id: `country:${f.id ?? name}`,
+    name,
+    country: name,
+    lat: round(lat),
+    lon: round(lon),
+    kind: "country",
+    tz: [],
+    rank: 1,
+  });
 }
 
 const geo = JSON.parse(await get(PLACES_URL)) as { features: Array<{ properties: Record<string, unknown> }> };
@@ -74,13 +96,25 @@ for (const f of geo.features) {
   const lon = Number(p.LONGITUDE);
   if (!name || !country || !Number.isFinite(lat) || !Number.isFinite(lon)) continue;
   const tz = validZone(p.TIMEZONE) ? [p.TIMEZONE] : [];
-  places.push({ id: `ne:${p.NE_ID ?? `${name}|${country}`}`, name, country, lat: round(lat), lon: round(lon), kind: "city", tz, rank: Number.isFinite(Number(p.SCALERANK)) ? Number(p.SCALERANK) : 10 });
+  places.push({
+    id: `ne:${p.NE_ID ?? `${name}|${country}`}`,
+    name,
+    country,
+    lat: round(lat),
+    lon: round(lon),
+    kind: "city",
+    tz,
+    rank: Number.isFinite(Number(p.SCALERANK)) ? Number(p.SCALERANK) : 10,
+  });
 }
 
 // Natural Earth has some wrong zones (Cardiff in Australia/Sydney, Santo Domingo in America/Bogota).
 // 1) Drop a zone whose January offset is more than 3.5 h from the place's solar time.
 const offsetHours = (zone: string) => {
-  const s = new Intl.DateTimeFormat("en-US", { timeZone: zone, timeZoneName: "longOffset" }).formatToParts(new Date("2026-01-15T12:00:00Z")).find((x) => x.type === "timeZoneName")?.value ?? "";
+  const s =
+    new Intl.DateTimeFormat("en-US", { timeZone: zone, timeZoneName: "longOffset" })
+      .formatToParts(new Date("2026-01-15T12:00:00Z"))
+      .find((x) => x.type === "timeZoneName")?.value ?? "";
   const m = s.match(/GMT([+-])(\d\d):?(\d\d)?/);
   return m ? (m[1] === "-" ? -1 : 1) * (Number(m[2]) + Number(m[3] ?? 0) / 60) : 0;
 };
@@ -110,14 +144,21 @@ for (const place of places) {
   for (const z of zoned) {
     if (z.country !== place.country) continue;
     const d = km(place, z);
-    if (d < bestKm) { bestKm = d; best = z; }
+    if (d < bestKm) {
+      bestKm = d;
+      best = z;
+    }
   }
   if (best) place.tz = [...best.tz];
 }
 
 // A country's zones: those used by places inside its outline, most common first (at most 8),
 // with the capital's zone leading.
-const capitals = new Set(geo.features.filter((f) => String(f.properties.FEATURECLA ?? "").startsWith("Admin-0 capital")).map((f) => `ne:${f.properties.NE_ID}`));
+const capitals = new Set(
+  geo.features
+    .filter((f) => String(f.properties.FEATURECLA ?? "").startsWith("Admin-0 capital"))
+    .map((f) => `ne:${f.properties.NE_ID}`),
+);
 for (const f of countries.features) {
   const place = places.find((p) => p.id === `country:${f.id ?? f.properties?.name}`);
   if (!place) continue;
@@ -134,7 +175,10 @@ for (const f of countries.features) {
     if (capitals.has(c.id)) cap = c.tz[0];
   }
   // A zone seen only once in a well-covered country is usually a data slip; leave it out.
-  const ranked = [...counts.entries()].filter(([, n]) => n > 1 || total < 5).sort((a, b) => b[1] - a[1]).map(([z]) => z);
+  const ranked = [...counts.entries()]
+    .filter(([, n]) => n > 1 || total < 5)
+    .sort((a, b) => b[1] - a[1])
+    .map(([z]) => z);
   place.tz = [...new Set([...(cap ? [cap] : []), ...ranked])].slice(0, 8);
 }
 

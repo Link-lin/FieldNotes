@@ -25,7 +25,13 @@ async function readText(request: Request, max: number): Promise<string | null> {
   }
 }
 
-const escapeHtml = (value: string): string => value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+const escapeHtml = (value: string): string =>
+  value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 
 /**
  * Apple answers a sign-in by posting the result to `/api/auth/callback/apple` from its own page. Browsers don't send
@@ -46,12 +52,17 @@ export async function appleReturn(request: Request, nonce: string | null): Promi
   if (Number(request.headers.get("content-length") ?? 0) > MAX_BODY) return tooLarge();
   const body = await readText(request, MAX_BODY);
   if (body === null) return tooLarge();
-  const fields = [...new URLSearchParams(body)].map(([name, value]) => `<input type="hidden" name="${escapeHtml(name)}" value="${escapeHtml(value)}">`).join("");
+  const fields = [...new URLSearchParams(body)]
+    .map(([name, value]) => `<input type="hidden" name="${escapeHtml(name)}" value="${escapeHtml(value)}">`)
+    .join("");
   const attr = nonce ? ` nonce="${escapeHtml(nonce)}"` : "";
   const page = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="referrer" content="no-referrer"><title>Signing in</title>
 <style${attr}>body{display:grid;place-items:center;min-height:100vh;margin:0;font:16px/1.5 system-ui,sans-serif;text-align:center}button{font:inherit;padding:.5em 1.1em}</style></head>
 <body><main><p>Signing you in…</p><form method="post" action="${CALLBACK_PATH}?${MARKER}=1">${fields}<button type="submit">Continue</button></form></main>
 <script${attr}>document.forms[0].submit()</script></body></html>`;
-  return new Response(page, { status: 200, headers: { "content-type": "text/html; charset=utf-8", "cache-control": "private, no-store" } });
+  return new Response(page, {
+    status: 200,
+    headers: { "content-type": "text/html; charset=utf-8", "cache-control": "private, no-store" },
+  });
 }

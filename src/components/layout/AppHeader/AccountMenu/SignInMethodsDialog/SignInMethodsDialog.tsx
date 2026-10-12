@@ -17,12 +17,25 @@ export type SignInMethods = { options: SignInMethod[]; hasEmail: boolean };
  * refused. Connecting Google (or Apple, sharing the person's own address) gives an account that has no email one, so
  * it can be invited by email, and, if the address is on the owner list, create trips.
  */
-export function SignInMethodsDialog({ methods, onClose, returnFocus }: { methods: SignInMethods; onClose: () => void; returnFocus: () => HTMLElement | null }) {
+export function SignInMethodsDialog({
+  methods,
+  onClose,
+  returnFocus,
+}: {
+  methods: SignInMethods;
+  onClose: () => void;
+  returnFocus: () => HTMLElement | null;
+}) {
   const rows = methods.options;
   const google = rows.some((r) => r.name === "Google" && r.connected);
   const apple = rows.some((r) => r.name === "Apple");
   return (
-    <Modal title="Sign-in methods" onClose={onClose} fallbackFocus={returnFocus} subtitle="Connect another way to sign in. Each one opens the same account and the same trips.">
+    <Modal
+      title="Sign-in methods"
+      onClose={onClose}
+      fallbackFocus={returnFocus}
+      subtitle="Connect another way to sign in. Each one opens the same account and the same trips."
+    >
       <ul className={styles.methods}>
         {rows.map((r) => (
           <li key={r.name} className={styles.method}>
@@ -31,15 +44,24 @@ export function SignInMethodsDialog({ methods, onClose, returnFocus }: { methods
               <Tag tone="soft">Connected</Tag>
             ) : (
               <form action={r.connect}>
-                <Button variant="outline" type="submit" aria-label={`Connect ${r.name}`}>Connect</Button>
+                <Button variant="outline" type="submit" aria-label={`Connect ${r.name}`}>
+                  Connect
+                </Button>
               </form>
             )}
           </li>
         ))}
       </ul>
-      {!methods.hasEmail && !google ? <p className="note">Connecting Google{apple ? ", or Apple with your email shared," : ""} gives this account an email address, so you can be invited by email.</p> : null}
+      {!methods.hasEmail && !google ? (
+        <p className="note">
+          Connecting Google{apple ? ", or Apple with your email shared," : ""} gives this account an email address, so
+          you can be invited by email.
+        </p>
+      ) : null}
       <ModalActions>
-        <Button variant="quiet" onClick={onClose}>Done</Button>
+        <Button variant="quiet" onClick={onClose}>
+          Done
+        </Button>
       </ModalActions>
     </Modal>
   );

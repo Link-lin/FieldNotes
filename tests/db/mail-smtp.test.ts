@@ -49,14 +49,19 @@ function smtpSink(): Promise<{ port: number; messages: string[]; close: () => Pr
       resolve({
         port: (server.address() as net.AddressInfo).port,
         messages,
-        close: () => new Promise<void>((done) => { sockets.forEach((s) => s.destroy()); server.close(() => done()); }),
+        close: () =>
+          new Promise<void>((done) => {
+            sockets.forEach((s) => s.destroy());
+            server.close(() => done());
+          }),
       }),
     ),
   );
 }
 
 /** Undo quoted-printable line folding and escapes, so a message body can be searched as text. */
-const decode = (raw: string) => raw.replace(/=\r?\n/g, "").replace(/=([0-9A-F]{2})/gi, (_, hex: string) => String.fromCharCode(parseInt(hex, 16)));
+const decode = (raw: string) =>
+  raw.replace(/=\r?\n/g, "").replace(/=([0-9A-F]{2})/gi, (_, hex: string) => String.fromCharCode(parseInt(hex, 16)));
 /** A header's value as a mail client shows it: folded lines joined and RFC 2047 encoded words decoded. */
 const header = (raw: string, name: string) => {
   const unfolded = raw.split("\r\n\r\n")[0]!.replace(/\r\n[ \t]+/g, " ");
@@ -94,7 +99,9 @@ describe("sending over SMTP", () => {
     vi.stubEnv("MAIL_FROM", "Field Notes <notes@example.com>");
     vi.stubEnv("SMTP_URL", "  ");
     expect(mailConfigured()).toBe(false);
-    return expect(sendMail({ to: "a@example.com", subject: "x", text: "x", html: "x" })).rejects.toThrow("not configured");
+    return expect(sendMail({ to: "a@example.com", subject: "x", text: "x", html: "x" })).rejects.toThrow(
+      "not configured",
+    );
   });
 
   it("delivers a real invitation: sender, recipient, reply-to, subject, text and escaped HTML parts", async () => {
@@ -120,8 +127,16 @@ describe("sending over SMTP", () => {
   });
 
   it("cannot be made to add a recipient or header through the trip title or the owner's name", async () => {
-    await testDb().updateTable("User").set({ name: "Link\r\nBcc: attacker@evil.example" }).where("id", "=", owner.userId).execute();
-    await testDb().updateTable("trips").set({ title: "Trip\nBcc: attacker@evil.example" }).where("id", "=", tripId).execute();
+    await testDb()
+      .updateTable("User")
+      .set({ name: "Link\r\nBcc: attacker@evil.example" })
+      .where("id", "=", owner.userId)
+      .execute();
+    await testDb()
+      .updateTable("trips")
+      .set({ title: "Trip\nBcc: attacker@evil.example" })
+      .where("id", "=", tripId)
+      .execute();
     await createInvitation(testDb(), owner, tripId, "newcomer@example.com", NOW);
     const head = sink.messages[0]!.split("\r\n\r\n")[0]!;
     expect(head).not.toMatch(/^Bcc:/im);

@@ -6,7 +6,12 @@ import { makeActor, NOW, reset, testDb, tripInput } from "./helpers";
 import { authConfig } from "@/server/auth/config";
 import { adoptVerifiedEmail } from "@/server/auth/link-account";
 import { allowSignIn, cookieValue, signedInUserId } from "@/server/auth/sign-in-gate";
-import { acceptInvitation, createLinkInvitation, stageInvitation, createInvitation } from "@/server/modules/invitations/invitations.service";
+import {
+  acceptInvitation,
+  createLinkInvitation,
+  stageInvitation,
+  createInvitation,
+} from "@/server/modules/invitations/invitations.service";
 import { getTripDetail, createTrip } from "@/server/modules/trips/trips.service";
 import { actorFor } from "@/server/auth/actor";
 
@@ -32,14 +37,32 @@ function fakeWeChat(req: IncomingMessage, res: ServerResponse) {
     res.end(JSON.stringify(body));
   };
   if (url.pathname === "/sns/oauth2/access_token") {
-    if (req.method !== "GET" || query.appid !== "wx123" || query.secret !== "s3cret" || query.grant_type !== "authorization_code") return reply({ errcode: 41002, errmsg: "appid missing" });
+    if (
+      req.method !== "GET" ||
+      query.appid !== "wx123" ||
+      query.secret !== "s3cret" ||
+      query.grant_type !== "authorization_code"
+    )
+      return reply({ errcode: 41002, errmsg: "appid missing" });
     if (!query.code?.startsWith("ok-")) return reply({ errcode: 40029, errmsg: "invalid code" });
     const who = query.code.slice(3);
-    return reply({ access_token: `at-${who}`, expires_in: 7200, refresh_token: `rt-${who}`, openid: `o-${who}`, scope: "snsapi_userinfo", unionid: `u-${who}` });
+    return reply({
+      access_token: `at-${who}`,
+      expires_in: 7200,
+      refresh_token: `rt-${who}`,
+      openid: `o-${who}`,
+      scope: "snsapi_userinfo",
+      unionid: `u-${who}`,
+    });
   }
   if (url.pathname === "/sns/userinfo") {
     const who = (query.access_token ?? "").slice(3);
-    return reply({ openid: `o-${who}`, nickname: `Mei ${who}`, headimgurl: "http://thirdwx.qlogo.cn/avatar", unionid: `u-${who}` });
+    return reply({
+      openid: `o-${who}`,
+      nickname: `Mei ${who}`,
+      headimgurl: "http://thirdwx.qlogo.cn/avatar",
+      unionid: `u-${who}`,
+    });
   }
   res.statusCode = 404;
   res.end();
@@ -90,8 +113,14 @@ class Jar {
 
 /** Auth.js, configured as the app configures it, reading the jar's cookies the way the app reads the request's. */
 function authFor(jar: Jar) {
-  const config = { ...authConfig(db(), async () => jar.header || null), secret: process.env.AUTH_SECRET, trustHost: true, basePath: "/api/auth" };
-  return (path: string, init: RequestInit = {}) => Auth(new Request(`${APP}${path}`, { ...init, headers: { ...(init.headers ?? {}), cookie: jar.header } }), config);
+  const config = {
+    ...authConfig(db(), async () => jar.header || null),
+    secret: process.env.AUTH_SECRET,
+    trustHost: true,
+    basePath: "/api/auth",
+  };
+  return (path: string, init: RequestInit = {}) =>
+    Auth(new Request(`${APP}${path}`, { ...init, headers: { ...(init.headers ?? {}), cookie: jar.header } }), config);
 }
 
 /** The whole dance: start at /signin/wechat, "approve" at WeChat with `code`, return to the callback. */
@@ -162,11 +191,22 @@ describe("the sign-in gate for WeChat", () => {
     expect(jar.header).toContain("authjs.session-token=");
     const user = (await users()).find((u) => u.email === null);
     expect(user).toMatchObject({ name: "Mei mei", email: null, image: null });
-    expect(await accounts()).toEqual([expect.objectContaining({ provider: "wechat", providerAccountId: "u-mei", userId: user!.id, access_token: null, refresh_token: null })]);
+    expect(await accounts()).toEqual([
+      expect.objectContaining({
+        provider: "wechat",
+        providerAccountId: "u-mei",
+        userId: user!.id,
+        access_token: null,
+        refresh_token: null,
+      }),
+    ]);
     // Landing back on /invite, the account accepts the staged link and joins with the chosen role.
     const mei = actorFor({ id: user!.id, email: null });
     await acceptInvitation(db(), mei, hash, new Date());
-    expect((await getTripDetail(db(), mei, tripId, new Date())).trip).toMatchObject({ role: "editor", ownerName: "Link Lin" });
+    expect((await getTripDetail(db(), mei, tripId, new Date())).trip).toMatchObject({
+      role: "editor",
+      ownerName: "Link Lin",
+    });
   });
 
   it("asks WeChat the way WeChat documents it: a GET with the app ID, secret and code, then the profile", async () => {
@@ -174,11 +214,20 @@ describe("the sign-in gate for WeChat", () => {
     const tripId = (await createTrip(db(), owner, tripInput, NOW)).id;
     const link = await createLinkInvitation(db(), owner, tripId, "Mei", new Date());
     const jar = new Jar();
-    jar.set("fieldnotes-invite", (await stageInvitation(db(), link.invitationUrl.split("#")[1]!, new Date())).toString("hex"));
+    jar.set(
+      "fieldnotes-invite",
+      (await stageInvitation(db(), link.invitationUrl.split("#")[1]!, new Date())).toString("hex"),
+    );
     await signInWith(jar, "ok-mei");
     const token = seen.find((s) => s.path === "/sns/oauth2/access_token")!;
-    expect(token).toMatchObject({ method: "GET", query: { appid: "wx123", secret: "s3cret", code: "ok-mei", grant_type: "authorization_code" } });
-    expect(seen.find((s) => s.path === "/sns/userinfo")).toMatchObject({ method: "GET", query: { access_token: "at-mei", openid: "o-mei" } });
+    expect(token).toMatchObject({
+      method: "GET",
+      query: { appid: "wx123", secret: "s3cret", code: "ok-mei", grant_type: "authorization_code" },
+    });
+    expect(seen.find((s) => s.path === "/sns/userinfo")).toMatchObject({
+      method: "GET",
+      query: { access_token: "at-mei", openid: "o-mei" },
+    });
   });
 
   it("doesn't admit it for an invitation by email, which it can't satisfy, or for a link already used", async () => {
@@ -186,7 +235,10 @@ describe("the sign-in gate for WeChat", () => {
     const tripId = (await createTrip(db(), owner, tripInput, NOW)).id;
     const byEmail = await createInvitation(db(), owner, tripId, "someone@example.com", new Date());
     const jar = new Jar();
-    jar.set("fieldnotes-invite", (await stageInvitation(db(), byEmail.invitationUrl.split("#")[1]!, new Date())).toString("hex"));
+    jar.set(
+      "fieldnotes-invite",
+      (await stageInvitation(db(), byEmail.invitationUrl.split("#")[1]!, new Date())).toString("hex"),
+    );
     expect((await signInWith(jar, "ok-one")).location).toContain("error=AccessDenied");
     const link = await createLinkInvitation(db(), owner, tripId, "Mei", new Date());
     const hash = await stageInvitation(db(), link.invitationUrl.split("#")[1]!, new Date());
@@ -202,7 +254,10 @@ describe("the sign-in gate for WeChat", () => {
     const tripId = (await createTrip(db(), owner, tripInput, NOW)).id;
     const link = await createLinkInvitation(db(), owner, tripId, "Mei", new Date());
     const joined = new Jar();
-    joined.set("fieldnotes-invite", (await stageInvitation(db(), link.invitationUrl.split("#")[1]!, new Date())).toString("hex"));
+    joined.set(
+      "fieldnotes-invite",
+      (await stageInvitation(db(), link.invitationUrl.split("#")[1]!, new Date())).toString("hex"),
+    );
     await signInWith(joined, "ok-mei");
     const again = new Jar(); // a fresh browser, no invitation
     expect((await signInWith(again, "ok-mei")).location).toBe(`${APP}/`);
@@ -223,8 +278,14 @@ describe("connecting WeChat to an account that is signed in", () => {
   async function signedInGoogleUser() {
     const user = await makeActor("owner@example.com", "Link Lin");
     const token = crypto.randomUUID();
-    await db().insertInto("Session").values({ userId: user.userId, sessionToken: token, expires: new Date(Date.now() + 864e5) }).execute();
-    await db().insertInto("Account").values({ userId: user.userId, type: "oidc", provider: "google", providerAccountId: "g-owner" }).execute();
+    await db()
+      .insertInto("Session")
+      .values({ userId: user.userId, sessionToken: token, expires: new Date(Date.now() + 864e5) })
+      .execute();
+    await db()
+      .insertInto("Account")
+      .values({ userId: user.userId, type: "oidc", provider: "google", providerAccountId: "g-owner" })
+      .execute();
     const jar = new Jar();
     jar.set("authjs.session-token", token);
     return { user, jar };
@@ -235,12 +296,18 @@ describe("connecting WeChat to an account that is signed in", () => {
     expect((await signInWith(jar, "ok-link")).location).toBe(`${APP}/`);
     expect(await users()).toHaveLength(1);
     const linked = await accounts();
-    expect(linked.map((a) => [a.provider, a.userId])).toEqual([["google", user.userId], ["wechat", user.userId]]);
+    expect(linked.map((a) => [a.provider, a.userId])).toEqual([
+      ["google", user.userId],
+      ["wechat", user.userId],
+    ]);
   });
 
   it("refuses an identity that already belongs to another account, changing nothing", async () => {
     const other = await makeActor("other@example.com");
-    await db().insertInto("Account").values({ userId: other.userId, type: "oauth", provider: "wechat", providerAccountId: "u-taken" }).execute();
+    await db()
+      .insertInto("Account")
+      .values({ userId: other.userId, type: "oauth", provider: "wechat", providerAccountId: "u-taken" })
+      .execute();
     const { jar } = await signedInGoogleUser();
     expect((await signInWith(jar, "ok-taken")).location).toContain("error=OAuthAccountNotLinked");
     expect((await accounts()).filter((a) => a.provider === "wechat").map((a) => a.userId)).toEqual([other.userId]);
@@ -248,7 +315,10 @@ describe("connecting WeChat to an account that is signed in", () => {
 
   it("does not count an expired session as signed in", async () => {
     const user = await makeActor("owner@example.com");
-    await db().insertInto("Session").values({ userId: user.userId, sessionToken: "old", expires: new Date(Date.now() - 1000) }).execute();
+    await db()
+      .insertInto("Session")
+      .values({ userId: user.userId, sessionToken: "old", expires: new Date(Date.now() - 1000) })
+      .execute();
     const jar = new Jar();
     jar.set("authjs.session-token", "old");
     expect((await signInWith(jar, "ok-late")).location).toContain("error=AccessDenied");
@@ -265,27 +335,52 @@ describe("the helpers behind the gate", () => {
 
   it("finds the signed-in account from a live session only", async () => {
     const user = await makeActor("owner@example.com");
-    await db().insertInto("Session").values({ userId: user.userId, sessionToken: "live", expires: new Date(Date.now() + 1000 * 60) }).execute();
-    await db().insertInto("Session").values({ userId: user.userId, sessionToken: "dead", expires: new Date(Date.now() - 1000) }).execute();
+    await db()
+      .insertInto("Session")
+      .values({ userId: user.userId, sessionToken: "live", expires: new Date(Date.now() + 1000 * 60) })
+      .execute();
+    await db()
+      .insertInto("Session")
+      .values({ userId: user.userId, sessionToken: "dead", expires: new Date(Date.now() - 1000) })
+      .execute();
     expect(await signedInUserId(db(), APP, "authjs.session-token=live")).toBe(user.userId);
     expect(await signedInUserId(db(), APP, "authjs.session-token=dead")).toBeNull();
     expect(await signedInUserId(db(), APP, "authjs.session-token=unknown")).toBeNull();
     expect(await signedInUserId(db(), APP, null)).toBeNull();
-    expect(await signedInUserId(db(), "https://notes.example.com", "__Secure-authjs.session-token=live")).toBe(user.userId); // the HTTPS cookie name
+    expect(await signedInUserId(db(), "https://notes.example.com", "__Secure-authjs.session-token=live")).toBe(
+      user.userId,
+    ); // the HTTPS cookie name
   });
 
   it("lets a signed-in visitor connect a method without an invitation or a verified email, and nobody else", async () => {
     const attempt = { provider: "google", providerAccountId: "g-new", email: "new@example.com", emailVerified: false };
     expect(await allowSignIn(db(), attempt)).toBe(false);
     expect(await allowSignIn(db(), { ...attempt, signedInUserId: crypto.randomUUID() })).toBe(true);
-    expect(await allowSignIn(db(), { provider: "wechat", providerAccountId: "u-new", email: null, emailVerified: null })).toBe(false);
-    expect(await allowSignIn(db(), { provider: "github", providerAccountId: "x", email: "a@example.com", emailVerified: true })).toBe(false);
+    expect(
+      await allowSignIn(db(), { provider: "wechat", providerAccountId: "u-new", email: null, emailVerified: null }),
+    ).toBe(false);
+    expect(
+      await allowSignIn(db(), {
+        provider: "github",
+        providerAccountId: "x",
+        email: "a@example.com",
+        emailVerified: true,
+      }),
+    ).toBe(false);
   });
 });
 
 describe("connecting Google to an account that signed in with WeChat", () => {
-  const mei = async () => (await db().insertInto("User").values({ email: null, name: "Mei", emailVerified: null, image: null }).returning("id").executeTakeFirstOrThrow()).id;
-  const emailOf = async (id: string) => (await db().selectFrom("User").select("email").where("id", "=", id).executeTakeFirstOrThrow()).email;
+  const mei = async () =>
+    (
+      await db()
+        .insertInto("User")
+        .values({ email: null, name: "Mei", emailVerified: null, image: null })
+        .returning("id")
+        .executeTakeFirstOrThrow()
+    ).id;
+  const emailOf = async (id: string) =>
+    (await db().selectFrom("User").select("email").where("id", "=", id).executeTakeFirstOrThrow()).email;
 
   it("gives it the verified Google address, once", async () => {
     const id = await mei();
@@ -306,12 +401,19 @@ describe("connecting Google to an account that signed in with WeChat", () => {
   it("does so through Auth.js's own callback and event, which see the provider's claims and a mapped profile without them", async () => {
     const connect = async (userId: string, claims: Record<string, unknown>) => {
       const token = crypto.randomUUID();
-      await db().insertInto("Session").values({ userId, sessionToken: token, expires: new Date(Date.now() + 864e5) }).execute();
+      await db()
+        .insertInto("Session")
+        .values({ userId, sessionToken: token, expires: new Date(Date.now() + 864e5) })
+        .execute();
       const config = authConfig(db(), async () => `authjs.session-token=${token}`);
       const account = { provider: "google", providerAccountId: `g-${userId}`, type: "oidc" };
       // Auth.js runs the sign-in callback with the claims, then the event with the mapped profile: no `email_verified`.
       expect(await config.callbacks!.signIn!({ user: { id: userId }, account, profile: claims } as never)).toBe(true);
-      await config.events!.linkAccount!({ user: { id: userId }, account, profile: { id: "x", email: String(claims.email).toLowerCase() } } as never);
+      await config.events!.linkAccount!({
+        user: { id: userId },
+        account,
+        profile: { id: "x", email: String(claims.email).toLowerCase() },
+      } as never);
     };
     const verified = await mei();
     await connect(verified, { sub: "g-1", email: "Mei@Example.com", email_verified: true });
@@ -334,4 +436,3 @@ describe("connecting Google to an account that signed in with WeChat", () => {
     expect(actorFor({ id, email: await emailOf(id) })).toMatchObject({ email: "owner@example.com", isOwner: true });
   });
 });
-

@@ -44,7 +44,12 @@ export function OwnedTripChoice({ trip, choice, onChange }: Props) {
   return (
     <li className={styles.trip}>
       <Field label={title} htmlFor={`${id}-choice`} hint={hint} hintId={`${id}-hint`}>
-        <select id={`${id}-choice`} value={choice} onChange={(e) => onChange(e.target.value)} aria-describedby={`${id}-hint`}>
+        <select
+          id={`${id}-choice`}
+          value={choice}
+          onChange={(e) => onChange(e.target.value)}
+          aria-describedby={`${id}-hint`}
+        >
           {keeps ? (
             <option value="keep">Keep it</option>
           ) : (

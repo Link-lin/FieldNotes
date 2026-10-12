@@ -66,7 +66,9 @@ describe("scopes", () => {
 
 describe("registrable redirect addresses", () => {
   it("accept https and http on a loopback host", () => {
-    expect(registrableRedirect("https://claude.ai/api/mcp/auth_callback")).toBe("https://claude.ai/api/mcp/auth_callback");
+    expect(registrableRedirect("https://claude.ai/api/mcp/auth_callback")).toBe(
+      "https://claude.ai/api/mcp/auth_callback",
+    );
     expect(registrableRedirect("https://chatgpt.com/connector_platform_oauth_redirect")).not.toBeNull();
     expect(registrableRedirect("http://localhost:3118/callback")).not.toBeNull();
     expect(registrableRedirect("http://127.0.0.1/callback")).not.toBeNull();
@@ -97,7 +99,11 @@ describe("registrable redirect addresses", () => {
 });
 
 describe("matching a redirect address against the registered ones", () => {
-  const registered = ["https://claude.ai/api/mcp/auth_callback", "http://localhost/callback", "http://127.0.0.1:3118/cb?x=1"];
+  const registered = [
+    "https://claude.ai/api/mcp/auth_callback",
+    "http://localhost/callback",
+    "http://127.0.0.1:3118/cb?x=1",
+  ];
 
   it("needs an exact match for https", () => {
     expect(redirectAllowed(registered, "https://claude.ai/api/mcp/auth_callback")).toBe(true);
@@ -157,9 +163,9 @@ describe("PKCE", () => {
 
 describe("adding parameters to the app's redirect address", () => {
   it("keeps the query it already has and drops absent values", () => {
-    expect(withParams("https://x.example/cb?keep=1", { code: "c", state: undefined, iss: "https://notes.example" })).toBe(
-      "https://x.example/cb?keep=1&code=c&iss=https%3A%2F%2Fnotes.example",
-    );
+    expect(
+      withParams("https://x.example/cb?keep=1", { code: "c", state: undefined, iss: "https://notes.example" }),
+    ).toBe("https://x.example/cb?keep=1&code=c&iss=https%3A%2F%2Fnotes.example");
   });
 
   it("encodes values so a state cannot add parameters", () => {

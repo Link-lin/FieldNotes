@@ -72,9 +72,16 @@ describe("AI import transaction", () => {
     expect(items).toHaveLength(2);
     expect(items.every((item) => item.source === "ai" && item.booking_status !== "booked")).toBe(true);
     expect(items.every((item) => item.map_url === null && item.latitude === null)).toBe(true);
-    expect(items.map((item) => [item.price_label, item.price_source])).toEqual([["estimate", "ai"], ["estimate", "ai"]]);
+    expect(items.map((item) => [item.price_label, item.price_source])).toEqual([
+      ["estimate", "ai"],
+      ["estimate", "ai"],
+    ]);
     expect(items[0]?.departure_airport_code).toBe("KSFO");
-    const trip = await testDb().selectFrom("trips").selectAll().where("id", "=", result.tripId).executeTakeFirstOrThrow();
+    const trip = await testDb()
+      .selectFrom("trips")
+      .selectAll()
+      .where("id", "=", result.tripId)
+      .executeTakeFirstOrThrow();
     expect(trip.atlas_source).toBe("catalog");
     expect(trip.budget_amount).toBe("1000.0000");
   });
@@ -84,10 +91,14 @@ describe("AI import transaction", () => {
     const first = await commitImport(testDb(), owner, draft, key);
     const same = await commitImport(testDb(), owner, draft, key);
     expect(same).toEqual({ tripId: first.tripId, reused: true });
-    const count = await testDb().selectFrom("trips").select((eb) => eb.fn.countAll<number>().as("count")).executeTakeFirstOrThrow();
+    const count = await testDb()
+      .selectFrom("trips")
+      .select((eb) => eb.fn.countAll<number>().as("count"))
+      .executeTakeFirstOrThrow();
     expect(Number(count.count)).toBe(1);
-    await expect(commitImport(testDb(), owner, { ...draft, trip: { ...draft.trip, title: "Different" } }, key))
-      .rejects.toMatchObject({ status: 409, code: "idempotency_conflict" });
+    await expect(
+      commitImport(testDb(), owner, { ...draft, trip: { ...draft.trip, title: "Different" } }, key),
+    ).rejects.toMatchObject({ status: 409, code: "idempotency_conflict" });
   });
 
   it("serializes two concurrent commits with the same key", async () => {
@@ -98,13 +109,21 @@ describe("AI import transaction", () => {
     ]);
     expect(a.tripId).toBe(b.tripId);
     expect([a.reused, b.reused].sort()).toEqual([false, true]);
-    const count = await testDb().selectFrom("trips").select((eb) => eb.fn.countAll<number>().as("count")).executeTakeFirstOrThrow();
+    const count = await testDb()
+      .selectFrom("trips")
+      .select((eb) => eb.fn.countAll<number>().as("count"))
+      .executeTakeFirstOrThrow();
     expect(Number(count.count)).toBe(1);
   });
 
   it("lets the owner explicitly verify an unchanged AI price", async () => {
     const created = await commitImport(testDb(), owner, draft, crypto.randomUUID());
-    const row = await testDb().selectFrom("plan_items").selectAll().where("trip_id", "=", created.tripId).where("type", "=", "activity").executeTakeFirstOrThrow();
+    const row = await testDb()
+      .selectFrom("plan_items")
+      .selectAll()
+      .where("trip_id", "=", created.tripId)
+      .where("type", "=", "activity")
+      .executeTakeFirstOrThrow();
     const edited = await updateItem(testDb(), owner, created.tripId, row.id, {
       expectedVersion: row.version,
       confirmPrice: true,
@@ -124,9 +143,15 @@ describe("AI import transaction", () => {
     const key = crypto.randomUUID();
     const first = await commitImport(testDb(), owner, draft, key);
     await deleteTrip(testDb(), owner, first.tripId, 1);
-    const receipt = await testDb().selectFrom("import_receipts").select(["trip_id", "payload_hash"]).executeTakeFirstOrThrow();
+    const receipt = await testDb()
+      .selectFrom("import_receipts")
+      .select(["trip_id", "payload_hash"])
+      .executeTakeFirstOrThrow();
     expect(receipt).toEqual({ trip_id: null, payload_hash: null });
-    await expect(commitImport(testDb(), owner, draft, key)).rejects.toMatchObject({ status: 410, code: "import_deleted" });
+    await expect(commitImport(testDb(), owner, draft, key)).rejects.toMatchObject({
+      status: 410,
+      code: "import_deleted",
+    });
   });
 
   it("rejects an invalid commit without partial rows", async () => {

@@ -3,7 +3,8 @@ import { pointing, type Pointable } from "@/features/trips/TripPage/MapPanel/poi
 
 /** A stand-in for a DOM element: a tag, attributes, a parent, and whether keyboard focus on it would show a focus ring. */
 type Fake = Pointable & { tag: string; attrs: Record<string, string>; parent: Fake | null; focusVisible: boolean };
-const hit = (e: Fake, selector: string) => (selector === "svg" ? e.tag === "svg" : selector.startsWith("[") && selector.slice(1, -1) in e.attrs);
+const hit = (e: Fake, selector: string) =>
+  selector === "svg" ? e.tag === "svg" : selector.startsWith("[") && selector.slice(1, -1) in e.attrs;
 function el(tag: string, attrs: Record<string, string> = {}, parent: Fake | null = null, focusVisible = false): Fake {
   const n: Fake = {
     tag,
@@ -40,12 +41,21 @@ const HOVER = true;
 
 describe("what the pointer or focus means for the highlight and the map", () => {
   it("lights a stop and points the map at it when the pointer comes onto its row or line", () => {
-    expect(pointing(event("mouseover", inRow), HOVER)).toEqual({ light: { id: "stop-1", on: true }, look: { kind: "event", id: "stop-1" } });
+    expect(pointing(event("mouseover", inRow), HOVER)).toEqual({
+      light: { id: "stop-1", on: true },
+      look: { kind: "event", id: "stop-1" },
+    });
   });
 
   it("puts the light out and sends the map back when the pointer leaves the row for somewhere else, or out of the window", () => {
-    expect(pointing(event("mouseout", inRow, blank), HOVER)).toEqual({ light: { id: "stop-1", on: false }, look: null });
-    expect(pointing(event("mouseout", row, otherRow), HOVER)).toEqual({ light: { id: "stop-1", on: false }, look: null });
+    expect(pointing(event("mouseout", inRow, blank), HOVER)).toEqual({
+      light: { id: "stop-1", on: false },
+      look: null,
+    });
+    expect(pointing(event("mouseout", row, otherRow), HOVER)).toEqual({
+      light: { id: "stop-1", on: false },
+      look: null,
+    });
     expect(pointing(event("mouseout", row, null), HOVER).look).toBeNull();
   });
 
@@ -56,11 +66,17 @@ describe("what the pointer or focus means for the highlight and the map", () => 
 
   it("lights a stop for its marker without moving the map from under the pointer", () => {
     expect(pointing(event("mouseover", onPin), HOVER)).toEqual({ light: { id: "stop-1", on: true }, look: undefined });
-    expect(pointing(event("mouseout", onPin, blank), HOVER)).toEqual({ light: { id: "stop-1", on: false }, look: undefined });
+    expect(pointing(event("mouseout", onPin, blank), HOVER)).toEqual({
+      light: { id: "stop-1", on: false },
+      look: undefined,
+    });
   });
 
   it("points the map at a day from its heading, its label in the stop list or its tab, and sends it back on leaving", () => {
-    expect(pointing(event("mouseover", inHeading), HOVER)).toEqual({ light: null, look: { kind: "day", day: "2026-10-26" } });
+    expect(pointing(event("mouseover", inHeading), HOVER)).toEqual({
+      light: null,
+      look: { kind: "day", day: "2026-10-26" },
+    });
     expect(pointing(event("mouseover", tab), HOVER).look).toEqual({ kind: "day", day: "2026-10-27" });
     expect(pointing(event("mouseout", inHeading, blank), HOVER).look).toBeNull();
     expect(pointing(event("mouseout", heading, inHeading), HOVER).look).toBeUndefined();
@@ -85,15 +101,24 @@ describe("what the pointer or focus means for the highlight and the map", () => 
   it("follows keyboard focus, but not the focus a click leaves behind", () => {
     const keyed = el("button", {}, row, true);
     const clicked = el("button", {}, row, false);
-    expect(pointing(event("focusin", keyed), HOVER)).toEqual({ light: { id: "stop-1", on: true }, look: { kind: "event", id: "stop-1" } });
+    expect(pointing(event("focusin", keyed), HOVER)).toEqual({
+      light: { id: "stop-1", on: true },
+      look: { kind: "event", id: "stop-1" },
+    });
     expect(pointing(event("focusin", clicked), HOVER)).toEqual({ light: { id: "stop-1", on: true }, look: undefined });
     // Either way, losing focus puts the map back, and moving focus within the row doesn't.
-    expect(pointing(event("focusout", keyed, blank), HOVER)).toEqual({ light: { id: "stop-1", on: false }, look: null });
+    expect(pointing(event("focusout", keyed, blank), HOVER)).toEqual({
+      light: { id: "stop-1", on: false },
+      look: null,
+    });
     expect(pointing(event("focusout", clicked, blank), HOVER).look).toBeNull();
     expect(pointing(event("focusout", keyed, clicked), HOVER).look).toBeUndefined();
     const dayTab = el("button", { "data-hl-day": "2026-10-28" }, page, false);
     expect(pointing(event("focusin", dayTab), HOVER).look).toBeUndefined();
-    expect(pointing(event("focusin", el("button", { "data-hl-day": "2026-10-28" }, page, true)), HOVER).look).toEqual({ kind: "day", day: "2026-10-28" });
+    expect(pointing(event("focusin", el("button", { "data-hl-day": "2026-10-28" }, page, true)), HOVER).look).toEqual({
+      kind: "day",
+      day: "2026-10-28",
+    });
   });
 
   it("follows keyboard focus on a touch screen too: only the mouseover is ignored there", () => {

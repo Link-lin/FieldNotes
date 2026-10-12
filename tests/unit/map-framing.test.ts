@@ -1,10 +1,24 @@
 import { describe, expect, it } from "vitest";
-import { cityRankLimit, closestPlacesKm, compass, CONTEXT_MAX_KM, edgePointers, framedStops, HOME_MIN_KM, homeSpans, project, projectionFor, type FramedStop } from "@/features/trips/TripPage/MapPanel/DayMap/framing";
+import {
+  cityRankLimit,
+  closestPlacesKm,
+  compass,
+  CONTEXT_MAX_KM,
+  edgePointers,
+  framedStops,
+  HOME_MIN_KM,
+  homeSpans,
+  project,
+  projectionFor,
+  type FramedStop,
+} from "@/features/trips/TripPage/MapPanel/DayMap/framing";
 
 const at = (lat: number, lon: number, flight = false): FramedStop => ({ lat, lon, flight });
 /** n stops scattered within about `km` of a point. */
 const around = (lat: number, lon: number, n: number, km = 6): FramedStop[] =>
-  Array.from({ length: n }, (_, i) => at(lat + ((i % 3) - 1) * (km / 111.32) * 0.5, lon + ((Math.floor(i / 3) % 3) - 1) * (km / 111.32) * 0.5));
+  Array.from({ length: n }, (_, i) =>
+    at(lat + ((i % 3) - 1) * (km / 111.32) * 0.5, lon + ((Math.floor(i / 3) % 3) - 1) * (km / 111.32) * 0.5),
+  );
 
 const TOKYO = [35.68, 139.76] as const;
 const SFO = [37.62, -122.38] as const;
@@ -14,7 +28,8 @@ const KONA_AIRPORT = [19.7388, -156.0456] as const;
 const KILAUEA = [19.4194, -155.2885] as const;
 
 const MAP = { width: 400, innerX: 400 - 2 * 56 - 40, innerY: 340 - 2 * 56, aspect: 340 / 400 };
-const widthKm = (s: { spanX: number; spanY: number }) => Math.max((s.spanX * MAP.width) / MAP.innerX, (s.spanY * MAP.width) / MAP.innerY) * 111.32;
+const widthKm = (s: { spanX: number; spanY: number }) =>
+  Math.max((s.spanX * MAP.width) / MAP.innerX, (s.spanY * MAP.width) / MAP.innerY) * 111.32;
 
 describe("which stops the outline map frames (MAP-3)", () => {
   it("leaves out a flight home across an ocean when the trip has stops on the ground", () => {
@@ -80,7 +95,7 @@ describe("how wide the map starts", () => {
     expect(near.cx).toBeCloseTo(stop.x, 9);
     expect(widthKm(near)).toBeGreaterThan(24);
     expect(widthKm(near)).toBeLessThanOrEqual(CONTEXT_MAX_KM + 1e-9);
-    const halfW = (widthKm(near) / 111.32) / 2;
+    const halfW = widthKm(near) / 111.32 / 2;
     expect(Math.abs(townNear.x - near.cx)).toBeLessThanOrEqual(halfW * 0.8 + 1e-9);
     // A town 30 km away would take 75 km: a lone stop gets the limit instead, to show the land around it.
     const townFar = pt(35.68, 139.76 + 30 / (111.32 * proj.kx));
@@ -96,12 +111,30 @@ describe("how wide the map starts", () => {
     const walk = [at(35.68, 139.76), at(35.6827, 139.76)];
     const close = closestPlacesKm(walk, [0, 1]);
     expect(close).toBeCloseTo(0.3, 1);
-    expect(widthKm(homeSpans(walk.map((w) => pt(w.lat, w.lon)), [], MAP, close))).toBeCloseTo(HOME_MIN_KM, 6);
+    expect(
+      widthKm(
+        homeSpans(
+          walk.map((w) => pt(w.lat, w.lon)),
+          [],
+          MAP,
+          close,
+        ),
+      ),
+    ).toBeCloseTo(HOME_MIN_KM, 6);
     // A venue visited twice is one place.
     expect(closestPlacesKm([at(35.68, 139.76), at(35.68001, 139.76)], [0, 1])).toBe(Infinity);
     // A town 12 km away comes into view for a stop, but not for stops that would merge at that width.
     const town = pt(35.68, 139.76 + 12 / (111.32 * proj.kx));
-    expect(widthKm(homeSpans(walk.map((w) => pt(w.lat, w.lon)), [town], MAP, close))).toBeCloseTo(HOME_MIN_KM, 6);
+    expect(
+      widthKm(
+        homeSpans(
+          walk.map((w) => pt(w.lat, w.lon)),
+          [town],
+          MAP,
+          close,
+        ),
+      ),
+    ).toBeCloseTo(HOME_MIN_KM, 6);
     expect(widthKm(homeSpans([lone], [town], MAP))).toBeGreaterThan(24);
   });
 
@@ -126,10 +159,27 @@ describe("what the outline map points at", () => {
     // The line from the middle (200, 170) toward it meets the top edge first, at y = 24.
     expect(nw!.x).toBeCloseTo(200 - 1200 * (146 / 1170), 6);
     expect(compass(nw!.angle)).toBe("north-west");
-    const both = edgePointers([{ index: 0, x: 10_000, y: 170 }, { index: 1, x: 10_000, y: 400 }, { index: 2, x: -10_000, y: 170 }], 400, 340);
+    const both = edgePointers(
+      [
+        { index: 0, x: 10_000, y: 170 },
+        { index: 1, x: 10_000, y: 400 },
+        { index: 2, x: -10_000, y: 170 },
+      ],
+      400,
+      340,
+    );
     expect(both.map((p) => p.members.sort())).toEqual([[0, 1], [2]]);
     // Two pointers either side of due west, at -179 and 179 degrees, are one.
-    expect(edgePointers([{ index: 0, x: -10_000, y: 160 }, { index: 1, x: -10_000, y: 180 }], 400, 340)).toHaveLength(1);
+    expect(
+      edgePointers(
+        [
+          { index: 0, x: -10_000, y: 160 },
+          { index: 1, x: -10_000, y: 180 },
+        ],
+        400,
+        340,
+      ),
+    ).toHaveLength(1);
     // A pointer always sits inside the inset, on the line toward its stop.
     const corner = edgePointers([{ index: 0, x: 380, y: 300 }], 400, 340)[0]!;
     expect(corner.x).toBeCloseTo(376, 6);
@@ -137,6 +187,17 @@ describe("what the outline map points at", () => {
   });
 
   it("names the eight directions for a screen angle", () => {
-    expect([0, 45, 90, 135, 180, -135, -90, -45, -180, 359].map(compass)).toEqual(["east", "south-east", "south", "south-west", "west", "north-west", "north", "north-east", "west", "east"]);
+    expect([0, 45, 90, 135, 180, -135, -90, -45, -180, 359].map(compass)).toEqual([
+      "east",
+      "south-east",
+      "south",
+      "south-west",
+      "west",
+      "north-west",
+      "north",
+      "north-east",
+      "west",
+      "east",
+    ]);
   });
 });

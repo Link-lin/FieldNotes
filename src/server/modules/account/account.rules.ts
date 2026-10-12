@@ -10,7 +10,8 @@ export type Person = { id: string; userId: string; name: string; role: Role; acc
 const RANK: Record<Role, number> = { owner: 0, editor: 1, viewer: 2 };
 
 /** Earlier acceptance first; the grant id settles a tie so the order never depends on the database. */
-const joinedBefore = (a: Person, b: Person) => a.acceptedAt.getTime() - b.acceptedAt.getTime() || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+const joinedBefore = (a: Person, b: Person) =>
+  a.acceptedAt.getTime() - b.acceptedAt.getTime() || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 
 /**
  * An account can hold several grants on one trip (invited under more than one address). It is one person: keep
@@ -20,7 +21,8 @@ export function onePerAccount(people: Person[]): Person[] {
   const best = new Map<string, Person>();
   for (const p of people) {
     const have = best.get(p.userId);
-    if (!have || RANK[p.role] < RANK[have.role] || (RANK[p.role] === RANK[have.role] && joinedBefore(p, have) < 0)) best.set(p.userId, p);
+    if (!have || RANK[p.role] < RANK[have.role] || (RANK[p.role] === RANK[have.role] && joinedBefore(p, have) < 0))
+      best.set(p.userId, p);
   }
   return [...best.values()];
 }

@@ -6,7 +6,11 @@ import type { Filter } from "@/features/dashboard/Dashboard/TripList/TripList";
 
 const FILTERS = ["all", "upcoming", "ongoing", "past"] as const;
 
-export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ focus?: string; filter?: string }> }) {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ focus?: string; filter?: string }>;
+}) {
   const actor = await pageActor();
   const now = new Date();
   const data = await getDashboard(getDb(), actor, now);

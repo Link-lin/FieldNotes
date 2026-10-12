@@ -19,10 +19,16 @@ pg.types.setTypeParser(1082, (v) => v);
 pg.types.setTypeParser(20, (v) => Number(v));
 const db = new Kysely<DB>({ dialect: new PostgresDialect({ pool: new pg.Pool({ connectionString: url, max: 1 }) }) });
 try {
-  const rows: UsageRow[] = await db.selectFrom("usage_counts").select(["day", "name", "count"]).orderBy("day").execute();
+  const rows: UsageRow[] = await db
+    .selectFrom("usage_counts")
+    .select(["day", "name", "count"])
+    .orderBy("day")
+    .execute();
   const s = summarizeUsage(rows);
   const pct = (v: number | null) => (v === null ? "n/a" : `${(v * 100).toFixed(1)}%`);
-  console.log(rows.length ? `Pilot counts from ${rows[0]!.day} to ${rows[rows.length - 1]!.day}\n` : "No pilot counts yet.\n");
+  console.log(
+    rows.length ? `Pilot counts from ${rows[0]!.day} to ${rows[rows.length - 1]!.day}\n` : "No pilot counts yet.\n",
+  );
   console.log("Totals");
   for (const [name, n] of Object.entries(s.totals)) console.log(`  ${name.padEnd(28)} ${n}`);
   console.log("\nRates");
@@ -33,7 +39,12 @@ try {
   console.log(`  Saves per changed AI item      ${s.rates.savesPerEditedItem ?? "n/a"}`);
   if (s.weeks.length) {
     console.log("\nBy week (Monday)");
-    for (const w of s.weeks) console.log(`  ${w.week}  ${Object.entries(w.counts).map(([k, v]) => `${k}=${v}`).join("  ")}`);
+    for (const w of s.weeks)
+      console.log(
+        `  ${w.week}  ${Object.entries(w.counts)
+          .map(([k, v]) => `${k}=${v}`)
+          .join("  ")}`,
+      );
   }
 } catch (err) {
   console.error("Report failed:", describeDbError(err));

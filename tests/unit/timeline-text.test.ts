@@ -2,10 +2,23 @@ import { describe, expect, it } from "vitest";
 import type { PlanItemDTO } from "@/shared/dto";
 import { hasTime, titleRestatesRoute } from "@/features/trips/TripPage/trip-days";
 
-const endpoint = (localDateTime: string | null) => ({ airportCode: "SFO", localDateTime, timeZone: null, timeDisambiguation: null });
+const endpoint = (localDateTime: string | null) => ({
+  airportCode: "SFO",
+  localDateTime,
+  timeZone: null,
+  timeDisambiguation: null,
+});
 const item = (over: Partial<PlanItemDTO>) => ({ localTime: null, flightDetails: null, ...over }) as PlanItemDTO;
 const flight = (departureAt: string | null) =>
-  item({ flightDetails: { plannedDepartureDate: null, airline: null, flightNumber: null, departure: endpoint(departureAt), arrival: endpoint(null) } });
+  item({
+    flightDetails: {
+      plannedDepartureDate: null,
+      airline: null,
+      flightNumber: null,
+      departure: endpoint(departureAt),
+      arrival: endpoint(null),
+    },
+  });
 
 describe("less repetition in the timeline (I7)", () => {
   it("shows a time line only for events and flights that have a clock time", () => {

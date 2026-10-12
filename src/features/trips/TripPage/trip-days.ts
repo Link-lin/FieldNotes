@@ -7,13 +7,26 @@ type Trip = TripDetailDTO["trip"];
 
 /** A numbered map stop. Numbers run across the whole trip, so a day tab shows the same ones. */
 /** `airport` is set when a flight's pin comes from the bundled airport list; the road map names it. */
-export type Stop = { id: string; n: number; name: string; lat: number; lon: number; flight: boolean; airport: string | null; need: boolean; day: string; dayLabel: string };
+export type Stop = {
+  id: string;
+  n: number;
+  name: string;
+  lat: number;
+  lon: number;
+  flight: boolean;
+  airport: string | null;
+  need: boolean;
+  day: string;
+  dayLabel: string;
+};
 
 export const pad2 = (n: number) => String(n).padStart(2, "0");
 export const isOutside = (trip: Trip, d: string) => d < trip.startDate || d > trip.endDate;
 /** 1-based day number from the trip start date. */
-export const dayNumber = (trip: Trip, d: string) => Math.round((Date.parse(d) - Date.parse(trip.startDate)) / 86_400_000) + 1;
-export const dayTag = (trip: Trip, d: string) => (isOutside(trip, d) ? "Outside trip dates" : `Day ${pad2(dayNumber(trip, d))}`);
+export const dayNumber = (trip: Trip, d: string) =>
+  Math.round((Date.parse(d) - Date.parse(trip.startDate)) / 86_400_000) + 1;
+export const dayTag = (trip: Trip, d: string) =>
+  isOutside(trip, d) ? "Outside trip dates" : `Day ${pad2(dayNumber(trip, d))}`;
 
 /** Items by timeline date, the trip's own dates, and every tab date (TRIP-2: trip range plus any item date outside it). */
 export function tripDays(trip: Trip, items: PlanItemDTO[]) {
@@ -33,7 +46,9 @@ export function tripStops(trip: Trip, byDate: Map<string, PlanItemDTO[]>, days: 
         out.push({
           id: i.id,
           n: out.length + 1,
-          name: i.flightDetails ? `Arrive ${i.flightDetails.arrival.airportCode}` : i.location?.split(",")[0] || i.title,
+          name: i.flightDetails
+            ? `Arrive ${i.flightDetails.arrival.airportCode}`
+            : i.location?.split(",")[0] || i.title,
           lat: i.coordinates.latitude,
           lon: i.coordinates.longitude,
           flight: !!i.flightDetails,
@@ -56,19 +71,26 @@ export function straightLineKm(stops: Stop[]): number {
 }
 
 /** Whether an event has a clock time: a flight's departure time, or an event's local time. */
-export const hasTime = (item: PlanItemDTO) => !!(item.flightDetails ? item.flightDetails.departure.localDateTime : item.localTime);
+export const hasTime = (item: PlanItemDTO) =>
+  !!(item.flightDetails ? item.flightDetails.departure.localDateTime : item.localTime);
 
 /** A flight title that only restates its airports ("SFO → HNL", "SFO to HNL") adds nothing beside the route. */
 export function titleRestatesRoute(title: string, departure: string | null, arrival: string | null): boolean {
   if (!departure || !arrival) return false;
-  return title.toUpperCase().replace(/\bTO\b/g, "").replace(/[^A-Z0-9]/g, "") === `${departure}${arrival}`;
+  return (
+    title
+      .toUpperCase()
+      .replace(/\bTO\b/g, "")
+      .replace(/[^A-Z0-9]/g, "") === `${departure}${arrival}`
+  );
 }
 
 /** The time shown for an event: its local time (and zone when not the trip's), or why there is none. */
 export function eventTimeText(item: PlanItemDTO, tripZone: string): string {
   if (item.flightDetails) {
     const d = item.flightDetails.departure;
-    if (d.localDateTime) return `${d.localDateTime.slice(11)}${d.timeZone && d.timeZone !== tripZone ? ` (${d.timeZone})` : ""}`;
+    if (d.localDateTime)
+      return `${d.localDateTime.slice(11)}${d.timeZone && d.timeZone !== tripZone ? ` (${d.timeZone})` : ""}`;
     return item.timelineDate ? "Time not set" : "No date";
   }
   if (!item.localDate) return "No date";
@@ -81,7 +103,11 @@ export function eventTimeText(item: PlanItemDTO, tripZone: string): string {
  * timeline order. `now` (the browser's clock, known only after hydration) also skips today's timed
  * events that have already started. Past trips have none.
  */
-export function upNext(trip: Trip, items: PlanItemDTO[], now: number | null): { item: PlanItemDTO; label: string } | null {
+export function upNext(
+  trip: Trip,
+  items: PlanItemDTO[],
+  now: number | null,
+): { item: PlanItemDTO; label: string } | null {
   if (trip.status === "past") return null;
   const item = items.find((i) => {
     if (!i.timelineDate || i.timelineDate < trip.today) return false;

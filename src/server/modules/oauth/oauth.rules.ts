@@ -41,7 +41,11 @@ export function narrowedScope(raw: string | null | undefined, held: ConnectorSco
 
 export type SecretKind = "code" | "access" | "refresh";
 const PREFIX: Record<SecretKind, string> = { code: "fn_ac_", access: "fn_at_", refresh: "fn_rt_" };
-const SECRET = { code: /^fn_ac_[A-Za-z0-9_-]{43}$/, access: /^fn_at_[A-Za-z0-9_-]{43}$/, refresh: /^fn_rt_[A-Za-z0-9_-]{43}$/ };
+const SECRET = {
+  code: /^fn_ac_[A-Za-z0-9_-]{43}$/,
+  access: /^fn_at_[A-Za-z0-9_-]{43}$/,
+  refresh: /^fn_rt_[A-Za-z0-9_-]{43}$/,
+};
 
 /** 32 random bytes as base64url behind a short prefix, so a leaked value is recognizable. Only its hash is stored. */
 export function newSecret(kind: SecretKind): string {
@@ -63,7 +67,8 @@ const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
 export function registrableRedirect(uri: unknown): string | null {
   if (typeof uri !== "string") return null;
   const value = uri.trim();
-  if (value.length === 0 || value.length > 512 || value.includes("#") || /[\u0000-\u001f\u007f\\]/.test(value)) return null;
+  if (value.length === 0 || value.length > 512 || value.includes("#") || /[\u0000-\u001f\u007f\\]/.test(value))
+    return null;
   let url: URL;
   try {
     url = new URL(value);
@@ -94,7 +99,12 @@ export function redirectAllowed(registered: readonly string[], presented: string
   return registered.some((r) => {
     try {
       const have = new URL(r);
-      return isLoopback(have) && have.hostname === want.hostname && have.pathname === want.pathname && have.search === want.search;
+      return (
+        isLoopback(have) &&
+        have.hostname === want.hostname &&
+        have.pathname === want.pathname &&
+        have.search === want.search
+      );
     } catch {
       return false;
     }
@@ -112,13 +122,16 @@ export function redirectHost(uri: string): string {
 
 /** True when every address is on this computer, so the consent page can say the app runs locally. */
 export function allLoopback(uris: readonly string[]): boolean {
-  return uris.length > 0 && uris.every((u) => {
-    try {
-      return isLoopback(new URL(u));
-    } catch {
-      return false;
-    }
-  });
+  return (
+    uris.length > 0 &&
+    uris.every((u) => {
+      try {
+        return isLoopback(new URL(u));
+      } catch {
+        return false;
+      }
+    })
+  );
 }
 
 const PKCE_VALUE = /^[A-Za-z0-9._~-]{43,128}$/;

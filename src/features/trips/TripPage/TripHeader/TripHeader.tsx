@@ -37,7 +37,17 @@ type Props = {
  * Back to all trips, dates and zone, status and role, the title (an owner changes it in place), the actions your role
  * allows, the stamp or the trip's cover (DASH-8, which opens at full size) and, when wide, what's up next.
  */
-export function TripHeader({ trip, canEdit, canManage, compact = false, items, onOpenEvent, onAdd, onEdit, onShare }: Props) {
+export function TripHeader({
+  trip,
+  canEdit,
+  canManage,
+  compact = false,
+  items,
+  onOpenEvent,
+  onAdd,
+  onEdit,
+  onShare,
+}: Props) {
   const router = useRouter();
   // The cover open at full size, by version: one replaced or removed elsewhere closes it.
   const [viewing, setViewing] = useState<string | null>(null);
@@ -59,32 +69,78 @@ export function TripHeader({ trip, canEdit, canManage, compact = false, items, o
       </Link>
       <header className={styles.head} data-compact={compact || undefined}>
         <div className={styles.meta}>
-          <span className="mono">{dateRangeLabel(trip)} · {trip.timeZone}</span>
-          <Tag tone={trip.status}><StatusIcon status={trip.status} />{STATUS_LABEL[trip.status]}</Tag>
-          <Tag tone="soft">{ROLE_LABEL[trip.role]}{!trip.primaryOwner && trip.ownerName ? `, shared by ${trip.ownerName}` : ""}</Tag>
+          <span className="mono">
+            {dateRangeLabel(trip)} · {trip.timeZone}
+          </span>
+          <Tag tone={trip.status}>
+            <StatusIcon status={trip.status} />
+            {STATUS_LABEL[trip.status]}
+          </Tag>
+          <Tag tone="soft">
+            {ROLE_LABEL[trip.role]}
+            {!trip.primaryOwner && trip.ownerName ? `, shared by ${trip.ownerName}` : ""}
+          </Tag>
         </div>
-        {!compact && !trip.cover ? <Stamp className={styles.stamp} city={trip.destination.split(",")[0] ?? trip.destination} start={trip.startDate} days={trip.dayCount} status={trip.status} /> : null}
-        <TripTitleField tripId={trip.id} title={trip.title} canEdit={canManage} as="h1" headingId="trip-title" className={styles.title} focusable />
+        {!compact && !trip.cover ? (
+          <Stamp
+            className={styles.stamp}
+            city={trip.destination.split(",")[0] ?? trip.destination}
+            start={trip.startDate}
+            days={trip.dayCount}
+            status={trip.status}
+          />
+        ) : null}
+        <TripTitleField
+          tripId={trip.id}
+          title={trip.title}
+          canEdit={canManage}
+          as="h1"
+          headingId="trip-title"
+          className={styles.title}
+          focusable
+        />
         <p className={styles.dest}>{trip.destination}</p>
         <div className={styles.actions}>
-          {canEdit ? <Button variant="fill" data-add-top onClick={onAdd}><PlusIcon /> Add to itinerary</Button> : null}
+          {canEdit ? (
+            <Button variant="fill" data-add-top onClick={onAdd}>
+              <PlusIcon /> Add to itinerary
+            </Button>
+          ) : null}
           {canManage ? (
             <>
-              <Button data-edit-trip onClick={onEdit}><EditIcon /> Trip details</Button>
-              <Button data-share-trip onClick={onShare}><ShareIcon /> Share</Button>
+              <Button data-edit-trip onClick={onEdit}>
+                <EditIcon /> Trip details
+              </Button>
+              <Button data-share-trip onClick={onShare}>
+                <ShareIcon /> Share
+              </Button>
             </>
           ) : null}
-          {trip.atlasLocation ? <ButtonLink variant={canEdit ? "quiet" : "outline"} href={`/?focus=${trip.id}`}>Show on globe</ButtonLink> : null}
+          {trip.atlasLocation ? (
+            <ButtonLink variant={canEdit ? "quiet" : "outline"} href={`/?focus=${trip.id}`}>
+              Show on globe
+            </ButtonLink>
+          ) : null}
         </div>
-        {!compact && items && onOpenEvent ? <UpNext className={styles.upNext} trip={trip} items={items} onOpen={onOpenEvent} /> : null}
+        {!compact && items && onOpenEvent ? (
+          <UpNext className={styles.upNext} trip={trip} items={items} onOpen={onOpenEvent} />
+        ) : null}
         {/* Placed in the stamp's corner by CSS; last in the header so focus reaches it after the actions. */}
         {!compact && trip.cover ? (
-          <button type="button" className={styles.cover} data-cover-open onClick={() => setViewing(trip.cover?.version ?? null)} aria-label="Show the trip's cover">
+          <button
+            type="button"
+            className={styles.cover}
+            data-cover-open
+            onClick={() => setViewing(trip.cover?.version ?? null)}
+            aria-label="Show the trip's cover"
+          >
             <TripCover cover={trip.cover} size="small" />
           </button>
         ) : null}
       </header>
-      {trip.cover && viewing === trip.cover.version ? <CoverView title={trip.title} cover={trip.cover} onClose={() => setViewing(null)} /> : null}
+      {trip.cover && viewing === trip.cover.version ? (
+        <CoverView title={trip.title} cover={trip.cover} onClose={() => setViewing(null)} />
+      ) : null}
     </>
   );
 }

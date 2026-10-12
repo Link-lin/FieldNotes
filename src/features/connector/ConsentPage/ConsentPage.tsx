@@ -28,7 +28,15 @@ type Props = {
  * the app asked for it). Nothing is granted until Allow; the decision is posted, and the browser then goes where the
  * server says (the app's own address with a code, or an error), by script because a registered address could be anything.
  */
-export function ConsentPage({ appName, returnHost, runsLocally, wantsChanges, accountName, accountEmail, params }: Props) {
+export function ConsentPage({
+  appName,
+  returnHost,
+  runsLocally,
+  wantsChanges,
+  accountName,
+  accountEmail,
+  params,
+}: Props) {
   const id = useId();
   const [allowChanges, setAllowChanges] = useState(true);
   const [busy, setBusy] = useState<"allow" | "deny" | null>(null);
@@ -38,7 +46,11 @@ export function ConsentPage({ appName, returnHost, runsLocally, wantsChanges, ac
   async function decide(decision: "allow" | "deny") {
     setError(null);
     setBusy(decision);
-    const r = await api<{ redirectTo: string }>("POST", "/api/connector/approve", { ...params, decision, allowChanges: wantsChanges && allowChanges });
+    const r = await api<{ redirectTo: string }>("POST", "/api/connector/approve", {
+      ...params,
+      decision,
+      allowChanges: wantsChanges && allowChanges,
+    });
     if (!r.ok) {
       setBusy(null);
       setError(r.message);
@@ -52,15 +64,22 @@ export function ConsentPage({ appName, returnHost, runsLocally, wantsChanges, ac
     <main className={styles.page}>
       <Card className={styles.card}>
         <p className={`mono ${styles.eyebrow}`}>Connect an AI app</p>
-        <h1 className={styles.title} id={`${id}-title`}>Let {appName} use Field Notes?</h1>
+        <h1 className={styles.title} id={`${id}-title`}>
+          Let {appName} use Field Notes?
+        </h1>
         <p className="note">
           You are approving as <b>{accountName}</b>
-          {accountEmail ? <> ({accountEmail})</> : null}. If that is not the account you want, sign out and start again from the app.
+          {accountEmail ? <> ({accountEmail})</> : null}. If that is not the account you want, sign out and start again
+          from the app.
         </p>
         <ul className={styles.permissions} aria-labelledby={`${id}-title`}>
           <li className={styles.permission}>
-            <p className={styles.permissionTitle}>Read your trips <span className={`mono ${styles.always}`}>Always</span></p>
-            <p className="note">Titles, dates, events, bookings and planned prices on every trip you own or were invited to.</p>
+            <p className={styles.permissionTitle}>
+              Read your trips <span className={`mono ${styles.always}`}>Always</span>
+            </p>
+            <p className="note">
+              Titles, dates, events, bookings and planned prices on every trip you own or were invited to.
+            </p>
           </li>
           {wantsChanges ? (
             <li className={styles.permission}>
@@ -72,21 +91,35 @@ export function ConsentPage({ appName, returnHost, runsLocally, wantsChanges, ac
                 aria-describedby={`${id}-changes`}
               />
               <p className="note" id={`${id}-changes`}>
-                Add events and trips, and change or delete events, as far as your role on each trip allows. Everything it adds is marked as an unverified AI draft.
+                Add events and trips, and change or delete events, as far as your role on each trip allows. Everything
+                it adds is marked as an unverified AI draft.
               </p>
             </li>
           ) : null}
         </ul>
-        <p className="note">It can&apos;t mark a booking confirmed, share a trip, change who has access, or delete a trip. Those stay in Field Notes.</p>
+        <p className="note">
+          It can&apos;t mark a booking confirmed, share a trip, change who has access, or delete a trip. Those stay in
+          Field Notes.
+        </p>
         <p className={styles.where}>
           After you choose, you are sent back to <b className={styles.host}>{returnHost}</b>
-          {runsLocally ? ", an app running on this computer" : ""}. The name above is the one the app gave itself. What {appName} reads goes to its provider, under that provider&apos;s privacy policy. You can disconnect it at any time from the account menu, under AI connector.
+          {runsLocally ? ", an app running on this computer" : ""}. The name above is the one the app gave itself. What{" "}
+          {appName} reads goes to its provider, under that provider&apos;s privacy policy. You can disconnect it at any
+          time from the account menu, under AI connector.
         </p>
         {error ? <FormError>{error}</FormError> : null}
-        {leaving ? <p className="muted" role="status">Sending you back to {returnHost}…</p> : null}
+        {leaving ? (
+          <p className="muted" role="status">
+            Sending you back to {returnHost}…
+          </p>
+        ) : null}
         <div className={styles.actions}>
-          <Button variant="quiet" onClick={() => void decide("deny")} disabled={busy !== null}>{busy === "deny" ? "Cancelling…" : "Cancel"}</Button>
-          <Button variant="fill" onClick={() => void decide("allow")} disabled={busy !== null}>{busy === "allow" ? "Allowing…" : "Allow"}</Button>
+          <Button variant="quiet" onClick={() => void decide("deny")} disabled={busy !== null}>
+            {busy === "deny" ? "Cancelling…" : "Cancel"}
+          </Button>
+          <Button variant="fill" onClick={() => void decide("allow")} disabled={busy !== null}>
+            {busy === "allow" ? "Allowing…" : "Allow"}
+          </Button>
         </div>
       </Card>
     </main>

@@ -29,8 +29,14 @@ export function isListening(port: number): Promise<boolean> {
   return new Promise((done) => {
     const socket = connect({ host: "localhost", port });
     socket.setTimeout(1000);
-    socket.once("connect", () => { socket.destroy(); done(true); });
-    socket.once("timeout", () => { socket.destroy(); done(false); });
+    socket.once("connect", () => {
+      socket.destroy();
+      done(true);
+    });
+    socket.once("timeout", () => {
+      socket.destroy();
+      done(false);
+    });
     socket.once("error", () => done(false));
   });
 }

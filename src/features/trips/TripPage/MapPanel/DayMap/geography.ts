@@ -29,13 +29,18 @@ export function outlineProjection(input: {
   height: number;
 }): GeoProjection {
   const { medianLon, horizontalScale, fitScale, centerX, centerY, width, height } = input;
-  return geoProjection((lon: number, lat: number): [number, number] => [lon * horizontalScale, lat])
-    .rotate([-medianLon, 0])
-    .scale((fitScale * 180) / Math.PI)
-    .translate([width / 2 + (medianLon * horizontalScale - centerX) * fitScale, height / 2 - centerY * fitScale])
-    // The user can pan half a map beyond the initial view. Clip the geometry there rather than
-    // building SVG paths for every coastline in the world at a local stop's scale.
-    .clipExtent([[-width / 2, -height / 2], [width * 1.5, height * 1.5]]);
+  return (
+    geoProjection((lon: number, lat: number): [number, number] => [lon * horizontalScale, lat])
+      .rotate([-medianLon, 0])
+      .scale((fitScale * 180) / Math.PI)
+      .translate([width / 2 + (medianLon * horizontalScale - centerX) * fitScale, height / 2 - centerY * fitScale])
+      // The user can pan half a map beyond the initial view. Clip the geometry there rather than
+      // building SVG paths for every coastline in the world at a local stop's scale.
+      .clipExtent([
+        [-width / 2, -height / 2],
+        [width * 1.5, height * 1.5],
+      ])
+  );
 }
 
 export function outlinePaths(projection: GeoProjection): { land: string; borders: string } {

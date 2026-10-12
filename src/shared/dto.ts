@@ -121,7 +121,14 @@ export type FieldError = { path: string; code: string; message: string };
 export type ApiError = { error: { code: string; message: string; fields?: FieldError[] } };
 
 /** A bundled catalog place. `timeZones`: likely IANA zones, best first (a city has one; a country may list several). */
-export type PlaceDTO = { id: string; label: string; latitude: number; longitude: number; kind: "city" | "country"; timeZones: string[] };
+export type PlaceDTO = {
+  id: string;
+  label: string;
+  latitude: number;
+  longitude: number;
+  kind: "city" | "country";
+  timeZones: string[];
+};
 
 /** ACCESS-6/11. `expired` is derived from a pending invitation whose expiry has passed. */
 export type InvitationStatus = "pending" | "accepted" | "expired" | "revoked";
@@ -147,7 +154,13 @@ export type InvitationDTO = {
 export type InvitationDelivery = "sent" | "failed" | "off";
 
 /** Returned once when an invitation is created or given a new link; the URL is never stored or listed. */
-export type InvitationLinkDTO = { invitationId: string; invitationUrl: string; expiresAt: string; invitation: InvitationDTO; delivery: InvitationDelivery };
+export type InvitationLinkDTO = {
+  invitationId: string;
+  invitationUrl: string;
+  expiresAt: string;
+  invitation: InvitationDTO;
+  delivery: InvitationDelivery;
+};
 
 /**
  * ACCESS-10: a trip the person owns, for choosing what happens to it when they delete their account.

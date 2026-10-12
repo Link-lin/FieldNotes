@@ -6,15 +6,33 @@ import { dateRangeLabel, STATUS_LABEL } from "@/lib/format";
 import styles from "./GlobeCallout.module.css";
 
 const samePoint = (a: TripSummaryDTO, b: TripSummaryDTO) =>
-  !!a.atlasLocation && !!b.atlasLocation && a.atlasLocation.latitude.toFixed(2) === b.atlasLocation.latitude.toFixed(2) && a.atlasLocation.longitude.toFixed(2) === b.atlasLocation.longitude.toFixed(2);
+  !!a.atlasLocation &&
+  !!b.atlasLocation &&
+  a.atlasLocation.latitude.toFixed(2) === b.atlasLocation.latitude.toFixed(2) &&
+  a.atlasLocation.longitude.toFixed(2) === b.atlasLocation.longitude.toFixed(2);
 
 /**
  * Card beside the selected marker (ATLAS-2). When trips share the point, it lists them all so
  * none is hidden. The globe positions it; `ref` is its root.
  */
-export function GlobeCallout({ ref, selected, trips, onSelect }: { ref: React.Ref<HTMLDivElement>; selected: TripSummaryDTO; trips: TripSummaryDTO[]; onSelect: (id: string) => void }) {
+export function GlobeCallout({
+  ref,
+  selected,
+  trips,
+  onSelect,
+}: {
+  ref: React.Ref<HTMLDivElement>;
+  selected: TripSummaryDTO;
+  trips: TripSummaryDTO[];
+  onSelect: (id: string) => void;
+}) {
   const same = trips.filter((t) => samePoint(t, selected));
-  const setBy = selected.atlasLocation?.source === "owner" ? (selected.primaryOwner ? "Point set by you" : "Point set by an owner") : "Approximate destination";
+  const setBy =
+    selected.atlasLocation?.source === "owner"
+      ? selected.primaryOwner
+        ? "Point set by you"
+        : "Point set by an owner"
+      : "Approximate destination";
   return (
     <div className={styles.callout} ref={ref}>
       {same.length > 1 ? (
@@ -33,8 +51,13 @@ export function GlobeCallout({ ref, selected, trips, onSelect }: { ref: React.Re
       <h3 className={styles.title}>{selected.title}</h3>
       <div className="mono muted">{dateRangeLabel(selected)}</div>
       <div className={styles.actions}>
-        <Tag tone={selected.status}><StatusIcon status={selected.status} />{STATUS_LABEL[selected.status]}</Tag>
-        <ButtonLink variant="fill" href={`/trips/${selected.id}`} data-trip-link={selected.id}>Open trip</ButtonLink>
+        <Tag tone={selected.status}>
+          <StatusIcon status={selected.status} />
+          {STATUS_LABEL[selected.status]}
+        </Tag>
+        <ButtonLink variant="fill" href={`/trips/${selected.id}`} data-trip-link={selected.id}>
+          Open trip
+        </ButtonLink>
       </div>
       <div className="muted">{setBy}</div>
     </div>

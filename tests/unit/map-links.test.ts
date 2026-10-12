@@ -1,5 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { cleanMapUrl, coordinatesFromMapUrl, embedTarget, googleDayEmbedUrl, googleDayUrl, googleEmbedUrl, haversineKm, mapLinkFromInput, parseCoordinateText, providerLabel } from "@/shared/map-links";
+import {
+  cleanMapUrl,
+  coordinatesFromMapUrl,
+  embedTarget,
+  googleDayEmbedUrl,
+  googleDayUrl,
+  googleEmbedUrl,
+  haversineKm,
+  mapLinkFromInput,
+  parseCoordinateText,
+  providerLabel,
+} from "@/shared/map-links";
 
 describe("provider labels (MAP-1)", () => {
   it("names known providers by exact host", () => {
@@ -32,18 +43,30 @@ describe("saving a map link", () => {
 
 describe("coordinates (MAP-2)", () => {
   it("prefers an explicit venue marker over the Google map camera", () => {
-    expect(coordinatesFromMapUrl("https://www.google.com/maps/place/Hotel/@21.29,-157.85,17z/data=!3d21.28!4d-157.83")).toEqual([21.28, -157.83]);
-    expect(coordinatesFromMapUrl("https://www.google.com/maps/@21.29,-157.85,17z?query=21.28,-157.83")).toEqual([21.28, -157.83]);
+    expect(
+      coordinatesFromMapUrl("https://www.google.com/maps/place/Hotel/@21.29,-157.85,17z/data=!3d21.28!4d-157.83"),
+    ).toEqual([21.28, -157.83]);
+    expect(coordinatesFromMapUrl("https://www.google.com/maps/@21.29,-157.85,17z?query=21.28,-157.83")).toEqual([
+      21.28, -157.83,
+    ]);
   });
   it("does not mistake a search-near hint for the chosen place", () => {
     expect(coordinatesFromMapUrl("https://www.google.com/maps?q=hotel&sll=21.29,-157.85")).toBeNull();
   });
   it("reads documented Google, Apple and OpenStreetMap formats", () => {
-    expect(coordinatesFromMapUrl("https://www.google.com/maps/place/X/@35.6951,139.7010,17z")).toEqual([35.6951, 139.701]);
-    expect(coordinatesFromMapUrl("https://www.google.com/maps/place/X/data=!3d34.9671!4d135.7727")).toEqual([34.9671, 135.7727]);
-    expect(coordinatesFromMapUrl("https://www.openstreetmap.org/?mlat=34.9671&mlon=135.7727#map=16/34.9671/135.7727")).toEqual([34.9671, 135.7727]);
+    expect(coordinatesFromMapUrl("https://www.google.com/maps/place/X/@35.6951,139.7010,17z")).toEqual([
+      35.6951, 139.701,
+    ]);
+    expect(coordinatesFromMapUrl("https://www.google.com/maps/place/X/data=!3d34.9671!4d135.7727")).toEqual([
+      34.9671, 135.7727,
+    ]);
+    expect(
+      coordinatesFromMapUrl("https://www.openstreetmap.org/?mlat=34.9671&mlon=135.7727#map=16/34.9671/135.7727"),
+    ).toEqual([34.9671, 135.7727]);
     expect(coordinatesFromMapUrl("https://maps.apple.com/?ll=38.7139,-9.1335&q=Alfama")).toEqual([38.7139, -9.1335]);
-    expect(coordinatesFromMapUrl("https://www.google.com/maps/search/?api=1&query=40.7061%2C-73.9969")).toEqual([40.7061, -73.9969]);
+    expect(coordinatesFromMapUrl("https://www.google.com/maps/search/?api=1&query=40.7061%2C-73.9969")).toEqual([
+      40.7061, -73.9969,
+    ]);
   });
   it("never pins shortened, Amap, Baidu, look-alike or out-of-range links", () => {
     expect(coordinatesFromMapUrl("https://maps.app.goo.gl/abc?q=35,139")).toBeNull();
@@ -76,23 +99,43 @@ describe("cleanMapUrl length", () => {
 
 describe("embedded event map (MAP-8)", () => {
   const base = { location: null, coordinates: null, flightDetails: null };
-  const flight = (from: string | null, to: string | null) => ({ ...base, flightDetails: { departure: { airportCode: from }, arrival: { airportCode: to } } });
+  const flight = (from: string | null, to: string | null) => ({
+    ...base,
+    flightDetails: { departure: { airportCode: from }, arrival: { airportCode: to } },
+  });
 
   it("shows a flight's route, or its one known airport", () => {
-    expect(embedTarget(flight("SFO", "HND"), "Tokyo, Japan")).toEqual({ mode: "directions", origin: "SFO airport", destination: "HND airport" });
+    expect(embedTarget(flight("SFO", "HND"), "Tokyo, Japan")).toEqual({
+      mode: "directions",
+      origin: "SFO airport",
+      destination: "HND airport",
+    });
     expect(embedTarget(flight(null, "KIX"), "Kyoto, Japan")).toEqual({ mode: "place", q: "KIX airport" });
     expect(embedTarget(flight(null, null), "Kyoto, Japan")).toBeNull();
   });
 
   it("prefers the pin, then the place name with the trip destination when it isn't mentioned", () => {
-    expect(embedTarget({ ...base, location: "Nishiki Market", coordinates: { latitude: 35.005, longitude: 135.765432 } }, "Kyoto, Japan")).toEqual({ mode: "place", q: "35.00500,135.76543" });
-    expect(embedTarget({ ...base, location: "Fushimi Inari Taisha" }, "Kyoto, Japan")).toEqual({ mode: "place", q: "Fushimi Inari Taisha, Kyoto, Japan" });
-    expect(embedTarget({ ...base, location: "Nishiki Market, kyoto" }, "Kyoto, Japan")).toEqual({ mode: "place", q: "Nishiki Market, kyoto" });
+    expect(
+      embedTarget(
+        { ...base, location: "Nishiki Market", coordinates: { latitude: 35.005, longitude: 135.765432 } },
+        "Kyoto, Japan",
+      ),
+    ).toEqual({ mode: "place", q: "35.00500,135.76543" });
+    expect(embedTarget({ ...base, location: "Fushimi Inari Taisha" }, "Kyoto, Japan")).toEqual({
+      mode: "place",
+      q: "Fushimi Inari Taisha, Kyoto, Japan",
+    });
+    expect(embedTarget({ ...base, location: "Nishiki Market, kyoto" }, "Kyoto, Japan")).toEqual({
+      mode: "place",
+      q: "Nishiki Market, kyoto",
+    });
     expect(embedTarget({ ...base, location: "   " }, "Kyoto, Japan")).toBeNull();
   });
 
   it("builds Maps Embed API addresses with every value encoded", () => {
-    expect(googleEmbedUrl("k&1", { mode: "place", q: "Café & bar, Kyoto" })).toBe("https://www.google.com/maps/embed/v1/place?key=k%261&q=Caf%C3%A9%20%26%20bar%2C%20Kyoto");
+    expect(googleEmbedUrl("k&1", { mode: "place", q: "Café & bar, Kyoto" })).toBe(
+      "https://www.google.com/maps/embed/v1/place?key=k%261&q=Caf%C3%A9%20%26%20bar%2C%20Kyoto",
+    );
     expect(googleEmbedUrl("k", { mode: "directions", origin: "SFO airport", destination: "HND airport" })).toBe(
       "https://www.google.com/maps/embed/v1/directions?key=k&origin=SFO%20airport&destination=HND%20airport&mode=flying",
     );
@@ -101,7 +144,17 @@ describe("embedded event map (MAP-8)", () => {
 
 describe("embedded day road map (MAP-9)", () => {
   it("uses precise coordinates in stop order and the chosen travel mode", () => {
-    const url = new URL(googleDayEmbedUrl("k&1", [[21.33, -157.92], [21.3, -157.86], [21.27, -157.82]], "driving")!);
+    const url = new URL(
+      googleDayEmbedUrl(
+        "k&1",
+        [
+          [21.33, -157.92],
+          [21.3, -157.86],
+          [21.27, -157.82],
+        ],
+        "driving",
+      )!,
+    );
     expect(url.pathname).toBe("/maps/embed/v1/directions");
     expect(url.searchParams.get("key")).toBe("k&1");
     expect(url.searchParams.get("origin")).toBe("21.33000,-157.92000");
@@ -111,7 +164,9 @@ describe("embedded day road map (MAP-9)", () => {
   });
 
   it("names an airport arrival by its code instead of its coordinates", () => {
-    const url = new URL(googleDayEmbedUrl("k", [{ airport: "HNL" }, [21.2793, -157.833], [21.2767, -157.8278]], "driving")!);
+    const url = new URL(
+      googleDayEmbedUrl("k", [{ airport: "HNL" }, [21.2793, -157.833], [21.2767, -157.8278]], "driving")!,
+    );
     expect(url.searchParams.get("origin")).toBe("HNL airport");
     expect(url.searchParams.get("waypoints")).toBe("21.27930,-157.83300");
     expect(url.searchParams.get("destination")).toBe("21.27670,-157.82780");
@@ -134,7 +189,15 @@ describe("pasted coordinates (MAP-2)", () => {
   });
 
   it("rejects anything that isn't a valid coordinate pair", () => {
-    for (const bad of ["95.1, 10", "35.0, 181", "35.0", "35.0, 135.7, 3", "Kyoto 35.0, 135.7", "35°00'41.8\"N 135°46'05.2\"E", ""]) {
+    for (const bad of [
+      "95.1, 10",
+      "35.0, 181",
+      "35.0",
+      "35.0, 135.7, 3",
+      "Kyoto 35.0, 135.7",
+      "35°00'41.8\"N 135°46'05.2\"E",
+      "",
+    ]) {
       expect(parseCoordinateText(bad)).toBeNull();
     }
   });

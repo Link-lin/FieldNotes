@@ -17,7 +17,11 @@ function coverDto(trip: TripRow): TripCoverDTO | null {
  * Trip row to the summary every screen uses. Day counts are computed in the trip's own time zone.
  * `access` is the viewer's role and whether they created the trip.
  */
-export function tripSummary(trip: TripRow & { owner_name?: string | null }, access: { role: Role; primaryOwner: boolean }, now: Date): TripSummaryDTO {
+export function tripSummary(
+  trip: TripRow & { owner_name?: string | null },
+  access: { role: Role; primaryOwner: boolean },
+  now: Date,
+): TripSummaryDTO {
   const today = dateInZone(trip.time_zone, now.getTime());
   const status = tripStatus(trip.start_date, trip.end_date, today);
   return {

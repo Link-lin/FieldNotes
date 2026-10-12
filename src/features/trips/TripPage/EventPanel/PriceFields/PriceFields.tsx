@@ -15,7 +15,17 @@ export function PriceFields({ value: v, onChange, error, recentCurrencies, descr
   const err = error("plannedPrice.amount") ?? error("plannedPrice.currency");
   return (
     <FieldGrid>
-      <Field label={<>Planned price <span className="muted">optional</span></>} htmlFor={fieldId("plannedPrice.amount")} wide error={err} errorId={errorId("plannedPrice.amount")}>
+      <Field
+        label={
+          <>
+            Planned price <span className="muted">optional</span>
+          </>
+        }
+        htmlFor={fieldId("plannedPrice.amount")}
+        wide
+        error={err}
+        errorId={errorId("plannedPrice.amount")}
+      >
         <MoneyInput
           amountId={fieldId("plannedPrice.amount")}
           currencyId={fieldId("plannedPrice.currency")}
@@ -27,12 +37,19 @@ export function PriceFields({ value: v, onChange, error, recentCurrencies, descr
           currencyLabel="Price currency"
           placeholder="120"
           invalid={!!err}
-          describedBy={[err ? errorId("plannedPrice.amount") : null, describedBy].filter(Boolean).join(" ") || undefined}
+          describedBy={
+            [err ? errorId("plannedPrice.amount") : null, describedBy].filter(Boolean).join(" ") || undefined
+          }
         />
       </Field>
       {v.amount.trim() ? (
         <Field label="The price is a" htmlFor={fieldId("plannedPrice.label")} wide>
-          <select id={fieldId("plannedPrice.label")} value={v.label} onChange={(e) => onChange({ label: e.target.value as PriceDraft["label"] })} aria-describedby={describedBy}>
+          <select
+            id={fieldId("plannedPrice.label")}
+            value={v.label}
+            onChange={(e) => onChange({ label: e.target.value as PriceDraft["label"] })}
+            aria-describedby={describedBy}
+          >
             <option value="estimate">Estimate</option>
             <option value="quote">Quote</option>
           </select>

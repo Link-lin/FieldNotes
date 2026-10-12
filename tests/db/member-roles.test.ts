@@ -4,8 +4,22 @@ import { type Actor } from "@/server/auth/actor";
 import { HttpError } from "@/server/core/http/errors";
 import { deleteAccount } from "@/server/modules/account/account.service";
 import { getDashboard } from "@/server/modules/dashboard/dashboard.service";
-import { acceptInvitation, createInvitation, listInvitations, revokeInvitation, updateInvitationRole } from "@/server/modules/invitations/invitations.service";
-import { createItem, deleteItem, duplicateItem, restoreItem, updateItem, updateItemBooking, updateItemNotes } from "@/server/modules/items/items.service";
+import {
+  acceptInvitation,
+  createInvitation,
+  listInvitations,
+  revokeInvitation,
+  updateInvitationRole,
+} from "@/server/modules/invitations/invitations.service";
+import {
+  createItem,
+  deleteItem,
+  duplicateItem,
+  restoreItem,
+  updateItem,
+  updateItemBooking,
+  updateItemNotes,
+} from "@/server/modules/items/items.service";
 import { previewTimeZone } from "@/server/modules/trips/time-zone.service";
 import { createTrip, deleteTrip, getTripDetail, updateTrip } from "@/server/modules/trips/trips.service";
 import { createHash } from "node:crypto";
@@ -30,13 +44,20 @@ const membersRoute = await import("@/app/api/trips/[tripId]/invitations/route");
 
 const ORIGIN = "http://localhost:3000";
 const req = (method: string, body?: unknown, url = `${ORIGIN}/api/x`) =>
-  new Request(url, { method, headers: { "content-type": "application/json", origin: ORIGIN }, body: body === undefined ? undefined : JSON.stringify(body) });
+  new Request(url, {
+    method,
+    headers: { "content-type": "application/json", origin: ORIGIN },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
 const ctx = <T extends object>(p: T) => ({ params: Promise.resolve(p) });
 const db = () => testDb();
 const sha = (token: string) => createHash("sha256").update(token).digest();
 
 async function expectHttp(p: Promise<unknown>, status: number, code?: string) {
-  const err = await p.then(() => null, (e: unknown) => e);
+  const err = await p.then(
+    () => null,
+    (e: unknown) => e,
+  );
   expect(err, `expected HTTP ${status}`).toBeInstanceOf(HttpError);
   expect((err as HttpError).status).toBe(status);
   if (code) expect((err as HttpError).code).toBe(code);
@@ -60,7 +81,14 @@ beforeEach(async () => {
 });
 
 const memberId = async (who: Actor) =>
-  (await db().selectFrom("trip_viewers").select("id").where("trip_id", "=", tripId).where("viewer_user_id", "=", who.userId).executeTakeFirstOrThrow()).id;
+  (
+    await db()
+      .selectFrom("trip_viewers")
+      .select("id")
+      .where("trip_id", "=", tripId)
+      .where("viewer_user_id", "=", who.userId)
+      .executeTakeFirstOrThrow()
+  ).id;
 
 describe("what each role sees", () => {
   it("reports the role, whether you created the trip, and who did", async () => {
@@ -79,16 +107,26 @@ describe("what each role sees", () => {
     expect((await dash(editor)).trips[0]).toMatchObject({ role: "editor", primaryOwner: false });
     expect((await dash(viewer)).trips[0]).toMatchObject({ role: "viewer" });
     expect((await dash(stranger)).trips).toEqual([]);
-    for (const who of [owner, coOwner, editor]) expect((await dash(who)).ownerBookingTasks.map((t) => t.itemId)).toEqual([itemId]);
+    for (const who of [owner, coOwner, editor])
+      expect((await dash(who)).ownerBookingTasks.map((t) => t.itemId)).toEqual([itemId]);
     expect((await dash(viewer)).ownerBookingTasks).toEqual([]);
   });
 
   it("gives the highest role when someone has several accepted entries, and nothing for pending or revoked ones", async () => {
     // A second accepted entry for the same account under another invited address: the higher role wins.
-    await db().insertInto("trip_viewers").values({
-      trip_id: tripId, invitee_email_normalized: "riley.alt@example.com", viewer_user_id: viewer.userId, role: "editor", status: "accepted",
-      invitation_token_hash: Buffer.from(crypto.randomUUID()), expires_at: new Date(Date.now() + 864e5), accepted_at: new Date(),
-    }).execute();
+    await db()
+      .insertInto("trip_viewers")
+      .values({
+        trip_id: tripId,
+        invitee_email_normalized: "riley.alt@example.com",
+        viewer_user_id: viewer.userId,
+        role: "editor",
+        status: "accepted",
+        invitation_token_hash: Buffer.from(crypto.randomUUID()),
+        expires_at: new Date(Date.now() + 864e5),
+        accepted_at: new Date(),
+      })
+      .execute();
     expect((await getTripDetail(db(), viewer, tripId, NOW)).trip.role).toBe("editor");
     const pendingOwner = await makeActor("pending@example.com", "Pending");
     const revokedOwner = await makeActor("revoked@example.com", "Revoked");
@@ -103,9 +141,19 @@ describe("changing events, bookings and notes", () => {
   it("lets owners, co-owners and editors do everything to events, and refuses viewers and strangers", async () => {
     for (const who of [owner, coOwner, editor]) {
       const created = await createItem(db(), who, tripId, event({ title: `By ${who.email}` }));
-      const edited = await updateItem(db(), who, tripId, created.id, { item: event({ title: "Renamed" }), expectedVersion: created.version });
-      const noted = await updateItemNotes(db(), who, tripId, created.id, { notes: "Bring cash", expectedVersion: edited.version });
-      const booked = await updateItemBooking(db(), who, tripId, created.id, { bookingStatus: "booked", bookingDueDate: null, expectedVersion: noted.version });
+      const edited = await updateItem(db(), who, tripId, created.id, {
+        item: event({ title: "Renamed" }),
+        expectedVersion: created.version,
+      });
+      const noted = await updateItemNotes(db(), who, tripId, created.id, {
+        notes: "Bring cash",
+        expectedVersion: edited.version,
+      });
+      const booked = await updateItemBooking(db(), who, tripId, created.id, {
+        bookingStatus: "booked",
+        bookingDueDate: null,
+        expectedVersion: noted.version,
+      });
       expect(booked.bookingStatus).toBe("booked");
       const copy = await duplicateItem(db(), who, tripId, created.id, booked.version);
       expect(copy.id).not.toBe(created.id);
@@ -113,11 +161,27 @@ describe("changing events, bookings and notes", () => {
       expect((await restoreItem(db(), who, tripId, copy.id, NOW)).id).toBe(copy.id);
     }
     const current = (await getTripDetail(db(), owner, tripId, NOW)).items.find((i) => i.id === itemId)!;
-    for (const [who, status] of [[viewer, 403], [stranger, 404]] as const) {
+    for (const [who, status] of [
+      [viewer, 403],
+      [stranger, 404],
+    ] as const) {
       await expectHttp(createItem(db(), who, tripId, event()), status);
-      await expectHttp(updateItem(db(), who, tripId, itemId, { item: event(), expectedVersion: current.version }), status);
-      await expectHttp(updateItemNotes(db(), who, tripId, itemId, { notes: "x", expectedVersion: current.version }), status);
-      await expectHttp(updateItemBooking(db(), who, tripId, itemId, { bookingStatus: "booked", bookingDueDate: null, expectedVersion: current.version }), status);
+      await expectHttp(
+        updateItem(db(), who, tripId, itemId, { item: event(), expectedVersion: current.version }),
+        status,
+      );
+      await expectHttp(
+        updateItemNotes(db(), who, tripId, itemId, { notes: "x", expectedVersion: current.version }),
+        status,
+      );
+      await expectHttp(
+        updateItemBooking(db(), who, tripId, itemId, {
+          bookingStatus: "booked",
+          bookingDueDate: null,
+          expectedVersion: current.version,
+        }),
+        status,
+      );
       await expectHttp(duplicateItem(db(), who, tripId, itemId, current.version), status);
       await expectHttp(deleteItem(db(), who, tripId, itemId, current.version), status);
       await expectHttp(restoreItem(db(), who, tripId, itemId, NOW), status);
@@ -127,7 +191,10 @@ describe("changing events, bookings and notes", () => {
   it("shares the concurrency rule: two editors cannot overwrite each other", async () => {
     const stale = (await getTripDetail(db(), editor, tripId, NOW)).items[0]!;
     await updateItemNotes(db(), coOwner, tripId, itemId, { notes: "Co-owner's note", expectedVersion: stale.version });
-    await expectHttp(updateItemNotes(db(), editor, tripId, itemId, { notes: "Editor's note", expectedVersion: stale.version }), 409);
+    await expectHttp(
+      updateItemNotes(db(), editor, tripId, itemId, { notes: "Editor's note", expectedVersion: stale.version }),
+      409,
+    );
   });
 });
 
@@ -136,9 +203,21 @@ describe("the trip itself and its sharing", () => {
     const detail = (await getTripDetail(db(), owner, tripId, NOW)).trip;
     const patch = { ...tripInput, title: "Renamed by a co-owner", expectedVersion: detail.version };
     const updated = await updateTrip(db(), coOwner, tripId, patch, NOW);
-    expect(updated).toMatchObject({ title: "Renamed by a co-owner", role: "owner", primaryOwner: false, ownerName: "Link" });
-    for (const [who, status] of [[editor, 403], [viewer, 403], [stranger, 404]] as const) {
-      await expectHttp(updateTrip(db(), who, tripId, { ...tripInput, expectedVersion: detail.version + 1 }, NOW), status);
+    expect(updated).toMatchObject({
+      title: "Renamed by a co-owner",
+      role: "owner",
+      primaryOwner: false,
+      ownerName: "Link",
+    });
+    for (const [who, status] of [
+      [editor, 403],
+      [viewer, 403],
+      [stranger, 404],
+    ] as const) {
+      await expectHttp(
+        updateTrip(db(), who, tripId, { ...tripInput, expectedVersion: detail.version + 1 }, NOW),
+        status,
+      );
       await expectHttp(previewTimeZone(db(), who, tripId, "Europe/Paris", detail.version + 1, NOW), status);
       await expectHttp(deleteTrip(db(), who, tripId, detail.version + 1), status);
     }
@@ -152,8 +231,17 @@ describe("the trip itself and its sharing", () => {
   });
 
   it("lets only owners and co-owners see and manage who the trip is shared with", async () => {
-    for (const who of [owner, coOwner]) expect((await listInvitations(db(), who, tripId, NOW)).map((e) => e.role).sort()).toEqual(["editor", "owner", "viewer"]);
-    for (const [who, status] of [[editor, 403], [viewer, 403], [stranger, 404]] as const) {
+    for (const who of [owner, coOwner])
+      expect((await listInvitations(db(), who, tripId, NOW)).map((e) => e.role).sort()).toEqual([
+        "editor",
+        "owner",
+        "viewer",
+      ]);
+    for (const [who, status] of [
+      [editor, 403],
+      [viewer, 403],
+      [stranger, 404],
+    ] as const) {
       await expectHttp(listInvitations(db(), who, tripId, NOW), status);
       await expectHttp(createInvitation(db(), who, tripId, "new@example.com", NOW, "owner"), status);
       await expectHttp(updateInvitationRole(db(), who, tripId, await memberId(viewer), "owner", NOW), status);
@@ -172,7 +260,11 @@ describe("choosing and changing roles", () => {
     const newcomer = await makeActor("newcomer@example.com", "New");
     await acceptInvitation(db(), newcomer, sha(again.invitationUrl.split("#")[1]!), NOW);
     expect((await getTripDetail(db(), newcomer, tripId, NOW)).trip.role).toBe("owner");
-    await expectHttp(createInvitation(db(), owner, tripId, "newcomer@example.com", NOW, "viewer"), 409, "invitation_accepted");
+    await expectHttp(
+      createInvitation(db(), owner, tripId, "newcomer@example.com", NOW, "viewer"),
+      409,
+      "invitation_accepted",
+    );
   });
 
   it("applies a role change on the person's next request, in both directions", async () => {
@@ -180,9 +272,28 @@ describe("choosing and changing roles", () => {
     await expectHttp(createItem(db(), viewer, tripId, event()), 403);
     expect((await updateInvitationRole(db(), owner, tripId, id, "editor", NOW)).role).toBe("editor");
     await createItem(db(), viewer, tripId, event({ title: "Now they can" }));
-    await expectHttp(updateTrip(db(), viewer, tripId, { ...tripInput, expectedVersion: (await getTripDetail(db(), owner, tripId, NOW)).trip.version }, NOW), 403);
+    await expectHttp(
+      updateTrip(
+        db(),
+        viewer,
+        tripId,
+        { ...tripInput, expectedVersion: (await getTripDetail(db(), owner, tripId, NOW)).trip.version },
+        NOW,
+      ),
+      403,
+    );
     await updateInvitationRole(db(), owner, tripId, id, "owner", NOW);
-    await updateTrip(db(), viewer, tripId, { ...tripInput, title: "Promoted", expectedVersion: (await getTripDetail(db(), owner, tripId, NOW)).trip.version }, NOW);
+    await updateTrip(
+      db(),
+      viewer,
+      tripId,
+      {
+        ...tripInput,
+        title: "Promoted",
+        expectedVersion: (await getTripDetail(db(), owner, tripId, NOW)).trip.version,
+      },
+      NOW,
+    );
     await updateInvitationRole(db(), coOwner, tripId, id, "viewer", NOW);
     await expectHttp(createItem(db(), viewer, tripId, event()), 403);
   });
@@ -193,7 +304,11 @@ describe("choosing and changing roles", () => {
     await expectHttp(updateInvitationRole(db(), owner, tripId, crypto.randomUUID(), "editor", NOW), 404);
     await expectHttp(updateInvitationRole(db(), owner, tripId, "not-a-uuid", "editor", NOW), 404);
     await revokeInvitation(db(), owner, tripId, await memberId(editor), NOW);
-    await expectHttp(updateInvitationRole(db(), owner, tripId, await memberId(editor), "owner", NOW), 409, "invitation_revoked");
+    await expectHttp(
+      updateInvitationRole(db(), owner, tripId, await memberId(editor), "owner", NOW),
+      409,
+      "invitation_revoked",
+    );
     await expectHttp(getTripDetail(db(), editor, tripId, NOW), 404);
   });
 
@@ -201,10 +316,18 @@ describe("choosing and changing roles", () => {
     const other = (await createTrip(db(), owner, { ...tripInput, title: "Another trip" }, NOW)).id;
     const outsider = await makeActor("outsider@example.com", "Outsider");
     await grant(other, outsider, "accepted", "viewer");
-    const theirs = (await db().selectFrom("trip_viewers").select("id").where("trip_id", "=", other).executeTakeFirstOrThrow()).id;
+    const theirs = (
+      await db().selectFrom("trip_viewers").select("id").where("trip_id", "=", other).executeTakeFirstOrThrow()
+    ).id;
     await expectHttp(updateInvitationRole(db(), owner, tripId, theirs, "owner", NOW), 404);
     await expectHttp(revokeInvitation(db(), owner, tripId, theirs, NOW), 404);
-    expect((await db().selectFrom("trip_viewers").select(["role", "status"]).where("id", "=", theirs).executeTakeFirstOrThrow())).toEqual({ role: "viewer", status: "accepted" });
+    expect(
+      await db()
+        .selectFrom("trip_viewers")
+        .select(["role", "status"])
+        .where("id", "=", theirs)
+        .executeTakeFirstOrThrow(),
+    ).toEqual({ role: "viewer", status: "accepted" });
     // And an owner of only one trip cannot reach the other trip at all.
     await expectHttp(updateInvitationRole(db(), coOwner, other, theirs, "owner", NOW), 404);
     await expectHttp(createItem(db(), editor, other, event()), 404);
@@ -213,8 +336,12 @@ describe("choosing and changing roles", () => {
   it("validates roles at the route and lets only owners call it", async () => {
     const id = await memberId(viewer);
     session.actor = owner;
-    expect((await memberRoute.PATCH(req("PATCH", { role: "superuser" }), ctx({ tripId, invitationId: id }))).status).toBe(422);
-    expect((await memberRoute.PATCH(req("PATCH", { role: "editor", extra: 1 }), ctx({ tripId, invitationId: id }))).status).toBe(422);
+    expect(
+      (await memberRoute.PATCH(req("PATCH", { role: "superuser" }), ctx({ tripId, invitationId: id }))).status,
+    ).toBe(422);
+    expect(
+      (await memberRoute.PATCH(req("PATCH", { role: "editor", extra: 1 }), ctx({ tripId, invitationId: id }))).status,
+    ).toBe(422);
     const ok = await memberRoute.PATCH(req("PATCH", { role: "editor" }), ctx({ tripId, invitationId: id }));
     expect(ok.status).toBe(200);
     expect(await ok.json()).toMatchObject({ id, role: "editor" });
@@ -223,9 +350,13 @@ describe("choosing and changing roles", () => {
     const defaults = await membersRoute.POST(req("POST", { email: "y@example.com" }), ctx({ tripId }));
     expect(((await defaults.json()) as { invitation: { role: string } }).invitation.role).toBe("viewer");
     session.actor = editor;
-    expect((await memberRoute.PATCH(req("PATCH", { role: "owner" }), ctx({ tripId, invitationId: id }))).status).toBe(403);
+    expect((await memberRoute.PATCH(req("PATCH", { role: "owner" }), ctx({ tripId, invitationId: id }))).status).toBe(
+      403,
+    );
     session.actor = null;
-    expect((await memberRoute.PATCH(req("PATCH", { role: "owner" }), ctx({ tripId, invitationId: id }))).status).toBe(401);
+    expect((await memberRoute.PATCH(req("PATCH", { role: "owner" }), ctx({ tripId, invitationId: id }))).status).toBe(
+      401,
+    );
   });
 });
 
@@ -274,7 +405,12 @@ describe("deleting an account", () => {
     expect((await listInvitations(db(), owner, tripId, NOW)).map((e) => e.email)).not.toContain("editor@example.com");
     await deleteAccount(db(), owner);
     // The co-owner keeps it, now without a creator; the viewer keeps theirs (more in account-deletion.test.ts).
-    expect((await getTripDetail(db(), coOwner, tripId, NOW)).trip).toMatchObject({ role: "owner", primaryOwner: false, creatorGone: true, ownerName: null });
+    expect((await getTripDetail(db(), coOwner, tripId, NOW)).trip).toMatchObject({
+      role: "owner",
+      primaryOwner: false,
+      creatorGone: true,
+      ownerName: null,
+    });
     expect((await getTripDetail(db(), viewer, tripId, NOW)).trip.role).toBe("viewer");
   });
 });

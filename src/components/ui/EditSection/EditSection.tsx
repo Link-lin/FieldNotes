@@ -35,28 +35,54 @@ type Props = {
  * on open and back to Edit when it closes. Saving…, Saved (with Undo where offered) and a failed save's message show
  * under it; a failed save keeps the fields as typed.
  */
-export function EditSection({ title, canEdit, editing, onEdit, onCancel, onEscape, onSave, status, onUndo, view, children, saveLabel = "Save", saveDisabled = false, className }: Props) {
+export function EditSection({
+  title,
+  canEdit,
+  editing,
+  onEdit,
+  onCancel,
+  onEscape,
+  onSave,
+  status,
+  onUndo,
+  view,
+  children,
+  saveLabel = "Save",
+  saveDisabled = false,
+  className,
+}: Props) {
   const headingId = useId();
   const box = useRef<HTMLElement>(null);
   const wasEditing = useRef(editing);
 
   useEffect(() => {
-    if (editing && !wasEditing.current) box.current?.querySelector<HTMLElement>("input:not([type=hidden]), select, textarea")?.focus();
+    if (editing && !wasEditing.current)
+      box.current?.querySelector<HTMLElement>("input:not([type=hidden]), select, textarea")?.focus();
     if (!editing && wasEditing.current) {
       // Back to Edit, unless focus already moved on to something else outside the section.
       const active = document.activeElement;
-      if (!active || active === document.body || box.current?.contains(active)) requestAnimationFrame(() => box.current?.querySelector<HTMLElement>("[data-section-edit]")?.focus());
+      if (!active || active === document.body || box.current?.contains(active))
+        requestAnimationFrame(() => box.current?.querySelector<HTMLElement>("[data-section-edit]")?.focus());
     }
     wasEditing.current = editing;
   }, [editing]);
 
   const saving = status.state === "saving";
   return (
-    <section className={[styles.section, className].filter(Boolean).join(" ")} aria-labelledby={headingId} data-editing={editing || undefined} ref={box}>
+    <section
+      className={[styles.section, className].filter(Boolean).join(" ")}
+      aria-labelledby={headingId}
+      data-editing={editing || undefined}
+      ref={box}
+    >
       <div className={styles.head}>
-        <h3 className={styles.title} id={headingId}>{title}</h3>
+        <h3 className={styles.title} id={headingId}>
+          {title}
+        </h3>
         {canEdit && !editing ? (
-          <Button variant="quiet" data-section-edit onClick={onEdit} aria-label={`Edit ${title.toLowerCase()}`}>Edit</Button>
+          <Button variant="quiet" data-section-edit onClick={onEdit} aria-label={`Edit ${title.toLowerCase()}`}>
+            Edit
+          </Button>
         ) : null}
       </div>
       {editing ? (
@@ -78,8 +104,12 @@ export function EditSection({ title, canEdit, editing, onEdit, onCancel, onEscap
           {children}
           {status.state === "error" ? <FormError>{status.message}</FormError> : null}
           <div className={styles.actions}>
-            <Button variant="quiet" onClick={onCancel} disabled={saving}>Cancel</Button>
-            <Button variant="fill" type="submit" disabled={saving || saveDisabled}>{saving ? "Saving…" : saveLabel}</Button>
+            <Button variant="quiet" onClick={onCancel} disabled={saving}>
+              Cancel
+            </Button>
+            <Button variant="fill" type="submit" disabled={saving || saveDisabled}>
+              {saving ? "Saving…" : saveLabel}
+            </Button>
           </div>
         </form>
       ) : (
@@ -92,12 +122,22 @@ export function EditSection({ title, canEdit, editing, onEdit, onCancel, onEscap
 }
 
 /** A section with the same heading, its fields always shown: for a form that creates something in the same layout. */
-export function SectionFrame({ title, children, className }: { title: string; children: React.ReactNode; className?: string }) {
+export function SectionFrame({
+  title,
+  children,
+  className,
+}: {
+  title: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
   const headingId = useId();
   return (
     <section className={[styles.section, className].filter(Boolean).join(" ")} aria-labelledby={headingId}>
       <div className={styles.head}>
-        <h3 className={styles.title} id={headingId}>{title}</h3>
+        <h3 className={styles.title} id={headingId}>
+          {title}
+        </h3>
       </div>
       {children}
     </section>

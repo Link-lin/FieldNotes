@@ -23,7 +23,11 @@ export function viewAround(cx: number, cy: number, w: number): View {
 
 /** A view may pan half a map beyond the start view, and no further. */
 export function clampView(v: View): View {
-  return { ...v, x: Math.max(-W0 * 0.5, Math.min(W0 * 1.5 - v.w, v.x)), y: Math.max(-H0 * 0.5, Math.min(H0 * 1.5 - v.h, v.y)) };
+  return {
+    ...v,
+    x: Math.max(-W0 * 0.5, Math.min(W0 * 1.5 - v.w, v.x)),
+    y: Math.max(-H0 * 0.5, Math.min(H0 * 1.5 - v.h, v.y)),
+  };
 }
 
 /** Whether two views look the same, to well under a pixel at any zoom. */

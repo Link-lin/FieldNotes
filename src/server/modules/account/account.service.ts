@@ -8,27 +8,48 @@ import { deleteTripRow } from "@/server/modules/trips/trips.repository";
 import type { FieldError, OwnedTripDTO } from "@/shared/dto";
 import { emailKey } from "@/shared/email";
 import { ownedTripDto } from "./account.mapper";
-import { acceptedPeople, lockUserForDeletion, ownedTripRows, promoteToOwner, type OwnedTripRow } from "./account.repository";
+import {
+  acceptedPeople,
+  lockUserForDeletion,
+  ownedTripRows,
+  promoteToOwner,
+  type OwnedTripRow,
+} from "./account.repository";
 import { successionOrder, type Person } from "./account.rules";
 
 type Conn = Kysely<DB> | Transaction<DB>;
 
 /** What the person chose for one trip they own. A trip they don't mention stays where it can (see `deleteAccount`). */
-export type TripDecision = { tripId: string; action: "keep" } | { tripId: string; action: "delete" } | { tripId: string; action: "transfer"; personId: string };
+export type TripDecision =
+  | { tripId: string; action: "keep" }
+  | { tripId: string; action: "delete" }
+  | { tripId: string; action: "transfer"; personId: string };
 
 /** An owned trip, the people on it in the order ownership would pass, and who would keep owning it if the person left. */
 type Plan = { trip: OwnedTripRow; people: Person[]; otherOwners: string[] };
 
 async function plans(db: Conn, actor: Actor, lock: boolean): Promise<Plan[]> {
   const trips = await ownedTripRows(db, actor.userId, lock);
-  const accepted = await acceptedPeople(db, trips.map((t) => t.id), actor.userId);
+  const accepted = await acceptedPeople(
+    db,
+    trips.map((t) => t.id),
+    actor.userId,
+  );
   const allowlist = ownerEmails();
   return trips.map((trip) => {
     const people = successionOrder(accepted.filter((p) => p.tripId === trip.id));
     const owners = people.filter((p) => p.role === "owner").map((p) => p.name);
     // The creator keeps the trip too while they can still act as its owner: someone else, with an account, on the allowlist.
-    const creatorStays = trip.owner_user_id !== null && trip.owner_user_id !== actor.userId && trip.creator_email !== null && allowlist.has(emailKey(trip.creator_email));
-    return { trip, people, otherOwners: creatorStays ? [trip.creator_name?.trim() || trip.creator_email!, ...owners] : owners };
+    const creatorStays =
+      trip.owner_user_id !== null &&
+      trip.owner_user_id !== actor.userId &&
+      trip.creator_email !== null &&
+      allowlist.has(emailKey(trip.creator_email));
+    return {
+      trip,
+      people,
+      otherOwners: creatorStays ? [trip.creator_name?.trim() || trip.creator_email!, ...owners] : owners,
+    };
   });
 }
 
@@ -61,7 +82,8 @@ export async function deleteAccount(db: Kysely<DB>, actor: Actor, decisions: Tri
     const undecided: OwnedTripRow[] = [];
 
     for (const id of choices.keys()) {
-      if (!owned.some((p) => p.trip.id === id)) outOfDate.push({ path: `trips.${id}`, code: "not_owned", message: "You don't own that trip any more." });
+      if (!owned.some((p) => p.trip.id === id))
+        outOfDate.push({ path: `trips.${id}`, code: "not_owned", message: "You don't own that trip any more." });
     }
     for (const { trip, people, otherOwners } of owned) {
       const choice = choices.get(trip.id);
@@ -71,8 +93,14 @@ export async function deleteAccount(db: Kysely<DB>, actor: Actor, decisions: Tri
         if (!otherOwners.length) undecided.push(trip);
       } else if (choice?.action === "transfer") {
         const person = people.find((p) => p.id === choice.personId);
-        if (!person) outOfDate.push({ path: `trips.${trip.id}`, code: "person_unavailable", message: `That person is no longer on “${trip.title}”. Choose someone else.` });
-        else if (person.role !== "owner") promote.push({ grantId: person.id, userId: person.userId, title: trip.title, tripId: trip.id });
+        if (!person)
+          outOfDate.push({
+            path: `trips.${trip.id}`,
+            code: "person_unavailable",
+            message: `That person is no longer on “${trip.title}”. Choose someone else.`,
+          });
+        else if (person.role !== "owner")
+          promote.push({ grantId: person.id, userId: person.userId, title: trip.title, tripId: trip.id });
       } else if (otherOwners.length) {
         // Stays with the people who already own it.
       } else if (people.length) undecided.push(trip);
@@ -88,14 +116,27 @@ export async function deleteAccount(db: Kysely<DB>, actor: Actor, decisions: Tri
         undecided.length === 1
           ? `Choose a new owner for ${titles}, or delete it, before deleting your account.`
           : `Choose a new owner for each of these trips, or delete them, before deleting your account: ${titles}.`,
-        undecided.map((t) => ({ path: `trips.${t.id}`, code: "decision_needed", message: "Choose a new owner, or delete this trip." })),
+        undecided.map((t) => ({
+          path: `trips.${t.id}`,
+          code: "decision_needed",
+          message: "Choose a new owner, or delete this trip.",
+        })),
       );
     }
 
     // New owners are locked in a fixed order. One who has meanwhile deleted their account can't be promoted.
     for (const p of promote.sort((a, b) => (a.userId < b.userId ? -1 : a.userId > b.userId ? 1 : 0))) {
       if (!(await promoteToOwner(tx, p.grantId, p.userId))) {
-        throw invalid([{ path: `trips.${p.tripId}`, code: "person_unavailable", message: `That person is no longer on “${p.title}”. Choose someone else.` }], "Some of your choices are out of date. Review them and try again.");
+        throw invalid(
+          [
+            {
+              path: `trips.${p.tripId}`,
+              code: "person_unavailable",
+              message: `That person is no longer on “${p.title}”. Choose someone else.`,
+            },
+          ],
+          "Some of your choices are out of date. Review them and try again.",
+        );
       }
     }
     for (const id of remove) await deleteTripRow(tx, id);

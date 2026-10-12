@@ -17,8 +17,18 @@ export async function plannedTotals(db: Conn, tripId: string): Promise<PlannedTo
     order by planned_currency, type nulls first`.execute(db);
   const out = new Map<string, PlannedTotalDTO>();
   for (const r of rows.rows) {
-    if (r.type === null) out.set(r.currency, { currency: r.currency, total: trimAmount(r.amount), priceCount: r.n, unverifiedCount: r.unv, byType: [] });
-    else out.get(r.currency)?.byType.push({ type: r.type as PlannedTotalDTO["byType"][number]["type"], amount: trimAmount(r.amount) });
+    if (r.type === null)
+      out.set(r.currency, {
+        currency: r.currency,
+        total: trimAmount(r.amount),
+        priceCount: r.n,
+        unverifiedCount: r.unv,
+        byType: [],
+      });
+    else
+      out
+        .get(r.currency)
+        ?.byType.push({ type: r.type as PlannedTotalDTO["byType"][number]["type"], amount: trimAmount(r.amount) });
   }
   for (const t of out.values()) t.byType.sort((a, b) => Number(b.amount) - Number(a.amount));
   return [...out.values()];
@@ -26,7 +36,13 @@ export async function plannedTotals(db: Conn, tripId: string): Promise<PlannedTo
 
 /** BUDGET-7: planned vs budget in the budget's own currency only. */
 export async function budgetComparison(db: Conn, tripId: string): Promise<BudgetComparisonDTO | null> {
-  const r = await sql<{ currency: string | null; budget: string | null; planned: string; remaining: string; over: boolean }>`
+  const r = await sql<{
+    currency: string | null;
+    budget: string | null;
+    planned: string;
+    remaining: string;
+    over: boolean;
+  }>`
     select t.budget_currency as currency, t.budget_amount::text as budget,
            coalesce(sum(i.planned_amount), 0)::text as planned,
            (t.budget_amount - coalesce(sum(i.planned_amount), 0))::text as remaining,
@@ -37,7 +53,13 @@ export async function budgetComparison(db: Conn, tripId: string): Promise<Budget
     group by t.id`.execute(db);
   const row = r.rows[0];
   if (!row || !row.currency || row.budget === null) return null;
-  return { currency: row.currency, budget: trimAmount(row.budget), planned: trimAmount(row.planned), remaining: trimAmount(row.remaining.replace(/^-/, "")), over: row.over };
+  return {
+    currency: row.currency,
+    budget: trimAmount(row.budget),
+    planned: trimAmount(row.planned),
+    remaining: trimAmount(row.remaining.replace(/^-/, "")),
+    over: row.over,
+  };
 }
 
 /**

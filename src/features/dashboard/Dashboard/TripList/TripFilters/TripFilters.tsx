@@ -7,7 +7,15 @@ import styles from "./TripFilters.module.css";
 const FILTERS = ["all", "upcoming", "ongoing", "past"] as const;
 
 /** Toggle buttons for All, Upcoming, Ongoing and Past, each with its count. */
-export function TripFilters({ trips, value, onChange }: { trips: TripSummaryDTO[]; value: Filter; onChange: (f: Filter) => void }) {
+export function TripFilters({
+  trips,
+  value,
+  onChange,
+}: {
+  trips: TripSummaryDTO[];
+  value: Filter;
+  onChange: (f: Filter) => void;
+}) {
   const count = (f: Filter) => trips.filter((t) => f === "all" || t.status === f).length;
   return (
     <div className={cx("mono", styles.filters)} role="group" aria-label="Filter trips by date status">

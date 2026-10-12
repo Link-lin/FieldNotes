@@ -23,7 +23,10 @@ export class OAuthError extends Error {
 const NO_STORE = { "Cache-Control": "no-store", Pragma: "no-cache" };
 
 export function oauthJson(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
-  return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json", ...NO_STORE, ...headers } });
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json", ...NO_STORE, ...headers },
+  });
 }
 
 /** A public discovery document: no trip data, so any site may read it. */
@@ -37,11 +40,16 @@ export function publicDocument(body: unknown): Response {
 export function publicDocumentPreflight(): Response {
   return new Response(null, {
     status: 204,
-    headers: { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET, OPTIONS", "Access-Control-Allow-Headers": "Content-Type" },
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type",
+    },
   });
 }
 
-export const connectorOff = (): Response => oauthJson({ error: "not_found", error_description: "The AI connector is turned off." }, 404);
+export const connectorOff = (): Response =>
+  oauthJson({ error: "not_found", error_description: "The AI connector is turned off." }, 404);
 
 /** Runs a machine route: 404 when the connector is off, OAuth errors in their own body, anything else sanitized. */
 export async function handleOAuth(fn: () => Promise<Response>): Promise<Response> {
@@ -52,7 +60,10 @@ export async function handleOAuth(fn: () => Promise<Response>): Promise<Response
     if (err instanceof OAuthError) return oauthJson({ error: err.error, error_description: err.message }, err.status);
     const requestId = randomUUID();
     console.error(`[${requestId}] ${errorTag(err)}`);
-    return oauthJson({ error: "server_error", error_description: `Something went wrong. (Reference ${requestId})` }, 500);
+    return oauthJson(
+      { error: "server_error", error_description: `Something went wrong. (Reference ${requestId})` },
+      500,
+    );
   }
 }
 
@@ -87,7 +98,8 @@ export async function readFormBody(req: Request, maxBytes = 16 * 1024): Promise<
     } catch {
       throw new OAuthError(400, "invalid_request", "The request body could not be read.");
     }
-    if (!value || typeof value !== "object" || Array.isArray(value)) throw new OAuthError(400, "invalid_request", "The request body could not be read.");
+    if (!value || typeof value !== "object" || Array.isArray(value))
+      throw new OAuthError(400, "invalid_request", "The request body could not be read.");
     const form = new URLSearchParams();
     for (const [key, v] of Object.entries(value)) if (typeof v === "string") form.set(key, v);
     return form;

@@ -25,7 +25,8 @@ export function EventMap({ item, destination, mapsKey }: Props) {
   }
   if (!mapsKey) return null;
 
-  const label = target.mode === "directions" ? `${target.origin} to ${target.destination}` : (item.location ?? target.q);
+  const label =
+    target.mode === "directions" ? `${target.origin} to ${target.destination}` : (item.location ?? target.q);
   return (
     <figure className={styles.map} data-loaded={loaded || undefined}>
       <div className={styles.frame}>
@@ -37,7 +38,9 @@ export function EventMap({ item, destination, mapsKey }: Props) {
           allowFullScreen
           onLoad={() => setLoaded(true)}
         />
-        <span className={styles.loading} aria-hidden="true">Loading map…</span>
+        <span className={styles.loading} aria-hidden="true">
+          Loading map…
+        </span>
       </div>
       <figcaption className="note">Map by Google. Opening an event sends its place to Google.</figcaption>
     </figure>

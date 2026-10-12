@@ -23,8 +23,22 @@ export function inviteMessage({ tripTitle, name, byLink, role, url, expiresAt }:
   const intro = `I've shared my trip "${tripTitle}" with you on Field Notes. ${ROLE_YOU_CAN[role]}`;
   // An invitation by link has no address to match: the link itself admits whoever opens it first.
   return byLink
-    ? [intro, "", "Open this link and sign in with Google:", url, "", `The link works once, for whoever opens it first, and expires on ${instantDate(expiresAt)}.`].join("\n")
-    : [intro, "", `Open this link and sign in with Google as ${name}:`, url, "", `The link works for one Google account and expires on ${instantDate(expiresAt)}.`].join("\n");
+    ? [
+        intro,
+        "",
+        "Open this link and sign in with Google:",
+        url,
+        "",
+        `The link works once, for whoever opens it first, and expires on ${instantDate(expiresAt)}.`,
+      ].join("\n")
+    : [
+        intro,
+        "",
+        `Open this link and sign in with Google as ${name}:`,
+        url,
+        "",
+        `The link works for one Google account and expires on ${instantDate(expiresAt)}.`,
+      ].join("\n");
 }
 
 /**
@@ -75,23 +89,43 @@ export function InviteLink({ onCopied, delivery, ...props }: LinkProps) {
         />
       </Field>
       <div className={styles.row}>
-        <Button data-copy-invite onClick={() => void copy()}><CopyIcon /> Copy message</Button>
-        <span role="status" className="muted">{copied === "copied" ? "Copied." : copied === "manual" ? "Couldn't copy automatically. The message is selected; copy it with your keyboard." : ""}</span>
+        <Button data-copy-invite onClick={() => void copy()}>
+          <CopyIcon /> Copy message
+        </Button>
+        <span role="status" className="muted">
+          {copied === "copied"
+            ? "Copied."
+            : copied === "manual"
+              ? "Couldn't copy automatically. The message is selected; copy it with your keyboard."
+              : ""}
+        </span>
       </div>
     </>
   );
 
   return (
-    <div ref={box} className={styles.box} role="group" aria-labelledby={`${id}-title`} tabIndex={sent ? -1 : undefined} data-invite-link data-delivery={delivery}>
-      <p id={`${id}-title`} className={styles.title}>{props.byLink ? "Link for" : sent ? "Invitation emailed to" : "Invitation for"} {props.name} as {role}</p>
+    <div
+      ref={box}
+      className={styles.box}
+      role="group"
+      aria-labelledby={`${id}-title`}
+      tabIndex={sent ? -1 : undefined}
+      data-invite-link
+      data-delivery={delivery}
+    >
+      <p id={`${id}-title`} className={styles.title}>
+        {props.byLink ? "Link for" : sent ? "Invitation emailed to" : "Invitation for"} {props.name} as {role}
+      </p>
       {delivery === "failed" ? (
-        <Banner tone="warn" role="alert">The email couldn&apos;t be sent, but the invitation is saved. Copy the message below and send it yourself.</Banner>
+        <Banner tone="warn" role="alert">
+          The email couldn&apos;t be sent, but the invitation is saved. Copy the message below and send it yourself.
+        </Banner>
       ) : null}
       {sent ? (
         <>
           <p className="note">
-            The link in it works for one Google account and expires on {expires}. If it doesn&apos;t arrive, ask them to check their spam folder, or send
-            a new link from the list below.
+            The link in it works for one Google account and expires on {expires}. If it doesn&apos;t arrive, ask them to
+            check their spam folder, or send a new link from the list below.
           </p>
           <details className={styles.fallback}>
             <summary>Copy the message to send it yourself</summary>

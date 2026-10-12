@@ -19,19 +19,28 @@ export function appleConfig(): AppleConfig | null {
 }
 
 /** Apple's sign-in host. It is fixed; the override exists only to point a test at a stand-in (see `APPLE_ORIGIN` in the README). */
-export const appleOrigin = (): string => (process.env.APPLE_ORIGIN?.trim() || "https://appleid.apple.com").replace(/\/+$/, "");
+export const appleOrigin = (): string =>
+  (process.env.APPLE_ORIGIN?.trim() || "https://appleid.apple.com").replace(/\/+$/, "");
 
 /**
  * The signing key from its environment value: the `.p8` file's PEM (a one-line variable writes the line breaks as
  * `\n`), or just the base64 between its BEGIN and END lines. It must be the P-256 key Apple issues.
  */
 export function applePrivateKey(value: string): KeyObject {
-  const text = value.trim().replace(/^(["'])([\s\S]*)\1$/, "$2").replace(/\\n/g, "\n").trim();
+  const text = value
+    .trim()
+    .replace(/^(["'])([\s\S]*)\1$/, "$2")
+    .replace(/\\n/g, "\n")
+    .trim();
   let key: KeyObject;
   try {
-    key = text.includes("-----BEGIN") ? createPrivateKey(text) : createPrivateKey({ key: Buffer.from(text.replace(/\s+/g, ""), "base64"), format: "der", type: "pkcs8" });
+    key = text.includes("-----BEGIN")
+      ? createPrivateKey(text)
+      : createPrivateKey({ key: Buffer.from(text.replace(/\s+/g, ""), "base64"), format: "der", type: "pkcs8" });
   } catch {
-    throw new Error("AUTH_APPLE_PRIVATE_KEY is not a key Node can read; it must be the PEM from the .p8 file Apple gives you");
+    throw new Error(
+      "AUTH_APPLE_PRIVATE_KEY is not a key Node can read; it must be the PEM from the .p8 file Apple gives you",
+    );
   }
   if (key.asymmetricKeyType !== "ec" || key.asymmetricKeyDetails?.namedCurve !== "prime256v1") {
     throw new Error("AUTH_APPLE_PRIVATE_KEY is not a P-256 key; it must be the .p8 file Apple gives you");
@@ -55,7 +64,10 @@ export function appleClientSecret(config: AppleConfig, now = new Date()): string
   const header = { alg: "ES256", kid: config.keyId, typ: "JWT" };
   const claims = { iss: config.teamId, iat, exp: iat + SECRET_LIFETIME_S, aud: appleOrigin(), sub: config.servicesId };
   const input = `${base64url(JSON.stringify(header))}.${base64url(JSON.stringify(claims))}`;
-  const signature = sign("sha256", Buffer.from(input), { key: applePrivateKey(config.privateKey), dsaEncoding: "ieee-p1363" });
+  const signature = sign("sha256", Buffer.from(input), {
+    key: applePrivateKey(config.privateKey),
+    dsaEncoding: "ieee-p1363",
+  });
   return `${input}.${base64url(signature)}`;
 }
 
@@ -90,7 +102,9 @@ export function appleEnabled(): boolean {
   const config = appleConfig();
   if (!config) {
     const missing = SETTINGS.filter((name) => !process.env[name]?.trim());
-    return missing.length === SETTINGS.length ? false : switchedOff(`it needs all four settings; missing ${missing.join(", ")}`);
+    return missing.length === SETTINGS.length
+      ? false
+      : switchedOff(`it needs all four settings; missing ${missing.join(", ")}`);
   }
   try {
     cachedAppleClientSecret(config);
@@ -110,7 +124,13 @@ export type AppleClaims = {
 };
 
 /** A name as shown in the app: one line, no control or direction-changing characters, at most 80 characters. */
-const cleanName = (value: unknown): string => (typeof value === "string" ? value.replace(/[\p{Cc}\u200E\u200F\u202A-\u202E\u2066-\u2069]/gu, " ").replace(/\s+/g, " ").trim() : "");
+const cleanName = (value: unknown): string =>
+  typeof value === "string"
+    ? value
+        .replace(/[\p{Cc}\u200E\u200F\u202A-\u202E\u2066-\u2069]/gu, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+    : "";
 
 /**
  * The name Apple sent, or null. It arrives once, in the `user` form field, and through the browser rather than in
@@ -136,6 +156,11 @@ export function appleProvider() {
     clientSecret: cachedAppleClientSecret(config),
     issuer: appleOrigin(),
     account: () => ({}),
-    profile: (claims: AppleClaims) => ({ id: claims.sub, name: appleName(claims), email: verifiedEmail("apple", claims), image: null }),
+    profile: (claims: AppleClaims) => ({
+      id: claims.sub,
+      name: appleName(claims),
+      email: verifiedEmail("apple", claims),
+      image: null,
+    }),
   });
 }

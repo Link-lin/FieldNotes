@@ -26,10 +26,16 @@ export function StopList({ legs, onOpen }: { legs: Leg[]; onOpen: (id: string) =
 function StopRow({ s, same, d, chip, onOpen }: Leg & { onOpen: (id: string) => void }) {
   return (
     <>
-      {chip ? <li className={styles.dayChip} aria-hidden="true" data-hl-day={s.day}>{s.dayLabel}</li> : null}
+      {chip ? (
+        <li className={styles.dayChip} aria-hidden="true" data-hl-day={s.day}>
+          {s.dayLabel}
+        </li>
+      ) : null}
       <li className={styles.stop} data-hl={s.id}>
         <StopNumber n={s.n} need={s.need} />
-        <button type="button" className={styles.name} data-stop-open={s.id} onClick={() => onOpen(s.id)}>{s.name}</button>
+        <button type="button" className={styles.name} data-stop-open={s.id} onClick={() => onOpen(s.id)}>
+          {s.name}
+        </button>
         <small>{same ? `${km(d)} from ${s.n - 1}` : s.flight ? "Flight arrival" : "Start"}</small>
       </li>
     </>

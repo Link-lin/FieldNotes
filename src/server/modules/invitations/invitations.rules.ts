@@ -22,7 +22,10 @@ export function hashInvitationToken(token: string): Buffer {
   return createHash("sha256").update(token, "utf8").digest();
 }
 
-export function invitationStatus(row: { status: "pending" | "accepted" | "revoked"; expires_at: Date | null }, now: Date): InvitationStatus {
+export function invitationStatus(
+  row: { status: "pending" | "accepted" | "revoked"; expires_at: Date | null },
+  now: Date,
+): InvitationStatus {
   if (row.status === "pending" && (!row.expires_at || row.expires_at.getTime() <= now.getTime())) return "expired";
   return row.status;
 }

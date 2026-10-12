@@ -7,10 +7,13 @@ export function DraftsNote({ count, busy, onReviewAll }: { count: number; busy: 
   return (
     <Banner tone="info" className={styles.note}>
       <p>
-        <b>{count === 1 ? "1 event is an AI draft" : `${count} events are AI drafts`}</b> that nobody has checked yet. Open one to check it, or mark them all
-        reviewed once the plan looks right. Prices stay estimates until you confirm them in each event.
+        <b>{count === 1 ? "1 event is an AI draft" : `${count} events are AI drafts`}</b> that nobody has checked yet.
+        Open one to check it, or mark them all reviewed once the plan looks right. Prices stay estimates until you
+        confirm them in each event.
       </p>
-      <Button data-review-all onClick={onReviewAll} disabled={busy}>{busy ? "Marking…" : count === 1 ? "Mark it reviewed" : "Mark all reviewed"}</Button>
+      <Button data-review-all onClick={onReviewAll} disabled={busy}>
+        {busy ? "Marking…" : count === 1 ? "Mark it reviewed" : "Mark all reviewed"}
+      </Button>
     </Banner>
   );
 }

@@ -14,7 +14,13 @@ import type { TripDetailDTO, TripSummaryDTO } from "@/shared/dto";
 import { trimAmount } from "@/shared/money";
 import { tripRevision } from "@/shared/revision";
 import { mergeFields, tripFieldsOf, type TripFields } from "@/shared/fields";
-import { toFieldErrors, tripFieldsSchema, type TripFieldsPatch, type TripInput, type TripPatch } from "@/shared/schemas";
+import {
+  toFieldErrors,
+  tripFieldsSchema,
+  type TripFieldsPatch,
+  type TripInput,
+  type TripPatch,
+} from "@/shared/schemas";
 import { dateInZone } from "@/shared/time";
 import { budgetComparison, plannedTotals, recentCurrencies } from "./budget.repository";
 import { applyTimeZoneChange } from "./time-zone.service";
@@ -23,7 +29,12 @@ import { tripSummary } from "./trips.mapper";
 import { deleteTripRow, insertTrip, updateTripRow } from "./trips.repository";
 
 /** A trip page: the trip, its live items in timeline order, money totals and budget comparison. */
-export async function getTripDetail(db: Kysely<DB>, actor: Actor, tripId: string, now = new Date()): Promise<TripDetailDTO> {
+export async function getTripDetail(
+  db: Kysely<DB>,
+  actor: Actor,
+  tripId: string,
+  now = new Date(),
+): Promise<TripDetailDTO> {
   const access = await requireTripRead(db, actor, tripId);
   const { trip, role } = access;
   const today = dateInZone(trip.time_zone, now.getTime());
@@ -32,7 +43,10 @@ export async function getTripDetail(db: Kysely<DB>, actor: Actor, tripId: string
     trip: {
       ...tripSummary(trip, access, now),
       version: trip.version,
-      budget: trip.budget_amount !== null && trip.budget_currency ? { amount: trimAmount(trip.budget_amount), currency: trip.budget_currency } : null,
+      budget:
+        trip.budget_amount !== null && trip.budget_currency
+          ? { amount: trimAmount(trip.budget_amount), currency: trip.budget_currency }
+          : null,
       today,
     },
     items,
@@ -58,7 +72,12 @@ export async function getTripRevision(db: Kysely<DB>, actor: Actor, tripId: stri
 export const tripDetailForPage = cache((actor: Actor, tripId: string) => getTripDetail(getDb(), actor, tripId));
 
 /** DASH-3: only allowlisted owners create trips; the destination is matched to the place catalog. */
-export async function createTrip(db: Kysely<DB>, actor: Actor, input: TripInput, now = new Date()): Promise<TripSummaryDTO> {
+export async function createTrip(
+  db: Kysely<DB>,
+  actor: Actor,
+  input: TripInput,
+  now = new Date(),
+): Promise<TripSummaryDTO> {
   requireOwnerAccount(actor);
   const point = matchDestination(input.destination);
   const row = await insertTrip(db, actor.userId, {
@@ -78,11 +97,24 @@ export async function createTrip(db: Kysely<DB>, actor: Actor, input: TripInput,
 }
 
 /** DASH-6: edit a trip; a time-zone change needs confirmation, a destination change re-matches the globe point. */
-export async function updateTrip(db: Kysely<DB>, actor: Actor, tripId: string, patch: TripPatch, now = new Date()): Promise<TripSummaryDTO> {
+export async function updateTrip(
+  db: Kysely<DB>,
+  actor: Actor,
+  tripId: string,
+  patch: TripPatch,
+  now = new Date(),
+): Promise<TripSummaryDTO> {
   return db.transaction().execute(async (tx) => {
     const access = await requireTripOwner(tx, actor, tripId, true);
     if (access.trip.version !== patch.expectedVersion) throw conflict();
-    return writeTrip(tx, access, { ...patch, atlasLocation: patch.atlasLocation ?? null }, patch.atlasLocation !== undefined, patch, now);
+    return writeTrip(
+      tx,
+      access,
+      { ...patch, atlasLocation: patch.atlasLocation ?? null },
+      patch.atlasLocation !== undefined,
+      patch,
+      now,
+    );
   });
 }
 
@@ -91,7 +123,13 @@ export async function updateTrip(db: Kysely<DB>, actor: Actor, tripId: string, p
  * when the edit began, so a change elsewhere to another field (or to the trip's events, which also moves its version) is
  * no clash. The merged trip passes the same checks as a full edit, and a time-zone change still needs its impact confirmed.
  */
-export async function updateTripFields(db: Kysely<DB>, actor: Actor, tripId: string, body: TripFieldsPatch, now = new Date()): Promise<TripSummaryDTO> {
+export async function updateTripFields(
+  db: Kysely<DB>,
+  actor: Actor,
+  tripId: string,
+  body: TripFieldsPatch,
+  now = new Date(),
+): Promise<TripSummaryDTO> {
   return db.transaction().execute(async (tx) => {
     const access = await requireTripOwner(tx, actor, tripId, true);
     const { merged, conflicts } = mergeFields(tripFieldsOfRow(access.trip), body.changes, body.base);
@@ -110,8 +148,14 @@ function tripFieldsOfRow(trip: TripRow): TripFields {
     startDate: trip.start_date,
     endDate: trip.end_date,
     timeZone: trip.time_zone,
-    budget: trip.budget_amount !== null && trip.budget_currency ? { amount: trimAmount(trip.budget_amount), currency: trip.budget_currency } : null,
-    atlasLocation: trip.atlas_latitude !== null && trip.atlas_longitude !== null && trip.atlas_source ? { latitude: Number(trip.atlas_latitude), longitude: Number(trip.atlas_longitude) } : null,
+    budget:
+      trip.budget_amount !== null && trip.budget_currency
+        ? { amount: trimAmount(trip.budget_amount), currency: trip.budget_currency }
+        : null,
+    atlasLocation:
+      trip.atlas_latitude !== null && trip.atlas_longitude !== null && trip.atlas_source
+        ? { latitude: Number(trip.atlas_latitude), longitude: Number(trip.atlas_longitude) }
+        : null,
   });
 }
 
@@ -125,7 +169,8 @@ async function writeTrip(
   now: Date,
 ): Promise<TripSummaryDTO> {
   const { trip } = access;
-  if (next.timeZone !== trip.time_zone) await applyTimeZoneChange(tx, trip, next.timeZone, zone.confirmTimeZoneImpact, zone.timeDisambiguationByItem ?? {});
+  if (next.timeZone !== trip.time_zone)
+    await applyTimeZoneChange(tx, trip, next.timeZone, zone.confirmTimeZoneImpact, zone.timeDisambiguationByItem ?? {});
 
   // Globe point (ATLAS-4, ATLAS-5): an explicit edit wins; otherwise a new destination re-matches a catalog point.
   let lat = trip.atlas_latitude;

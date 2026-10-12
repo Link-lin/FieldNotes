@@ -14,7 +14,13 @@ import { dateInZone, dueState, resolveLocal } from "@/shared/time";
  * the new zone: times that don't exist block the change, repeated times need a choice.
  */
 
-export type ZoneImpact = { itemId: string; title: string; localDate: string; localTime: string; result: "ok" | "gap" | "ambiguous" };
+export type ZoneImpact = {
+  itemId: string;
+  title: string;
+  localDate: string;
+  localTime: string;
+  result: "ok" | "gap" | "ambiguous";
+};
 
 async function zoneImpact(db: Conn, tripId: string, zone: string): Promise<ZoneImpact[]> {
   const rows = await inheritedTimedItems(db, tripId);
@@ -26,7 +32,14 @@ async function zoneImpact(db: Conn, tripId: string, zone: string): Promise<ZoneI
 }
 
 /** Read-only preview: every affected event and every booking task's due state before and after. */
-export async function previewTimeZone(db: Kysely<DB>, actor: Actor, tripId: string, zone: string, expectedVersion: number, now = new Date()) {
+export async function previewTimeZone(
+  db: Kysely<DB>,
+  actor: Actor,
+  tripId: string,
+  zone: string,
+  expectedVersion: number,
+  now = new Date(),
+) {
   const { trip } = await requireTripOwner(db, actor, tripId);
   if (trip.version !== expectedVersion) throw conflict();
   const items = await zoneImpact(db, trip.id, zone);
@@ -51,13 +64,29 @@ export async function applyTimeZoneChange(
   confirmed: boolean | undefined,
   choices: Record<string, "earlier" | "later">,
 ): Promise<void> {
-  if (!confirmed) throw new HttpError(409, "time_zone_confirmation_required", "Confirm the time-zone change after reviewing its effect.");
+  if (!confirmed)
+    throw new HttpError(
+      409,
+      "time_zone_confirmation_required",
+      "Confirm the time-zone change after reviewing its effect.",
+    );
   const impact = await zoneImpact(tx, trip.id, zone);
   const errors: FieldError[] = [];
   for (const i of impact) {
-    if (i.result === "gap") errors.push({ path: `items.${i.itemId}.localTime`, code: "nonexistent_local_time", message: `${i.title}: ${i.localTime} doesn't exist on ${i.localDate} in ${zone}. Change the time or give the event its own time zone first.` });
-    if (i.result === "ambiguous" && !choices[i.itemId]) errors.push({ path: `items.${i.itemId}.timeDisambiguation`, code: "ambiguous_local_time", message: `${i.title}: ${i.localTime} happens twice on ${i.localDate}. Choose the earlier or later one.` });
+    if (i.result === "gap")
+      errors.push({
+        path: `items.${i.itemId}.localTime`,
+        code: "nonexistent_local_time",
+        message: `${i.title}: ${i.localTime} doesn't exist on ${i.localDate} in ${zone}. Change the time or give the event its own time zone first.`,
+      });
+    if (i.result === "ambiguous" && !choices[i.itemId])
+      errors.push({
+        path: `items.${i.itemId}.timeDisambiguation`,
+        code: "ambiguous_local_time",
+        message: `${i.title}: ${i.localTime} happens twice on ${i.localDate}. Choose the earlier or later one.`,
+      });
   }
   if (errors.length) throw invalid(errors, "Some event times need attention before changing the time zone.");
-  for (const i of impact) await setTimeDisambiguation(tx, i.itemId, i.result === "ambiguous" ? choices[i.itemId]! : null);
+  for (const i of impact)
+    await setTimeDisambiguation(tx, i.itemId, i.result === "ambiguous" ? choices[i.itemId]! : null);
 }

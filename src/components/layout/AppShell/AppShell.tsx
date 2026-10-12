@@ -7,9 +7,13 @@ import styles from "./AppShell.module.css";
 export function AppShell({ header, children }: { header: React.ReactNode; children: React.ReactNode }) {
   return (
     <div id="app-root" className={styles.shell}>
-      <a className={styles.skipLink} href="#main">Skip to content</a>
+      <a className={styles.skipLink} href="#main">
+        Skip to content
+      </a>
       {header}
-      <div id="main" className={styles.main}>{children}</div>
+      <div id="main" className={styles.main}>
+        {children}
+      </div>
     </div>
   );
 }

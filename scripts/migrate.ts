@@ -14,7 +14,9 @@ if (!url) {
   console.error("Set DATABASE_URL (or MIGRATION_DATABASE_URL) first. See .env.example.");
   process.exit(1);
 }
-const db = new Kysely<unknown>({ dialect: new PostgresDialect({ pool: new pg.Pool({ connectionString: url, max: 1 }) }) });
+const db = new Kysely<unknown>({
+  dialect: new PostgresDialect({ pool: new pg.Pool({ connectionString: url, max: 1 }) }),
+});
 try {
   const applied = await migrateToLatest(db);
   console.log(applied.length ? `Applied: ${applied.join(", ")}` : "Database is up to date.");

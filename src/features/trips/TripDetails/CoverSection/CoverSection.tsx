@@ -14,7 +14,8 @@ import styles from "./CoverSection.module.css";
 
 /** What a save changes the cover to: a file just chosen, images to put back (Undo), or none. `version` is the cover shown. */
 type CoverValue = { version: string } | { file: File } | { files: CoverFiles } | null;
-const sameCover = (a: CoverValue, b: CoverValue) => (a && b ? "version" in a && "version" in b && a.version === b.version : a === b);
+const sameCover = (a: CoverValue, b: CoverValue) =>
+  a && b ? "version" in a && "version" in b && a.version === b.version : a === b;
 
 /** The cover's two images as stored, so Undo can put them back; null when they can't be fetched. */
 async function storedImages(cover: TripCoverDTO): Promise<CoverFiles | null> {
@@ -33,7 +34,11 @@ async function storedImages(cover: TripCoverDTO): Promise<CoverFiles | null> {
 }
 
 /** Stores new images (or removes the cover) if the cover is still `base`, the version the change started from. */
-async function sendCover(tripId: string, files: CoverFiles | null, base: string): Promise<{ ok: true; trip: TripSummaryDTO } | Extract<FieldSaveResult, { ok: false }>> {
+async function sendCover(
+  tripId: string,
+  files: CoverFiles | null,
+  base: string,
+): Promise<{ ok: true; trip: TripSummaryDTO } | Extract<FieldSaveResult, { ok: false }>> {
   let r;
   if (files) {
     const form = new FormData();
@@ -46,7 +51,12 @@ async function sendCover(tripId: string, files: CoverFiles | null, base: string)
   }
   if (r.ok) return { ok: true, trip: r.data };
   if (r.code === "field_conflict") {
-    return { ok: false, conflict: true, message: "The cover was changed elsewhere (in another tab or window, or by another owner) meanwhile, so yours wasn't saved. Look at it as it is now, then try again." };
+    return {
+      ok: false,
+      conflict: true,
+      message:
+        "The cover was changed elsewhere (in another tab or window, or by another owner) meanwhile, so yours wasn't saved. Look at it as it is now, then try again.",
+    };
   }
   return { ok: false, message: r.message };
 }
@@ -61,7 +71,12 @@ export function CoverSection({ trip }: { trip: TripDetailDTO["trip"] }) {
   const cover = trip.cover;
 
   /** Saves `next` over `base`; a change offers Undo (an Undo itself doesn't, so it needn't fetch the images it replaces). */
-  async function change(next: CoverValue, base: string, before: TripCoverDTO | null, offerUndo = true): Promise<FieldSaveResult> {
+  async function change(
+    next: CoverValue,
+    base: string,
+    before: TripCoverDTO | null,
+    offerUndo = true,
+  ): Promise<FieldSaveResult> {
     let files: CoverFiles | null = null;
     if (next && "file" in next) {
       const made = await prepareCover(next.file);
@@ -77,7 +92,13 @@ export function CoverSection({ trip }: { trip: TripDetailDTO["trip"] }) {
     const now = r.trip.cover;
     const version = now?.version ?? "";
     // Undo puts back the images that were there, or removes a cover the trip didn't have.
-    const undo = !offerUndo ? undefined : before ? (previous ? () => change({ files: previous }, version, now, false) : undefined) : () => change(null, version, now, false);
+    const undo = !offerUndo
+      ? undefined
+      : before
+        ? previous
+          ? () => change({ files: previous }, version, now, false)
+          : undefined
+        : () => change(null, version, now, false);
     return { ok: true, note: files ? "Cover saved." : "Cover removed.", undo };
   }
 
@@ -93,11 +114,19 @@ export function CoverSection({ trip }: { trip: TripDetailDTO["trip"] }) {
         {cover ? <TripCover cover={cover} size="small" alt="This trip's cover" className={styles.preview} /> : null}
         <div className={styles.side}>
           <p className="note">
-            {cover ? "Shown on this trip's card and page, to everyone you share it with." : "A picture for this trip's card and page, such as a photo from the trip, or an image you made from one in an AI chat."}
+            {cover
+              ? "Shown on this trip's card and page, to everyone you share it with."
+              : "A picture for this trip's card and page, such as a photo from the trip, or an image you made from one in an AI chat."}
           </p>
           <div className={styles.actions}>
-            <Button data-cover-choose disabled={field.saving} onClick={() => input.current?.click()}>{cover ? "Replace image…" : "Choose image…"}</Button>
-            {cover ? <Button variant="quiet" disabled={field.saving} onClick={() => void field.saveNow(null)}>Remove cover</Button> : null}
+            <Button data-cover-choose disabled={field.saving} onClick={() => input.current?.click()}>
+              {cover ? "Replace image…" : "Choose image…"}
+            </Button>
+            {cover ? (
+              <Button variant="quiet" disabled={field.saving} onClick={() => void field.saveNow(null)}>
+                Remove cover
+              </Button>
+            ) : null}
           </div>
           <input
             ref={input}
@@ -113,7 +142,9 @@ export function CoverSection({ trip }: { trip: TripDetailDTO["trip"] }) {
             }}
           />
           <SaveStatus status={field.status} onUndo={() => void field.undo()} showError />
-          <p className="note">It is made smaller on this device before it is sent, and keeps no location or camera details.</p>
+          <p className="note">
+            It is made smaller on this device before it is sent, and keeps no location or camera details.
+          </p>
         </div>
       </div>
     </SectionFrame>

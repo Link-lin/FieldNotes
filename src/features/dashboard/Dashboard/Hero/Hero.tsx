@@ -16,9 +16,20 @@ export function Hero({ data, onCreate, className }: { data: DashboardDTO; onCrea
     <section className={cx(styles.hero, className)} data-has-trips={hasTrips || undefined}>
       <p className={cx("mono", styles.eyebrow)}>Your atlas{today ? ` · today is ${fmtShort(today)}` : ""}</p>
       <h1 className={styles.title}>
-        {hasTrips ? "Your trips" : <>Every trip, on one <em>globe.</em></>}
+        {hasTrips ? (
+          "Your trips"
+        ) : (
+          <>
+            Every trip, on one <em>globe.</em>
+          </>
+        )}
       </h1>
-      {!hasTrips ? <p className={styles.lede}>The places you have been and the places you are going, pinned once and easy to find again. Drag the globe, or pick a trip from the list.</p> : null}
+      {!hasTrips ? (
+        <p className={styles.lede}>
+          The places you have been and the places you are going, pinned once and easy to find again. Drag the globe, or
+          pick a trip from the list.
+        </p>
+      ) : null}
       {data.canCreateTrips ? (
         <div className="cluster">
           <Button variant="fill" onClick={onCreate}>

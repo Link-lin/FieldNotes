@@ -10,16 +10,48 @@ import type { ItemInput } from "./schemas";
 
 /** The event fields a field-level save may change: the top-level keys of the item form's shape. */
 export const ITEM_FIELDS = [
-  "type", "title", "location", "notes", "links", "mapUrl", "bookingStatus", "bookingDueDate", "plannedPrice",
-  "localDate", "localTime", "timeZone", "timeDisambiguation", "durationMinutes",
-  "plannedDepartureDate", "airline", "flightNumber", "departure", "arrival",
+  "type",
+  "title",
+  "location",
+  "notes",
+  "links",
+  "mapUrl",
+  "bookingStatus",
+  "bookingDueDate",
+  "plannedPrice",
+  "localDate",
+  "localTime",
+  "timeZone",
+  "timeDisambiguation",
+  "durationMinutes",
+  "plannedDepartureDate",
+  "airline",
+  "flightNumber",
+  "departure",
+  "arrival",
 ] as const;
 export type ItemField = (typeof ITEM_FIELDS)[number];
 
 /** The trip fields a field-level save may change (DASH-6, ATLAS-4). */
-export const TRIP_FIELDS = ["title", "destination", "startDate", "endDate", "timeZone", "budget", "atlasLocation"] as const;
+export const TRIP_FIELDS = [
+  "title",
+  "destination",
+  "startDate",
+  "endDate",
+  "timeZone",
+  "budget",
+  "atlasLocation",
+] as const;
 export type TripField = (typeof TRIP_FIELDS)[number];
-export type TripFields = { title: string; destination: string; startDate: string; endDate: string; timeZone: string; budget: MoneyDTO | null; atlasLocation: LatLon | null };
+export type TripFields = {
+  title: string;
+  destination: string;
+  startDate: string;
+  endDate: string;
+  timeZone: string;
+  budget: MoneyDTO | null;
+  atlasLocation: LatLon | null;
+};
 
 const SCHEDULE: Record<"flight" | "other", ItemField[]> = {
   flight: ["plannedDepartureDate", "airline", "flightNumber", "departure", "arrival"],
@@ -27,7 +59,13 @@ const SCHEDULE: Record<"flight" | "other", ItemField[]> = {
 };
 const EMPTY_ENDPOINT = { airportCode: null, localDateTime: null, timeZone: null, timeDisambiguation: null };
 const EMPTY_SCHEDULE: Record<"flight" | "other", Record<string, unknown>> = {
-  flight: { plannedDepartureDate: null, airline: null, flightNumber: null, departure: EMPTY_ENDPOINT, arrival: EMPTY_ENDPOINT },
+  flight: {
+    plannedDepartureDate: null,
+    airline: null,
+    flightNumber: null,
+    departure: EMPTY_ENDPOINT,
+    arrival: EMPTY_ENDPOINT,
+  },
   other: { localDate: null, localTime: null, timeZone: null, timeDisambiguation: null, durationMinutes: null },
 };
 const kind = (type: unknown) => (type === "flight" ? "flight" : "other");
@@ -42,7 +80,9 @@ export function itemInputOf(dto: PlanItemDTO): ItemInput {
     mapUrl: dto.mapUrl,
     bookingStatus: dto.bookingStatus,
     bookingDueDate: dto.bookingDueDate,
-    plannedPrice: dto.plannedPrice ? { amount: dto.plannedPrice.amount, currency: dto.plannedPrice.currency, label: dto.plannedPrice.label } : null,
+    plannedPrice: dto.plannedPrice
+      ? { amount: dto.plannedPrice.amount, currency: dto.plannedPrice.currency, label: dto.plannedPrice.label }
+      : null,
   };
   if (dto.type === "flight") {
     const f = dto.flightDetails!;
@@ -76,13 +116,20 @@ export function tripFieldsOf(trip: Omit<TripFields, "atlasLocation"> & { atlasLo
     endDate: trip.endDate,
     timeZone: trip.timeZone,
     budget: trip.budget ? { amount: trip.budget.amount, currency: trip.budget.currency } : null,
-    atlasLocation: trip.atlasLocation ? { latitude: trip.atlasLocation.latitude, longitude: trip.atlasLocation.longitude } : null,
+    atlasLocation: trip.atlasLocation
+      ? { latitude: trip.atlasLocation.latitude, longitude: trip.atlasLocation.longitude }
+      : null,
   };
 }
 
 function stable(v: unknown): unknown {
   if (Array.isArray(v)) return v.map(stable);
-  if (v && typeof v === "object") return Object.fromEntries(Object.keys(v).sort().map((k) => [k, stable((v as Record<string, unknown>)[k])]));
+  if (v && typeof v === "object")
+    return Object.fromEntries(
+      Object.keys(v)
+        .sort()
+        .map((k) => [k, stable((v as Record<string, unknown>)[k])]),
+    );
   return v === undefined ? null : v;
 }
 
@@ -95,7 +142,11 @@ export function sameValue(a: unknown, b: unknown): boolean {
  * Merges a field-level save onto the current values. Every changed field must still hold the value it had when the
  * edit began (`base`); the ones that don't are returned as conflicts and nothing is merged.
  */
-export function mergeFields<T extends object>(current: T, changes: Record<string, unknown>, base: Record<string, unknown>): { merged: Record<string, unknown>; conflicts: string[] } {
+export function mergeFields<T extends object>(
+  current: T,
+  changes: Record<string, unknown>,
+  base: Record<string, unknown>,
+): { merged: Record<string, unknown>; conflicts: string[] } {
   const now = current as Record<string, unknown>;
   const conflicts = Object.keys(changes).filter((k) => !sameValue(base[k], now[k]));
   return conflicts.length ? { merged: { ...now }, conflicts } : { merged: { ...now, ...changes }, conflicts };
@@ -105,7 +156,11 @@ export function mergeFields<T extends object>(current: T, changes: Record<string
  * The same for an event. A change to or from a flight swaps its schedule fields: the old kind's are dropped and the new
  * kind's start empty unless the save sets them, which is the "clears the schedule" the person confirms (TRIP-9).
  */
-export function mergeItemFields(current: ItemInput, changes: Record<string, unknown>, base: Record<string, unknown>): { merged: Record<string, unknown>; conflicts: string[] } {
+export function mergeItemFields(
+  current: ItemInput,
+  changes: Record<string, unknown>,
+  base: Record<string, unknown>,
+): { merged: Record<string, unknown>; conflicts: string[] } {
   const result = mergeFields(current, changes, base);
   if (result.conflicts.length) return result;
   const from = kind(current.type);

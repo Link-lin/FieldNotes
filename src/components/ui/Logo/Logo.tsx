@@ -6,9 +6,17 @@ import styles from "./Logo.module.css";
 export function Logo({ href }: { href?: string }) {
   const body = (
     <>
-      <i aria-hidden="true"><GlobeIcon /></i>
+      <i aria-hidden="true">
+        <GlobeIcon />
+      </i>
       <span className="mono">Field Notes</span>
     </>
   );
-  return href ? <Link className={styles.logo} href={href}>{body}</Link> : <span className={styles.logo}>{body}</span>;
+  return href ? (
+    <Link className={styles.logo} href={href}>
+      {body}
+    </Link>
+  ) : (
+    <span className={styles.logo}>{body}</span>
+  );
 }

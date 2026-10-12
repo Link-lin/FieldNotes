@@ -31,7 +31,12 @@ const KYOTO = { full: image("kyoto-full"), small: image("kyoto-small") };
 /** The same JPEG with an EXIF segment (a made-up location) after its start marker. */
 function withExif(jpeg: Buffer): Buffer {
   const body = Buffer.from("Exif\0\0GPS 37.7749 N 122.4194 W");
-  return Buffer.concat([jpeg.subarray(0, 2), Buffer.from([0xff, 0xe1, (body.length + 2) >> 8, (body.length + 2) & 0xff]), body, jpeg.subarray(2)]);
+  return Buffer.concat([
+    jpeg.subarray(0, 2),
+    Buffer.from([0xff, 0xe1, (body.length + 2) >> 8, (body.length + 2) & 0xff]),
+    body,
+    jpeg.subarray(2),
+  ]);
 }
 
 /** The same JPEG with the size in its frame header changed (the walk never decodes the picture). */
@@ -44,7 +49,10 @@ function withSize(jpeg: Buffer, width: number, height: number): Buffer {
 }
 
 /** A cover upload as the browser sends it; the form is encoded up front, as it would arrive over the network. */
-async function put(parts: { full?: Buffer; small?: Buffer; base?: string }, origin: string | null = ORIGIN): Promise<Request> {
+async function put(
+  parts: { full?: Buffer; small?: Buffer; base?: string },
+  origin: string | null = ORIGIN,
+): Promise<Request> {
   const form = new FormData();
   if (parts.full) form.append("full", new Blob([new Uint8Array(parts.full)]), "full.jpg");
   if (parts.small) form.append("small", new Blob([new Uint8Array(parts.small)]), "small.jpg");
@@ -54,11 +62,17 @@ async function put(parts: { full?: Buffer; small?: Buffer; base?: string }, orig
   if (origin) headers.origin = origin;
   return new Request(`${ORIGIN}/api/trips/x/cover`, { method: "PUT", headers, body: await encoded.arrayBuffer() });
 }
-const del = (base: string) => new Request(`${ORIGIN}/api/trips/x/cover`, { method: "DELETE", headers: { "content-type": "application/json", origin: ORIGIN }, body: JSON.stringify({ base }) });
+const del = (base: string) =>
+  new Request(`${ORIGIN}/api/trips/x/cover`, {
+    method: "DELETE",
+    headers: { "content-type": "application/json", origin: ORIGIN },
+    body: JSON.stringify({ base }),
+  });
 const get = (size?: string) => new Request(`${ORIGIN}/api/trips/x/cover${size ? `?size=${size}` : ""}`);
 const ctx = (tripId: string) => ({ params: Promise.resolve({ tripId }) });
 const version = async (tripId: string, who: Actor) => (await getTripDetail(testDb(), who, tripId, NOW)).trip.version;
-const coverRows = async () => Number((await sql<{ n: string }>`select count(*) as n from trip_covers`.execute(testDb())).rows[0]!.n);
+const coverRows = async () =>
+  Number((await sql<{ n: string }>`select count(*) as n from trip_covers`.execute(testDb())).rows[0]!.n);
 
 let owner: Actor, coOwner: Actor, editor: Actor, viewer: Actor, stranger: Actor, tripId: string;
 beforeEach(async () => {
@@ -120,7 +134,8 @@ describe("trip cover (DASH-8)", () => {
   });
 
   it("refuses a change based on a cover that has changed since, keeping the newer one", async () => {
-    const first = ((await (await cover.PUT(await put({ ...HAWAII, base: "" }), ctx(tripId))).json()) as TripSummaryDTO).cover!;
+    const first = ((await (await cover.PUT(await put({ ...HAWAII, base: "" }), ctx(tripId))).json()) as TripSummaryDTO)
+      .cover!;
     const v = await version(tripId, owner);
 
     const stale = await cover.PUT(await put({ ...KYOTO, base: "" }), ctx(tripId));
@@ -133,7 +148,14 @@ describe("trip cover (DASH-8)", () => {
   });
 
   it("stores the images without their metadata", async () => {
-    expect((await cover.PUT(await put({ full: withExif(HAWAII.full), small: withExif(HAWAII.small), base: "" }), ctx(tripId))).status).toBe(200);
+    expect(
+      (
+        await cover.PUT(
+          await put({ full: withExif(HAWAII.full), small: withExif(HAWAII.small), base: "" }),
+          ctx(tripId),
+        )
+      ).status,
+    ).toBe(200);
     for (const size of ["full", "small"]) {
       const bytes = Buffer.from(await (await cover.GET(get(size), ctx(tripId))).arrayBuffer());
       expect(bytes.includes(Buffer.from("Exif"))).toBe(false);
@@ -170,7 +192,11 @@ describe("trip cover (DASH-8)", () => {
 
   it("refuses what isn't a cover, writing nothing", async () => {
     const v = await version(tripId, owner);
-    const json = new Request(`${ORIGIN}/api/trips/x/cover`, { method: "PUT", headers: { "content-type": "application/json", origin: ORIGIN }, body: JSON.stringify({ full: "x" }) });
+    const json = new Request(`${ORIGIN}/api/trips/x/cover`, {
+      method: "PUT",
+      headers: { "content-type": "application/json", origin: ORIGIN },
+      body: JSON.stringify({ full: "x" }),
+    });
     expect((await cover.PUT(json, ctx(tripId))).status).toBe(400);
     expect((await cover.PUT(await put({ full: HAWAII.full, base: "" }), ctx(tripId))).status).toBe(400);
     expect((await cover.PUT(await put({ ...HAWAII }), ctx(tripId))).status).toBe(400);
@@ -183,11 +209,18 @@ describe("trip cover (DASH-8)", () => {
     await refused({ full: Buffer.from("\x89PNG\r\n\x1a\n not a jpeg"), small: HAWAII.small }, "full", "invalid_image");
     await refused({ full: HAWAII.full, small: HAWAII.full }, "small", "image_size");
     await refused({ full: withSize(HAWAII.full, 4000, 3000), small: HAWAII.small }, "full", "image_size");
-    await refused({ full: withSize(HAWAII.full, 1800, 500), small: withSize(HAWAII.small, 480, 133) }, "full", "image_shape");
+    await refused(
+      { full: withSize(HAWAII.full, 1800, 500), small: withSize(HAWAII.small, 480, 133) },
+      "full",
+      "image_shape",
+    );
     await refused({ full: HAWAII.full, small: withSize(HAWAII.small, 480, 320) }, "small", "image_shape");
     await refused({ full: HAWAII.small, small: HAWAII.small.subarray(0, 300) }, "small", "invalid_image");
 
-    const big = await cover.PUT(await put({ full: Buffer.alloc(1024 * 1024 + 1, 0xff), small: HAWAII.small, base: "" }), ctx(tripId));
+    const big = await cover.PUT(
+      await put({ full: Buffer.alloc(1024 * 1024 + 1, 0xff), small: HAWAII.small, base: "" }),
+      ctx(tripId),
+    );
     expect(big.status).toBe(413);
 
     expect((await getTripDetail(testDb(), owner, tripId, NOW)).trip.cover).toBeNull();
@@ -206,9 +239,23 @@ describe("trip cover (DASH-8)", () => {
 
   it("keeps the trip's cover columns whole and the images within their limits", async () => {
     const db = testDb();
-    await expect(sql`update trips set cover_hash = ${"a".repeat(64)} where id = ${tripId}`.execute(db)).rejects.toThrow(/trips_cover/);
-    await expect(sql`update trips set cover_hash = 'not-a-hash', cover_width = 10, cover_height = 10 where id = ${tripId}`.execute(db)).rejects.toThrow(/trips_cover/);
-    await expect(sql`update trips set cover_hash = ${"a".repeat(64)}, cover_width = 4096, cover_height = 10 where id = ${tripId}`.execute(db)).rejects.toThrow(/trips_cover/);
-    await expect(sql`insert into trip_covers (trip_id, full_jpeg, small_jpeg) values (${tripId}, ${Buffer.alloc(0)}, ${Buffer.alloc(8)})`.execute(db)).rejects.toThrow(/trip_covers_full_jpeg_check/);
+    await expect(sql`update trips set cover_hash = ${"a".repeat(64)} where id = ${tripId}`.execute(db)).rejects.toThrow(
+      /trips_cover/,
+    );
+    await expect(
+      sql`update trips set cover_hash = 'not-a-hash', cover_width = 10, cover_height = 10 where id = ${tripId}`.execute(
+        db,
+      ),
+    ).rejects.toThrow(/trips_cover/);
+    await expect(
+      sql`update trips set cover_hash = ${"a".repeat(64)}, cover_width = 4096, cover_height = 10 where id = ${tripId}`.execute(
+        db,
+      ),
+    ).rejects.toThrow(/trips_cover/);
+    await expect(
+      sql`insert into trip_covers (trip_id, full_jpeg, small_jpeg) values (${tripId}, ${Buffer.alloc(0)}, ${Buffer.alloc(8)})`.execute(
+        db,
+      ),
+    ).rejects.toThrow(/trip_covers_full_jpeg_check/);
   });
 });

@@ -10,12 +10,21 @@ export const GET = route<P>({}, async ({ db, actor, params, req }) => {
   const size = new URL(req.url).searchParams.get("size") === "full" ? "full" : "small";
   const bytes = await readTripCover(db, actor, params.tripId, size);
   return new Response(new Uint8Array(bytes), {
-    headers: { "Content-Type": "image/jpeg", "Content-Length": String(bytes.length), "Content-Disposition": "inline", "Cache-Control": "private, no-store" },
+    headers: {
+      "Content-Type": "image/jpeg",
+      "Content-Length": String(bytes.length),
+      "Content-Disposition": "inline",
+      "Cache-Control": "private, no-store",
+    },
   });
 });
 
 /** DASH-8: adds or replaces the cover; the browser sends both sizes and the cover it replaces. */
-export const PUT = route<P>({}, async ({ db, actor, params, req }) => setTripCover(db, actor, params.tripId, await coverParts(await readForm(req))));
+export const PUT = route<P>({}, async ({ db, actor, params, req }) =>
+  setTripCover(db, actor, params.tripId, await coverParts(await readForm(req))),
+);
 
 /** DASH-8: removes the cover. */
-export const DELETE = route<P, typeof coverRemoveSchema>({ body: coverRemoveSchema }, ({ db, actor, params, body }) => removeTripCover(db, actor, params.tripId, body.base));
+export const DELETE = route<P, typeof coverRemoveSchema>({ body: coverRemoveSchema }, ({ db, actor, params, body }) =>
+  removeTripCover(db, actor, params.tripId, body.base),
+);

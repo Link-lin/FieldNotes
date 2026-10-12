@@ -4,7 +4,11 @@ import { useState } from "react";
 import { isDate, isLocalDateTime, isTime } from "@/shared/time";
 
 type Kind = "date" | "time" | "datetime-local";
-const VALID: Record<Kind, (value: string) => boolean> = { date: isDate, time: isTime, "datetime-local": isLocalDateTime };
+const VALID: Record<Kind, (value: string) => boolean> = {
+  date: isDate,
+  time: isTime,
+  "datetime-local": isLocalDateTime,
+};
 
 type Props = Omit<React.InputHTMLAttributes<HTMLInputElement>, "type" | "value" | "onChange"> & {
   kind: Kind;

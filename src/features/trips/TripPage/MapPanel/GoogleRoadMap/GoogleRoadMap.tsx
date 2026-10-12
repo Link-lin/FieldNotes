@@ -13,7 +13,11 @@ export function GoogleRoadMap({ stops, apiKey }: { stops: Stop[]; apiKey: string
   const [loadedUrl, setLoadedUrl] = useState<string | null>(null);
   const chunks = routeChunks(stops);
   const segment = chunks[Math.min(segmentIndex, chunks.length - 1)] ?? [stops[0]!];
-  const url = googleDayEmbedUrl(apiKey, segment.map((s) => (s.airport ? { airport: s.airport } : ([s.lat, s.lon] as const))), mode)!;
+  const url = googleDayEmbedUrl(
+    apiKey,
+    segment.map((s) => (s.airport ? { airport: s.airport } : ([s.lat, s.lon] as const))),
+    mode,
+  )!;
   const route = segment.length > 1;
 
   return (
@@ -23,7 +27,10 @@ export function GoogleRoadMap({ stops, apiKey }: { stops: Stop[]; apiKey: string
           {chunks.length > 1 ? (
             <label>
               <span>Route segment</span>
-              <select value={Math.min(segmentIndex, chunks.length - 1)} onChange={(event) => setSegmentIndex(Number(event.target.value))}>
+              <select
+                value={Math.min(segmentIndex, chunks.length - 1)}
+                onChange={(event) => setSegmentIndex(Number(event.target.value))}
+              >
                 {chunks.map((chunk, index) => (
                   <option key={`${chunk[0]!.id}-${chunk[chunk.length - 1]!.id}`} value={index}>
                     Stops {chunk[0]!.n}–{chunk[chunk.length - 1]!.n}
@@ -44,18 +51,27 @@ export function GoogleRoadMap({ stops, apiKey }: { stops: Stop[]; apiKey: string
       <div className={styles.frame} data-loaded={loadedUrl === url || undefined}>
         <iframe
           key={url}
-          title={route ? `Google road route, stops ${segment[0]!.n} to ${segment[segment.length - 1]!.n}` : `Google road map, stop ${segment[0]!.n}`}
+          title={
+            route
+              ? `Google road route, stops ${segment[0]!.n} to ${segment[segment.length - 1]!.n}`
+              : `Google road map, stop ${segment[0]!.n}`
+          }
           src={url}
           referrerPolicy="origin"
           sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
           allowFullScreen
           onLoad={() => setLoadedUrl(url)}
         />
-        <span className={styles.loading} aria-hidden="true">Loading road map…</span>
+        <span className={styles.loading} aria-hidden="true">
+          Loading road map…
+        </span>
       </div>
       <figcaption className="note">
-        Map by Google. Opening this view sends its pinned coordinates, and the codes of airports you arrive at, to Google.
-        {route ? " Route markers are Google’s; the numbered stop list below matches the itinerary." : " Add another pinned stop on this day to show a road route."}
+        Map by Google. Opening this view sends its pinned coordinates, and the codes of airports you arrive at, to
+        Google.
+        {route
+          ? " Route markers are Google’s; the numbered stop list below matches the itinerary."
+          : " Add another pinned stop on this day to show a road route."}
         {chunks.length > 1 ? " Flights and long routes are shown in separate segments." : ""}
       </figcaption>
     </figure>

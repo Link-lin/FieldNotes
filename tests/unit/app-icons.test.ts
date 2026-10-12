@@ -36,7 +36,13 @@ describe("the site's icons", () => {
       const at = 6 + 16 * i;
       const size = ico.readUInt32LE(at + 8);
       const offset = ico.readUInt32LE(at + 12);
-      return { width: ico.readUInt8(at), height: ico.readUInt8(at + 1), image: ico.subarray(offset, offset + size), size, offset };
+      return {
+        width: ico.readUInt8(at),
+        height: ico.readUInt8(at + 1),
+        image: ico.subarray(offset, offset + size),
+        size,
+        offset,
+      };
     });
     expect(entries.map((e) => e.width)).toEqual([16, 32, 48]);
     for (const e of entries) {

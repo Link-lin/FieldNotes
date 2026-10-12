@@ -52,7 +52,14 @@ export function itemView(item: PlanItemDTO, notesLimit?: number) {
     bookingStatus: BOOKING[item.bookingStatus],
     bookByDate: item.bookingDueDate,
     bookingDue: item.bookingDueState,
-    plannedPrice: item.plannedPrice ? { amount: item.plannedPrice.amount, currency: item.plannedPrice.currency, label: item.plannedPrice.label, setBy: item.plannedPrice.source === "ai" ? "ai" : "person" } : null,
+    plannedPrice: item.plannedPrice
+      ? {
+          amount: item.plannedPrice.amount,
+          currency: item.plannedPrice.currency,
+          label: item.plannedPrice.label,
+          setBy: item.plannedPrice.source === "ai" ? "ai" : "person",
+        }
+      : null,
     addedBy: item.source === "ai" ? "ai" : "person",
     // An AI item the person has checked and kept (IMPORT-7); absent while it is still an unverified draft.
     reviewedByPerson: item.source === "ai" && item.reviewedAt ? true : undefined,
@@ -62,8 +69,16 @@ export function itemView(item: PlanItemDTO, notesLimit?: number) {
           plannedDepartureDate: f.plannedDepartureDate,
           airline: f.airline,
           flightNumber: f.flightNumber,
-          departure: { airportCode: f.departure.airportCode, localDateTime: f.departure.localDateTime, timeZone: f.departure.timeZone },
-          arrival: { airportCode: f.arrival.airportCode, localDateTime: f.arrival.localDateTime, timeZone: f.arrival.timeZone },
+          departure: {
+            airportCode: f.departure.airportCode,
+            localDateTime: f.departure.localDateTime,
+            timeZone: f.departure.timeZone,
+          },
+          arrival: {
+            airportCode: f.arrival.airportCode,
+            localDateTime: f.arrival.localDateTime,
+            timeZone: f.arrival.timeZone,
+          },
         }
       : null,
   });
@@ -88,7 +103,11 @@ export function tripView(trip: TripSummaryDTO) {
 
 export const tripListView = (trips: TripSummaryDTO[]) => ({ trips: trips.map(tripView) });
 
-const totalView = (t: PlannedTotalDTO) => ({ currency: t.currency, total: t.total, ofWhichAiEstimates: t.unverifiedCount });
+const totalView = (t: PlannedTotalDTO) => ({
+  currency: t.currency,
+  total: t.total,
+  ofWhichAiEstimates: t.unverifiedCount,
+});
 
 /**
  * A trip with its items in page order. Items go in until the result would pass the cap; the rest are counted, so the
@@ -110,5 +129,14 @@ export function tripDetailJson(detail: TripDetailDTO): string {
     size += length;
   }
   const omitted = detail.items.length - items.length;
-  return JSON.stringify({ ...head, items, ...(omitted > 0 ? { omittedItems: omitted, note: "The list was too long to return in full; call get_item for any item that is missing." } : {}) });
+  return JSON.stringify({
+    ...head,
+    items,
+    ...(omitted > 0
+      ? {
+          omittedItems: omitted,
+          note: "The list was too long to return in full; call get_item for any item that is missing.",
+        }
+      : {}),
+  });
 }

@@ -29,17 +29,30 @@ const KEY_CONSTRAINT = "import_receipts_owner_user_id_idempotency_key_key";
 function stable(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(stable);
   if (value && typeof value === "object") {
-    return Object.fromEntries(Object.entries(value).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([key, v]) => [key, stable(v)]));
+    return Object.fromEntries(
+      Object.entries(value)
+        .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+        .map(([key, v]) => [key, stable(v)]),
+    );
   }
   return value;
 }
 
 function isReceiptKeyConflict(err: unknown): boolean {
-  return !!err && typeof err === "object" && "code" in err && err.code === "23505" &&
-    "constraint" in err && err.constraint === KEY_CONSTRAINT;
+  return (
+    !!err &&
+    typeof err === "object" &&
+    "code" in err &&
+    err.code === "23505" &&
+    "constraint" in err &&
+    err.constraint === KEY_CONSTRAINT
+  );
 }
 
-function sameMoney(a: { amount: string; currency: string } | null, b: { amount: string; currency: string } | null): boolean {
+function sameMoney(
+  a: { amount: string; currency: string } | null,
+  b: { amount: string; currency: string } | null,
+): boolean {
   if (!a || !b) return a === b;
   return a.currency === b.currency && trimAmount(a.amount) === trimAmount(b.amount);
 }
@@ -79,7 +92,10 @@ function asItemInput(item: PlanItemDraftDTO, confirmedMapUrl: string | null): It
 }
 
 function itemPath(index: number, path: string): string {
-  const nested = path.replace(/^(departure|arrival|plannedDepartureDate|airline|flightNumber)(?=\.|$)/, "flightDetails.$1");
+  const nested = path.replace(
+    /^(departure|arrival|plannedDepartureDate|airline|flightNumber)(?=\.|$)/,
+    "flightDetails.$1",
+  );
   return `items[${index}]${nested ? `.${nested}` : ""}`;
 }
 
@@ -87,12 +103,19 @@ function itemPath(index: number, path: string): string {
  * Normalized drafts as the schedule and field rules see them: the shared item schema, no `Booked`, and the checks that
  * need the trip's time zone. Errors carry the path of the item they belong to. An import and an AI chat share it.
  */
-function validatedItems(drafts: PlanItemDraftDTO[], tripZone: string, confirmedMapUrls?: Array<string | null>): ItemInput[] {
+function validatedItems(
+  drafts: PlanItemDraftDTO[],
+  tripZone: string,
+  confirmedMapUrls?: Array<string | null>,
+): ItemInput[] {
   return drafts.map((draft, index) => {
     const parsed = itemInputSchema.safeParse(asItemInput(draft, confirmedMapUrls?.[index] ?? null));
-    if (!parsed.success) throw invalid(toFieldErrors(parsed.error).map((e) => ({ ...e, path: itemPath(index, e.path) })));
+    if (!parsed.success)
+      throw invalid(toFieldErrors(parsed.error).map((e) => ({ ...e, path: itemPath(index, e.path) })));
     if (parsed.data.bookingStatus === "booked") {
-      throw invalid([{ path: `items[${index}].bookingStatus`, code: "invalid", message: "AI drafts cannot mark an item booked." }]);
+      throw invalid([
+        { path: `items[${index}].bookingStatus`, code: "invalid", message: "AI drafts cannot mark an item booked." },
+      ]);
     }
     const schedule = scheduleErrors(parsed.data, tripZone);
     if (schedule.length) throw invalid(schedule.map((e) => ({ ...e, path: itemPath(index, e.path) })));
@@ -127,9 +150,16 @@ export async function commitImport(
   const commitResult = importCommitSchema.safeParse(input);
   if (!commitResult.success) throw invalid(toFieldErrors(commitResult.error));
   const tripResult = tripInputSchema.safeParse(input.trip);
-  if (!tripResult.success) throw invalid(toFieldErrors(tripResult.error).map((e) => ({ ...e, path: `trip.${e.path}` })));
+  if (!tripResult.success)
+    throw invalid(toFieldErrors(tripResult.error).map((e) => ({ ...e, path: `trip.${e.path}` })));
   if (!sameMoney(tripResult.data.budget, input.ownerProvidedBudget)) {
-    throw invalid([{ path: "trip.budget", code: "budget_mismatch", message: "Confirm the budget in the preview before creating this trip." }]);
+    throw invalid([
+      {
+        path: "trip.budget",
+        code: "budget_mismatch",
+        message: "Confirm the budget in the preview before creating this trip.",
+      },
+    ]);
   }
 
   const items = validatedItems(input.items, tripResult.data.timeZone, input.confirmedMapUrls);
@@ -140,13 +170,19 @@ export async function commitImport(
   const canonical = stable({
     formatVersion: 1,
     trip: { ...tripResult.data, budget: normalizeMoney(tripResult.data.budget) },
-    items: items.map((item) => ({ ...item, plannedPrice: item.plannedPrice ? { ...item.plannedPrice, amount: trimAmount(item.plannedPrice.amount) } : null })),
+    items: items.map((item) => ({
+      ...item,
+      plannedPrice: item.plannedPrice ? { ...item.plannedPrice, amount: trimAmount(item.plannedPrice.amount) } : null,
+    })),
     ownerProvidedBudget: normalizeMoney(input.ownerProvidedBudget),
   });
   const hash = createHash("sha256").update(JSON.stringify(canonical)).digest();
   try {
     const tripId = await db.transaction().execute(async (tx) => {
-      await tx.insertInto("import_receipts").values({ owner_user_id: actor.userId, idempotency_key: idempotencyKey, trip_id: null, payload_hash: null }).execute();
+      await tx
+        .insertInto("import_receipts")
+        .values({ owner_user_id: actor.userId, idempotency_key: idempotencyKey, trip_id: null, payload_hash: null })
+        .execute();
       const point = matchDestination(tripResult.data.destination);
       const trip = await insertTrip(tx, actor.userId, {
         title: tripResult.data.title,
@@ -161,7 +197,8 @@ export async function commitImport(
         atlas_source: point ? "catalog" : null,
       });
       await insertAiItems(tx, trip.id, items);
-      await tx.updateTable("import_receipts")
+      await tx
+        .updateTable("import_receipts")
         .set({ trip_id: trip.id, payload_hash: hash })
         .where("owner_user_id", "=", actor.userId)
         .where("idempotency_key", "=", idempotencyKey)
@@ -179,15 +216,27 @@ export async function commitImport(
     // Lock only the receipt. Trip deletion locks the trip before its receipts; locking
     // a trip here would invert that order and risk a deadlock.
     return db.transaction().execute(async (tx) => {
-      const receipt = await tx.selectFrom("import_receipts").select(["trip_id", "payload_hash"])
-        .where("owner_user_id", "=", actor.userId).where("idempotency_key", "=", idempotencyKey)
-        .forUpdate().executeTakeFirst();
+      const receipt = await tx
+        .selectFrom("import_receipts")
+        .select(["trip_id", "payload_hash"])
+        .where("owner_user_id", "=", actor.userId)
+        .where("idempotency_key", "=", idempotencyKey)
+        .forUpdate()
+        .executeTakeFirst();
       if (!receipt) throw new HttpError(409, "import_retry", "The import is still finishing. Try again.");
       if (!receipt.trip_id || !receipt.payload_hash) {
-        throw new HttpError(410, "import_deleted", "That imported trip was deleted. Start a new import to create it again.");
+        throw new HttpError(
+          410,
+          "import_deleted",
+          "That imported trip was deleted. Start a new import to create it again.",
+        );
       }
       if (!receipt.payload_hash.equals(hash)) {
-        throw new HttpError(409, "idempotency_conflict", "This retry differs from the original import. Start a new import to create a different trip.");
+        throw new HttpError(
+          409,
+          "idempotency_conflict",
+          "This retry differs from the original import. Start a new import to create a different trip.",
+        );
       }
       return { tripId: receipt.trip_id, reused: true };
     });
@@ -198,7 +247,14 @@ export async function commitImport(
  * CONNECT-3, CONNECT-4: a connected AI chat adds items to a trip. They are checked as an import checks them, against
  * the trip's own time zone, and saved as AI drafts. Any error refuses the whole call; nothing is partly saved.
  */
-export async function appendAiItems(db: Kysely<DB>, actor: Actor, tripId: string, raw: unknown[], now = new Date(), later?: Later): Promise<PlanItemDTO[]> {
+export async function appendAiItems(
+  db: Kysely<DB>,
+  actor: Actor,
+  tripId: string,
+  raw: unknown[],
+  now = new Date(),
+  later?: Later,
+): Promise<PlanItemDTO[]> {
   const { rows, zone } = await db.transaction().execute(async (tx) => {
     const { trip } = await requireTripEditor(tx, actor, tripId, true);
     await purgeExpired(tx, trip.id);
@@ -207,7 +263,11 @@ export async function appendAiItems(db: Kysely<DB>, actor: Actor, tripId: string
     const items = validatedItems(checked.drafts, trip.time_zone);
     const have = await liveCount(tx, trip.id);
     if (have + items.length > ITEM_CAP) {
-      throw new HttpError(409, "item_cap", `A trip can have at most ${ITEM_CAP} events and this one has ${have}, so ${items.length} more won't fit.`);
+      throw new HttpError(
+        409,
+        "item_cap",
+        `A trip can have at most ${ITEM_CAP} events and this one has ${have}, so ${items.length} more won't fit.`,
+      );
     }
     const inserted = await insertAiItems(tx, trip.id, items);
     await bumpTripVersion(tx, trip.id);
@@ -227,14 +287,32 @@ export async function appendAiItems(db: Kysely<DB>, actor: Actor, tripId: string
  * is the one JSON v1 has (a budget is the person's own, relayed by the chat); items are checked and tagged as an
  * import's are. Atomic: a trip with an invalid item is not created.
  */
-export async function createTripByAi(db: Kysely<DB>, actor: Actor, input: { trip: unknown; items: unknown[] }, now = new Date(), later?: Later): Promise<{ trip: TripSummaryDTO; items: PlanItemDTO[] }> {
+export async function createTripByAi(
+  db: Kysely<DB>,
+  actor: Actor,
+  input: { trip: unknown; items: unknown[] },
+  now = new Date(),
+  later?: Later,
+): Promise<{ trip: TripSummaryDTO; items: PlanItemDTO[] }> {
   requireOwnerAccount(actor);
-  const block = input.trip && typeof input.trip === "object" && !Array.isArray(input.trip) ? (input.trip as Record<string, unknown>) : null;
-  if (!block) throw invalid([{ path: "trip", code: "invalid", message: "Send the trip as an object with title, destination, startDate, endDate and timeZone." }]);
+  const block =
+    input.trip && typeof input.trip === "object" && !Array.isArray(input.trip)
+      ? (input.trip as Record<string, unknown>)
+      : null;
+  if (!block)
+    throw invalid([
+      {
+        path: "trip",
+        code: "invalid",
+        message: "Send the trip as an object with title, destination, startDate, endDate and timeZone.",
+      },
+    ]);
   const tripResult = tripInputSchema.safeParse({ ...block, budget: block.budget ?? null });
-  if (!tripResult.success) throw invalid(toFieldErrors(tripResult.error).map((e) => ({ ...e, path: e.path ? `trip.${e.path}` : "trip" })));
+  if (!tripResult.success)
+    throw invalid(toFieldErrors(tripResult.error).map((e) => ({ ...e, path: e.path ? `trip.${e.path}` : "trip" })));
   const trip = tripResult.data;
-  if (input.items.length > ITEM_CAP) throw invalid([{ path: "items", code: "too_many_items", message: `A trip can have at most ${ITEM_CAP} items.` }]);
+  if (input.items.length > ITEM_CAP)
+    throw invalid([{ path: "items", code: "too_many_items", message: `A trip can have at most ${ITEM_CAP} items.` }]);
   const checked = checkAiItems(input.items, trip.timeZone);
   if ("errors" in checked) throw invalid(checked.errors);
   const items = validatedItems(checked.drafts, trip.timeZone);

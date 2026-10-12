@@ -11,21 +11,37 @@ export function testDb(): Kysely<DB> {
 }
 
 export async function reset(): Promise<void> {
-  await sql`truncate plan_items, import_receipts, trip_viewers, trips, usage_counts, oauth_clients, "Session", "Account", "User" cascade`.execute(testDb());
+  await sql`truncate plan_items, import_receipts, trip_viewers, trips, usage_counts, oauth_clients, "Session", "Account", "User" cascade`.execute(
+    testDb(),
+  );
 }
 
 export async function makeActor(email: string, name = email.split("@")[0]!): Promise<Actor> {
-  const u = await testDb().insertInto("User").values({ email, name, emailVerified: null, image: null }).returning(["id", "email"]).executeTakeFirstOrThrow();
+  const u = await testDb()
+    .insertInto("User")
+    .values({ email, name, emailVerified: null, image: null })
+    .returning(["id", "email"])
+    .executeTakeFirstOrThrow();
   return actorFor(u);
 }
 
 /** An account that signed in with WeChat only: it has a name (the WeChat nickname) but no email address. */
 export async function makeActorWithoutEmail(name: string | null = "Mei"): Promise<Actor> {
-  const u = await testDb().insertInto("User").values({ email: null, name, emailVerified: null, image: null }).returning(["id", "email"]).executeTakeFirstOrThrow();
+  const u = await testDb()
+    .insertInto("User")
+    .values({ email: null, name, emailVerified: null, image: null })
+    .returning(["id", "email"])
+    .executeTakeFirstOrThrow();
   return actorFor(u);
 }
 
-export async function grant(tripId: string, viewer: Actor, status: "accepted" | "pending" | "revoked" = "accepted", role: "viewer" | "editor" | "owner" = "viewer", acceptedAt = new Date()) {
+export async function grant(
+  tripId: string,
+  viewer: Actor,
+  status: "accepted" | "pending" | "revoked" = "accepted",
+  role: "viewer" | "editor" | "owner" = "viewer",
+  acceptedAt = new Date(),
+) {
   await testDb()
     .insertInto("trip_viewers")
     .values({

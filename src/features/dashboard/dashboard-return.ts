@@ -14,7 +14,13 @@ export function innerScroller(): HTMLElement | null {
 
 export function rememberReturn(tripId: string, booking = false) {
   try {
-    const saved: Saved = { url: window.location.pathname + window.location.search, trip: tripId, booking, y: window.scrollY, list: innerScroller()?.scrollTop ?? 0 };
+    const saved: Saved = {
+      url: window.location.pathname + window.location.search,
+      trip: tripId,
+      booking,
+      y: window.scrollY,
+      list: innerScroller()?.scrollTop ?? 0,
+    };
     sessionStorage.setItem(DASH_RETURN_KEY, JSON.stringify(saved));
   } catch {}
 }

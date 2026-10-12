@@ -33,7 +33,8 @@ const median = (values: number[]) => {
   return s.length % 2 ? s[m]! : (s[m - 1]! + s[m]!) / 2;
 };
 /** Nearest-rank percentile. */
-const percentile = (values: number[], p: number) => [...values].sort((a, b) => a - b)[Math.max(0, Math.ceil(p * values.length) - 1)]!;
+const percentile = (values: number[], p: number) =>
+  [...values].sort((a, b) => a - b)[Math.max(0, Math.ceil(p * values.length) - 1)]!;
 
 const kmBetween = (a: FramedStop, b: FramedStop) => haversineKm([a.lat, a.lon], [b.lat, b.lon]);
 
@@ -56,7 +57,9 @@ export function framedStops(stops: readonly FramedStop[]): number[] {
     const limit = Math.max(SPREAD * percentile(far, 0.8), FAR_KM);
     core = ground.filter((_, k) => far[k]! <= limit);
   }
-  const landings = all.filter((i) => stops[i]!.flight && core.some((j) => kmBetween(stops[i]!, stops[j]!) <= FLIGHT_NEAR_KM));
+  const landings = all.filter(
+    (i) => stops[i]!.flight && core.some((j) => kmBetween(stops[i]!, stops[j]!) <= FLIGHT_NEAR_KM),
+  );
   return [...core, ...landings].sort((a, b) => a - b);
 }
 
@@ -120,7 +123,8 @@ export function homeSpans(
     if (!inView) {
       // The narrowest view around the same middle that would hold a town.
       let need = Infinity;
-      for (const t of towns) need = Math.min(need, (2 * Math.max(Math.abs(t.x - cx), Math.abs(t.y - cy) / map.aspect)) / INSIDE);
+      for (const t of towns)
+        need = Math.min(need, (2 * Math.max(Math.abs(t.x - cx), Math.abs(t.y - cy) / map.aspect)) / INSIDE);
       if (need <= ceiling) spanX = spanFor(need);
       else if (closestKm === Infinity) spanX = spanFor(ceiling);
     }
@@ -145,17 +149,25 @@ export type EdgePointer = { members: number[]; x: number; y: number; angle: numb
  * with pointers closer than `gap` pixels to each other merged. Screen coordinates in, screen coordinates out; `angle` in
  * degrees, 0 to the right and clockwise.
  */
-export function edgePointers(far: ReadonlyArray<{ index: number; x: number; y: number }>, width: number, height: number, inset = 24, gap = 44): EdgePointer[] {
+export function edgePointers(
+  far: ReadonlyArray<{ index: number; x: number; y: number }>,
+  width: number,
+  height: number,
+  inset = 24,
+  gap = 44,
+): EdgePointer[] {
   const cx = width / 2;
   const cy = height / 2;
-  const placed = far.map((p) => {
-    const dx = p.x - cx;
-    const dy = p.y - cy;
-    const tx = dx > 0 ? (width - inset - cx) / dx : dx < 0 ? (inset - cx) / dx : Infinity;
-    const ty = dy > 0 ? (height - inset - cy) / dy : dy < 0 ? (inset - cy) / dy : Infinity;
-    const t = Math.min(tx, ty, 1);
-    return { index: p.index, x: cx + t * dx, y: cy + t * dy, angle: (Math.atan2(dy, dx) * 180) / Math.PI };
-  }).sort((a, b) => a.angle - b.angle);
+  const placed = far
+    .map((p) => {
+      const dx = p.x - cx;
+      const dy = p.y - cy;
+      const tx = dx > 0 ? (width - inset - cx) / dx : dx < 0 ? (inset - cx) / dx : Infinity;
+      const ty = dy > 0 ? (height - inset - cy) / dy : dy < 0 ? (inset - cy) / dy : Infinity;
+      const t = Math.min(tx, ty, 1);
+      return { index: p.index, x: cx + t * dx, y: cy + t * dy, angle: (Math.atan2(dy, dx) * 180) / Math.PI };
+    })
+    .sort((a, b) => a.angle - b.angle);
   const out: EdgePointer[] = [];
   for (const p of placed) {
     const last = out[out.length - 1];

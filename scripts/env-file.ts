@@ -9,7 +9,8 @@ export function loadEnvFile(): void {
       if (!m || line.trimStart().startsWith("#")) continue;
       const key = m[1]!;
       let value = m[2]!;
-      if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) value = value.slice(1, -1);
+      if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'")))
+        value = value.slice(1, -1);
       if (process.env[key] === undefined) process.env[key] = value;
     }
   }

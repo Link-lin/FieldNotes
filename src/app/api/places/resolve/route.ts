@@ -4,4 +4,5 @@ import { importLocationRequestSchema } from "@/shared/import";
 
 /** Resolve a single place for an owner-reviewed import preview or an owner's or editor's event edit. */
 export const POST = route({ editorAccount: true, body: importLocationRequestSchema }, async ({ body }) =>
-  findPlaceCandidates(body.location, body.destination));
+  findPlaceCandidates(body.location, body.destination),
+);

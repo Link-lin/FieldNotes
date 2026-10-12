@@ -17,7 +17,17 @@ export default async function TripRoute({ params, searchParams }: Props) {
     if (err instanceof HttpError && err.status === 404) notFound();
     throw err;
   });
-  return <TripPage key={tripId} data={data} initialDay={day ?? null} initialView={view === "bookings" ? "bookings" : "itinerary"} mapsKey={mapsEmbedKey()} canEmail={mailConfigured()} placeLookup={placeLookupConfigured()} />;
+  return (
+    <TripPage
+      key={tripId}
+      data={data}
+      initialDay={day ?? null}
+      initialView={view === "bookings" ? "bookings" : "itinerary"}
+      mapsKey={mapsEmbedKey()}
+      canEmail={mailConfigured()}
+      placeLookup={placeLookupConfigured()}
+    />
+  );
 }
 
 export async function generateMetadata({ params }: Props) {

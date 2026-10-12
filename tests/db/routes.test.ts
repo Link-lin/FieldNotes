@@ -70,8 +70,12 @@ describe("route handlers", () => {
     session.actor = viewer;
     expect((await trip.GET(req("GET", undefined), ctx({ tripId: t.id }))).status).toBe(200);
     expect((await items.POST(req("POST", event()), ctx({ tripId: t.id }))).status).toBe(403);
-    expect((await item.DELETE(req("DELETE", { expectedVersion: i.version }), ctx({ tripId: t.id, itemId: i.id }))).status).toBe(403);
-    expect((await trip.DELETE(req("DELETE", { confirm: true, expectedVersion: v }), ctx({ tripId: t.id }))).status).toBe(403);
+    expect(
+      (await item.DELETE(req("DELETE", { expectedVersion: i.version }), ctx({ tripId: t.id, itemId: i.id }))).status,
+    ).toBe(403);
+    expect(
+      (await trip.DELETE(req("DELETE", { confirm: true, expectedVersion: v }), ctx({ tripId: t.id }))).status,
+    ).toBe(403);
 
     session.actor = stranger;
     const g = await trip.GET(req("GET", undefined), ctx({ tripId: t.id }));
@@ -150,7 +154,12 @@ describe("sign-in gate (ACCESS-1)", () => {
       .insertInto("Account")
       .values({ userId: stranger.userId, type: "oidc", provider: "google", providerAccountId: "sub-linked" } as never)
       .execute();
-    expect(await allowSignIn(testDb(), attempt("stranger@example.com", { providerAccountId: "sub-linked", emailVerified: false }))).toBe(true);
+    expect(
+      await allowSignIn(
+        testDb(),
+        attempt("stranger@example.com", { providerAccountId: "sub-linked", emailVerified: false }),
+      ),
+    ).toBe(true);
     expect(await allowSignIn(testDb(), attempt("stranger@example.com"))).toBe(false);
   });
 });

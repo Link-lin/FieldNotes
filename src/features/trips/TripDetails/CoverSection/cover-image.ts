@@ -26,13 +26,18 @@ export function fitWithin({ width, height }: Size, edge: number): Size {
 
 /** Why an image of this size can't be a cover, or null. */
 export function coverSizeProblem({ width, height }: Size): string | null {
-  if (Math.min(width, height) < COVER_IMAGE.minSide) return `Choose an image at least ${COVER_IMAGE.minSide} pixels on each side.`;
-  if (Math.max(width, height) / Math.min(width, height) > COVER_IMAGE.maxRatio) return "Choose an image no more than three times as long as it is wide.";
+  if (Math.min(width, height) < COVER_IMAGE.minSide)
+    return `Choose an image at least ${COVER_IMAGE.minSide} pixels on each side.`;
+  if (Math.max(width, height) / Math.min(width, height) > COVER_IMAGE.maxRatio)
+    return "Choose an image no more than three times as long as it is wide.";
   return null;
 }
 
 /** Encodes the small image, then the full one at each step until the two fit the budget; null when nothing fits. */
-export async function encodeWithinBudget(size: Size, encode: (size: Size, quality: number) => Promise<Blob | null>): Promise<CoverFiles | null> {
+export async function encodeWithinBudget(
+  size: Size,
+  encode: (size: Size, quality: number) => Promise<Blob | null>,
+): Promise<CoverFiles | null> {
   const small = await encode(fitWithin(size, COVER_IMAGE.smallEdge), SMALL_QUALITY);
   if (!small) return null;
   for (const step of FULL_STEPS) {
@@ -54,14 +59,18 @@ function drawJpeg(img: HTMLImageElement, size: Size, quality: number): Promise<B
   ctx.fillRect(0, 0, size.width, size.height);
   ctx.imageSmoothingQuality = "high";
   ctx.drawImage(img, 0, 0, size.width, size.height);
-  return new Promise((resolve) => canvas.toBlob((blob) => resolve(blob?.type === "image/jpeg" ? blob : null), "image/jpeg", quality));
+  return new Promise((resolve) =>
+    canvas.toBlob((blob) => resolve(blob?.type === "image/jpeg" ? blob : null), "image/jpeg", quality),
+  );
 }
 
 /**
  * The cover's two JPEGs for a chosen file. The browser decodes it (applying the photo's orientation; Safari also reads
  * HEIC), so whatever it can show can be a cover.
  */
-export async function prepareCover(file: File): Promise<{ ok: true; files: CoverFiles } | { ok: false; message: string }> {
+export async function prepareCover(
+  file: File,
+): Promise<{ ok: true; files: CoverFiles } | { ok: false; message: string }> {
   const url = URL.createObjectURL(file);
   try {
     const img = new Image();
@@ -75,7 +84,9 @@ export async function prepareCover(file: File): Promise<{ ok: true; files: Cover
     const problem = coverSizeProblem(size);
     if (problem) return { ok: false, message: problem };
     const files = await encodeWithinBudget(size, (at, quality) => drawJpeg(img, at, quality));
-    return files ? { ok: true, files } : { ok: false, message: "Couldn't make that image small enough to store. Try another one." };
+    return files
+      ? { ok: true, files }
+      : { ok: false, message: "Couldn't make that image small enough to store. Try another one." };
   } finally {
     URL.revokeObjectURL(url);
   }

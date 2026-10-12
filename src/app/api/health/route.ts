@@ -10,5 +10,8 @@ export const dynamic = "force-dynamic";
  */
 export async function GET(): Promise<Response> {
   const ok = await databaseIsUp(getDb());
-  return Response.json({ status: ok ? "ok" : "unhealthy" }, { status: ok ? 200 : 503, headers: { "Cache-Control": "private, no-store" } });
+  return Response.json(
+    { status: ok ? "ok" : "unhealthy" },
+    { status: ok ? 200 : 503, headers: { "Cache-Control": "private, no-store" } },
+  );
 }

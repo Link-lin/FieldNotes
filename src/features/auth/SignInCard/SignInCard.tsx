@@ -33,17 +33,36 @@ const COPY: Record<Exclude<SignInState, null> | "ready", Copy> = {
   ready: { title: "Sign in", lead: "Your trips are private. Sign in to see them.", button: SIGN_IN },
   denied: {
     title: "Sign in",
-    banner: { tone: "warn", text: "This account is not set up for Field Notes. Try another account, or ask the trip owner for an invitation." },
+    banner: {
+      tone: "warn",
+      text: "This account is not set up for Field Notes. Try another account, or ask the trip owner for an invitation.",
+    },
     button: SWITCH,
   },
   wrongAccount: {
     title: "Sign in",
-    banner: { tone: "warn", text: "That account can't be used here. Sign in the way you did before, or switch to the account you normally use for Field Notes." },
+    banner: {
+      tone: "warn",
+      text: "That account can't be used here. Sign in the way you did before, or switch to the account you normally use for Field Notes.",
+    },
     button: SWITCH,
   },
-  linkFailed: { title: "Sign in", banner: { tone: "warn", text: "That sign-in is already connected to a different Field Notes account, so it wasn't added to this one." } },
+  linkFailed: {
+    title: "Sign in",
+    banner: {
+      tone: "warn",
+      text: "That sign-in is already connected to a different Field Notes account, so it wasn't added to this one.",
+    },
+  },
   error: { title: "Sign in", banner: { tone: "warn", text: "Sign-in didn't finish. Try again." }, button: SIGN_IN },
-  deleted: { title: "Sign in", banner: { tone: "info", text: "Your account was deleted. Trips that another owner keeps stay with them; any others you owned were deleted." }, button: SIGN_IN },
+  deleted: {
+    title: "Sign in",
+    banner: {
+      tone: "info",
+      text: "Your account was deleted. Trips that another owner keeps stay with them; any others you owned were deleted.",
+    },
+    button: SIGN_IN,
+  },
   signedOut: { title: "Sign in", banner: { tone: "info", text: "You are signed out." }, button: SIGN_IN },
   invited: {
     title: "You're invited",
@@ -57,17 +76,32 @@ const COPY: Record<Exclude<SignInState, null> | "ready", Copy> = {
   },
   inviteInvalid: {
     title: "Invitation",
-    banner: { tone: "warn", text: "This invitation link isn't valid any more. It may have expired, been replaced by a newer link, or been revoked. Ask the person who shared the trip for a new link." },
+    banner: {
+      tone: "warn",
+      text: "This invitation link isn't valid any more. It may have expired, been replaced by a newer link, or been revoked. Ask the person who shared the trip for a new link.",
+    },
   },
   inviteOpening: { title: "You're invited", lead: "Opening the trip…" },
-  inviteError: { title: "Invitation", banner: { tone: "warn", text: "Couldn't reach Field Notes. Check your connection and try again." } },
+  inviteError: {
+    title: "Invitation",
+    banner: { tone: "warn", text: "Couldn't reach Field Notes. Check your connection and try again." },
+  },
 };
 
 /** States that offer the other ways to sign in; the rest are about switching Google accounts, or have nothing to sign in to. */
-const OFFERS_OTHERS: ReadonlyArray<SignInState | "ready"> = ["ready", "denied", "wrongAccount", "error", "deleted", "signedOut", "invited"];
+const OFFERS_OTHERS: ReadonlyArray<SignInState | "ready"> = [
+  "ready",
+  "denied",
+  "wrongAccount",
+  "error",
+  "deleted",
+  "signedOut",
+  "invited",
+];
 
 /** "Google", "Google or WeChat", "Google, Apple or WeChat". */
-const orList = (names: string[]) => (names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} or ${names[names.length - 1]}`);
+const orList = (names: string[]) =>
+  names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} or ${names[names.length - 1]}`;
 
 type Props = {
   state: SignInState;
@@ -97,18 +131,30 @@ export function SignInCard({ state, action, appleAction, wechatAction, wechatFir
         <Logo />
         <h1 className={styles.title}>{c.title}</h1>
         {c.banner ? (
-          <Banner tone={c.banner.tone} role={c.banner.tone === "warn" ? "alert" : "status"}>{c.banner.text}</Banner>
+          <Banner tone={c.banner.tone} role={c.banner.tone === "warn" ? "alert" : "status"}>
+            {c.banner.text}
+          </Banner>
         ) : (
-          <p className={styles.lead} role={state === "inviteOpening" ? "status" : undefined}>{c.lead}</p>
+          <p className={styles.lead} role={state === "inviteOpening" ? "status" : undefined}>
+            {c.lead}
+          </p>
         )}
         {shown.map((b, i) => (
           <form key={b.label} action={b.action}>
-            <Button variant={i === 0 ? "fill" : "outline"} size="lg" block type="submit">{b.icon}{b.label}</Button>
+            <Button variant={i === 0 ? "fill" : "outline"} size="lg" block type="submit">
+              {b.icon}
+              {b.label}
+            </Button>
           </form>
         ))}
         {children}
         <p className="note">
-          {shown.length > 0 ? (appleAction || wechatAction ? `Sign in with ${orList(["Google", ...(appleAction ? ["Apple"] : []), ...(wechatAction ? ["WeChat"] : [])])}. ` : "Only Google sign-in is used. ") : ""}Field Notes doesn&apos;t read your email, contacts, calendar or files.
+          {shown.length > 0
+            ? appleAction || wechatAction
+              ? `Sign in with ${orList(["Google", ...(appleAction ? ["Apple"] : []), ...(wechatAction ? ["WeChat"] : [])])}. `
+              : "Only Google sign-in is used. "
+            : ""}
+          Field Notes doesn&apos;t read your email, contacts, calendar or files.
         </p>
       </div>
     </main>

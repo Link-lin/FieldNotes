@@ -12,12 +12,26 @@ const GRATICULE = geoGraticule10();
 /** Trips that share a point on the globe (rounded to 0.01 degree). */
 export type Group = { key: string; lon: number; lat: number; trips: TripSummaryDTO[] };
 export type Pin = { x: number; y: number; g: Group };
-export type GlobeColors = Record<"oceanA" | "oceanB" | "land" | "landLine" | "ink" | "ink3" | "paper" | "card" | "verm", string>;
+export type GlobeColors = Record<
+  "oceanA" | "oceanB" | "land" | "landLine" | "ink" | "ink3" | "paper" | "card" | "verm",
+  string
+>;
 /**
  * View state. w/h: canvas size; sx/sy/sw/sh: the stage the globe is centred in (on desktop the
  * canvas also runs under the trip column); rot/zoom: the camera; pulse: animation clock.
  */
-export type GlobeView = { rot: [number, number]; zoom: number; w: number; h: number; sx: number; sy: number; sw: number; sh: number; dpr: number; pulse: number };
+export type GlobeView = {
+  rot: [number, number];
+  zoom: number;
+  w: number;
+  h: number;
+  sx: number;
+  sy: number;
+  sw: number;
+  sh: number;
+  dpr: number;
+  pulse: number;
+};
 
 export function groupsOf(trips: TripSummaryDTO[]): Group[] {
   const m = new Map<string, Group>();
@@ -32,7 +46,16 @@ export function groupsOf(trips: TripSummaryDTO[]): Group[] {
 }
 
 /** Draws the globe, graticule, land and one marker per group (status by shape); returns the visible pins. */
-export function drawGlobe(ctx: CanvasRenderingContext2D, projection: GeoProjection, path: GeoPath, s: GlobeView, allGroups: Group[], selectedId: string | null, colors: GlobeColors, reduce: boolean): Pin[] {
+export function drawGlobe(
+  ctx: CanvasRenderingContext2D,
+  projection: GeoProjection,
+  path: GeoPath,
+  s: GlobeView,
+  allGroups: Group[],
+  selectedId: string | null,
+  colors: GlobeColors,
+  reduce: boolean,
+): Pin[] {
   if (!s.w) return [];
   const narrow = s.sw < 560;
   const R = (narrow ? Math.min(s.sw * 0.44, s.sh * 0.46) : Math.min(s.sh * 0.43, s.sw * 0.42)) * s.zoom;
@@ -90,7 +113,9 @@ export function drawGlobe(ctx: CanvasRenderingContext2D, projection: GeoProjecti
   const center: [number, number] = [-s.rot[0], -s.rot[1]];
   const out: Pin[] = [];
   const boxes: Array<[number, number, number, number]> = [];
-  const groups = [...allGroups].sort((a, b) => Number(a.trips.some((t) => t.id === selectedId)) - Number(b.trips.some((t) => t.id === selectedId)));
+  const groups = [...allGroups].sort(
+    (a, b) => Number(a.trips.some((t) => t.id === selectedId)) - Number(b.trips.some((t) => t.id === selectedId)),
+  );
   // Country names go under the markers and never cover a marker or its label.
   const markerFont = "600 11.5px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
   ctx.font = markerFont;
@@ -101,7 +126,10 @@ export function drawGlobe(ctx: CanvasRenderingContext2D, projection: GeoProjecti
     if (!p) continue;
     const name = g.trips[0]!.title + (g.trips.length > 1 ? `  +${g.trips.length - 1}` : "");
     const bw = ctx.measureText(name).width + 16;
-    keepOut.push([p[0] - 14, p[1] - 14, 28, 28], [p[0] + 14 + bw > s.w - 6 ? p[0] - 14 - bw : p[0] + 14, p[1] - 30, bw, 22]);
+    keepOut.push(
+      [p[0] - 14, p[1] - 14, 28, 28],
+      [p[0] + 14 + bw > s.w - 6 ? p[0] - 14 - bw : p[0] + 14, p[1] - 30, bw, 22],
+    );
   }
   drawCountryNames(ctx, projection, center, R, s, colors, keepOut);
   for (const g of groups) {
@@ -187,14 +215,23 @@ export function drawGlobe(ctx: CanvasRenderingContext2D, projection: GeoProjecti
 }
 
 type Box = [x: number, y: number, w: number, h: number];
-const overlaps = (a: Box, b: Box) => a[0] < b[0] + b[2] && a[0] + a[2] > b[0] && a[1] < b[1] + b[3] && a[1] + a[3] > b[1];
+const overlaps = (a: Box, b: Box) =>
+  a[0] < b[0] + b[2] && a[0] + a[2] > b[0] && a[1] < b[1] + b[3] && a[1] + a[3] > b[1];
 
 /**
  * Country names, largest countries first. A name shows only when the country is big enough on
  * screen to hold it, faces the viewer, sits in the globe's own stage (not under the trip list),
  * and clears the markers and every name already placed. Zooming in reveals smaller countries.
  */
-function drawCountryNames(ctx: CanvasRenderingContext2D, projection: GeoProjection, center: [number, number], R: number, s: GlobeView, colors: GlobeColors, keepOut: Box[]) {
+function drawCountryNames(
+  ctx: CanvasRenderingContext2D,
+  projection: GeoProjection,
+  center: [number, number],
+  R: number,
+  s: GlobeView,
+  colors: GlobeColors,
+  keepOut: Box[],
+) {
   ctx.save();
   ctx.font = "500 10px 'IBM Plex Mono', ui-monospace, monospace";
   ctx.textAlign = "center";

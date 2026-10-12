@@ -2,7 +2,8 @@
 
 import { useEffect, useRef } from "react";
 
-const FOCUSABLE = 'input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), a[href]';
+const FOCUSABLE =
+  'input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), a[href]';
 
 type Options = {
   /** While true the dialog is open: the page behind is inert, scrolling is locked and focus is inside. */
@@ -22,7 +23,10 @@ type Options = {
  * kept inside, Escape closes. Returns the dialog's keydown handler and a close function that
  * always calls the latest `onClose`.
  */
-export function useDialog(ref: React.RefObject<HTMLElement | null>, { active, onClose, fallbackFocus, triggerSelector, initialFocus }: Options) {
+export function useDialog(
+  ref: React.RefObject<HTMLElement | null>,
+  { active, onClose, fallbackFocus, triggerSelector, initialFocus }: Options,
+) {
   const close = useRef(onClose);
   const opts = useRef({ fallbackFocus, triggerSelector, initialFocus });
   useEffect(() => {
@@ -37,7 +41,9 @@ export function useDialog(ref: React.RefObject<HTMLElement | null>, { active, on
     const root = document.getElementById("app-root");
     if (root) root.inert = true;
     // A dialog opened over another (a confirmation over a side panel) makes the one below inert too.
-    const below = [...document.querySelectorAll<HTMLElement>("[data-modal]")].filter((d) => el && !d.contains(el) && !d.inert);
+    const below = [...document.querySelectorAll<HTMLElement>("[data-modal]")].filter(
+      (d) => el && !d.contains(el) && !d.inert,
+    );
     below.forEach((d) => (d.inert = true));
     document.body.style.overflow = "hidden";
     const first =
@@ -60,7 +66,8 @@ export function useDialog(ref: React.RefObject<HTMLElement | null>, { active, on
       if (!stillOpen) document.body.style.overflow = "";
       const visible = (el: HTMLElement | null) => !!el && el.isConnected && el.getClientRects().length > 0;
       let target: HTMLElement | null = visible(trigger) ? trigger : null;
-      if (!target && opts.current.triggerSelector) target = document.querySelector<HTMLElement>(opts.current.triggerSelector);
+      if (!target && opts.current.triggerSelector)
+        target = document.querySelector<HTMLElement>(opts.current.triggerSelector);
       if (!visible(target)) target = opts.current.fallbackFocus?.() ?? null;
       // Wait a frame so a re-render that replaced the trigger has committed. Leave focus alone if
       // another dialog opened in the meantime (for example Edit event from the side panel).
@@ -69,7 +76,9 @@ export function useDialog(ref: React.RefObject<HTMLElement | null>, { active, on
         if (other && other !== el) return;
         // The trigger itself if it is still there (a stop-list name, a pin), else its re-rendered equivalent.
         if (visible(trigger)) return trigger!.focus();
-        const again = opts.current.triggerSelector ? document.querySelector<HTMLElement>(opts.current.triggerSelector) : null;
+        const again = opts.current.triggerSelector
+          ? document.querySelector<HTMLElement>(opts.current.triggerSelector)
+          : null;
         (visible(again) ? again : target)?.focus();
       });
     };
@@ -84,7 +93,9 @@ export function useDialog(ref: React.RefObject<HTMLElement | null>, { active, on
       return;
     }
     if (e.key !== "Tab" || !ref.current) return;
-    const items = Array.from(ref.current.querySelectorAll<HTMLElement>(FOCUSABLE)).filter((x) => x.getClientRects().length > 0);
+    const items = Array.from(ref.current.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
+      (x) => x.getClientRects().length > 0,
+    );
     const a = items[0];
     const z = items[items.length - 1];
     if (!a || !z) return;

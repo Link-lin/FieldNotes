@@ -1,8 +1,25 @@
 import { describe, expect, it } from "vitest";
-import { finishLookup, lookupMatches, needsLookup, settleLookups, type PlaceLookup } from "@/features/import/ImportPage/place-lookup";
+import {
+  finishLookup,
+  lookupMatches,
+  needsLookup,
+  settleLookups,
+  type PlaceLookup,
+} from "@/features/import/ImportPage/place-lookup";
 
-const entry: PlaceLookup = { location: "Twin Falls, Maui, Hawaii", destination: "Hawaii", requestId: 2, status: "loading", candidates: [], selected: null, reviewed: false };
-const result = { candidates: [{ label: "Twin Falls", latitude: 20.91, longitude: -156.24, confidence: 1, kind: "amenity" }], suggestedIndex: 0 };
+const entry: PlaceLookup = {
+  location: "Twin Falls, Maui, Hawaii",
+  destination: "Hawaii",
+  requestId: 2,
+  status: "loading",
+  candidates: [],
+  selected: null,
+  reviewed: false,
+};
+const result = {
+  candidates: [{ label: "Twin Falls", latitude: 20.91, longitude: -156.24, confidence: 1, kind: "amenity" }],
+  suggestedIndex: 0,
+};
 
 describe("import place selection", () => {
   it("keeps valid suggestions visible and eligible for commit with surrounding whitespace", () => {

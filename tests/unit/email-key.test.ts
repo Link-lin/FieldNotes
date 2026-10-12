@@ -7,7 +7,14 @@ describe("emailKey: when two addresses are the same person's", () => {
   });
 
   it("lets Gmail ignore dots, the +tag and the googlemail.com spelling", () => {
-    const same = ["janedoe@gmail.com", "Jane.Doe@gmail.com", "jane.doe+trip@gmail.com", "j.a.n.e.d.o.e+a+b@gmail.com", "janedoe@googlemail.com", " JANE.DOE+X@GoogleMail.com "];
+    const same = [
+      "janedoe@gmail.com",
+      "Jane.Doe@gmail.com",
+      "jane.doe+trip@gmail.com",
+      "j.a.n.e.d.o.e+a+b@gmail.com",
+      "janedoe@googlemail.com",
+      " JANE.DOE+X@GoogleMail.com ",
+    ];
     expect(new Set(same.map(emailKey))).toEqual(new Set(["janedoe@gmail.com"]));
   });
 
@@ -35,6 +42,7 @@ describe("emailKey: when two addresses are the same person's", () => {
   });
 
   it("is idempotent", () => {
-    for (const e of ["Jane.Doe+x@googlemail.com", "sam@example.com", "+a@gmail.com"]) expect(emailKey(emailKey(e))).toBe(emailKey(e));
+    for (const e of ["Jane.Doe+x@googlemail.com", "sam@example.com", "+a@gmail.com"])
+      expect(emailKey(emailKey(e))).toBe(emailKey(e));
   });
 });
