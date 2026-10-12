@@ -21,7 +21,10 @@ export function useLiveRevision(url: string, revision: string) {
         return r.ok ? { ok: true, revision: r.data.revision } : { ok: false, status: r.status };
       },
       refresh: () => router.refresh(),
-      clock: { setTimeout: (fn, ms) => window.setTimeout(fn, ms), clearTimeout: (id) => window.clearTimeout(id as number) },
+      clock: {
+        setTimeout: (fn, ms) => window.setTimeout(fn, ms),
+        clearTimeout: (id) => window.clearTimeout(id as number),
+      },
       visible: document.visibilityState === "visible",
       busy: () => Date.now() - lastWriteAt() < OWN_REFRESH_MS,
     });

@@ -70,7 +70,10 @@ const COMMON = new Map(COMMON_ZONES.map(([z, p]) => [z, p]));
 /** Current offset from UTC in minutes, or null if the runtime doesn't know the zone. */
 export function offsetMinutes(zone: string, at = new Date()): number | null {
   try {
-    const v = new Intl.DateTimeFormat("en-US", { timeZone: zone, timeZoneName: "longOffset" }).formatToParts(at).find((x) => x.type === "timeZoneName")?.value ?? "";
+    const v =
+      new Intl.DateTimeFormat("en-US", { timeZone: zone, timeZoneName: "longOffset" })
+        .formatToParts(at)
+        .find((x) => x.type === "timeZoneName")?.value ?? "";
     const m = v.match(/GMT(?:([+-])(\d{2}):?(\d{2})?)?/);
     if (!m) return null;
     return m[1] ? (m[1] === "-" ? -1 : 1) * (Number(m[2]) * 60 + Number(m[3] ?? 0)) : 0;

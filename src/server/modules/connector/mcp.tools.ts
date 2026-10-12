@@ -84,30 +84,82 @@ const tripBlockSchema = inline(defs.trip) as Json;
 const idProp = (what: string): Json => ({ type: "string", format: "uuid", description: what });
 const TRIP_ID = idProp("The trip's id, from list_trips.");
 const ITEM_ID = idProp("The item's id, from get_trip.");
-const object = (properties: Json, required: string[]): Json => ({ type: "object", additionalProperties: false, properties, required });
+const object = (properties: Json, required: string[]): Json => ({
+  type: "object",
+  additionalProperties: false,
+  properties,
+  required,
+});
 
 const patchProperties: Json = {
   title: { type: "string", minLength: 1, maxLength: 200 },
-  type: { enum: ["lodging", "transport", "meal", "activity", "other"], description: "Only between these types: an item cannot become a flight or stop being one." },
-  location: { type: ["string", "null"], maxLength: 500, description: "The place name. Changing it removes the item's saved map pin." },
+  type: {
+    enum: ["lodging", "transport", "meal", "activity", "other"],
+    description: "Only between these types: an item cannot become a flight or stop being one.",
+  },
+  location: {
+    type: ["string", "null"],
+    maxLength: 500,
+    description: "The place name. Changing it removes the item's saved map pin.",
+  },
   notes: { type: ["string", "null"], maxLength: 5000 },
   links: { type: "array", maxItems: 20, items: linkSchema },
-  plannedPrice: { type: ["object", "null"], additionalProperties: false, required: ["amount", "currency"], properties: { amount: { type: "string", description: "Decimal string, for example 120.50." }, currency: { type: "string", description: "ISO 4217 code, for example EUR." } }, description: "Saved as an estimate. null clears it." },
+  plannedPrice: {
+    type: ["object", "null"],
+    additionalProperties: false,
+    required: ["amount", "currency"],
+    properties: {
+      amount: { type: "string", description: "Decimal string, for example 120.50." },
+      currency: { type: "string", description: "ISO 4217 code, for example EUR." },
+    },
+    description: "Saved as an estimate. null clears it.",
+  },
   localDate: { type: ["string", "null"], description: "YYYY-MM-DD. Not for a flight." },
-  localTime: { type: ["string", "null"], description: "HH:mm, 24-hour, in the item's time zone. Needs a localDate. Not for a flight." },
-  timeZone: { type: ["string", "null"], description: "IANA zone if it differs from the trip's; null means the trip's zone. Not for a flight." },
+  localTime: {
+    type: ["string", "null"],
+    description: "HH:mm, 24-hour, in the item's time zone. Needs a localDate. Not for a flight.",
+  },
+  timeZone: {
+    type: ["string", "null"],
+    description: "IANA zone if it differs from the trip's; null means the trip's zone. Not for a flight.",
+  },
   durationMinutes: { type: ["integer", "null"], minimum: 1 },
-  bookingStatus: { enum: ["Needs booking", "Not required"], description: "Not 'Booked': only a person can set or change that in Field Notes." },
+  bookingStatus: {
+    enum: ["Needs booking", "Not required"],
+    description: "Not 'Booked': only a person can set or change that in Field Notes.",
+  },
   flightDetails: {
     type: "object",
     additionalProperties: false,
     description: "Only for a flight. Only the parts you send change; null clears one.",
     properties: {
-      plannedDepartureDate: { type: ["string", "null"], description: "YYYY-MM-DD; use instead of an exact departure time." },
+      plannedDepartureDate: {
+        type: ["string", "null"],
+        description: "YYYY-MM-DD; use instead of an exact departure time.",
+      },
       airline: { type: ["string", "null"] },
       flightNumber: { type: ["string", "null"] },
-      departure: { type: "object", additionalProperties: false, properties: { airportCode: { type: ["string", "null"] }, localDateTime: { type: ["string", "null"], description: "YYYY-MM-DDTHH:mm, local to the airport; needs its timeZone." }, timeZone: { type: ["string", "null"] } } },
-      arrival: { type: "object", additionalProperties: false, properties: { airportCode: { type: ["string", "null"] }, localDateTime: { type: ["string", "null"] }, timeZone: { type: ["string", "null"] } } },
+      departure: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          airportCode: { type: ["string", "null"] },
+          localDateTime: {
+            type: ["string", "null"],
+            description: "YYYY-MM-DDTHH:mm, local to the airport; needs its timeZone.",
+          },
+          timeZone: { type: ["string", "null"] },
+        },
+      },
+      arrival: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          airportCode: { type: ["string", "null"] },
+          localDateTime: { type: ["string", "null"] },
+          timeZone: { type: ["string", "null"] },
+        },
+      },
     },
   },
 };
@@ -118,14 +170,27 @@ const uuid = z.string().refine(isUuid, { message: "Use an id from list_trips or 
 const noArgs = z.object({}).strict();
 const tripArgs = z.object({ tripId: uuid }).strict();
 const itemArgs = z.object({ tripId: uuid, itemId: uuid }).strict();
-const addArgs = z.object({ tripId: uuid, items: z.array(z.unknown()).min(1, "Send at least one item.").max(50, "Send at most 50 items in one call.") }).strict();
+const addArgs = z
+  .object({
+    tripId: uuid,
+    items: z.array(z.unknown()).min(1, "Send at least one item.").max(50, "Send at most 50 items in one call."),
+  })
+  .strict();
 const updateArgs = z.object({ tripId: uuid, itemId: uuid, ...aiItemPatchSchema.shape }).strict();
-const createArgs = z.object({ trip: z.unknown(), items: z.array(z.unknown()).max(250, "A trip can have at most 250 items.").optional() }).strict();
+const createArgs = z
+  .object({ trip: z.unknown(), items: z.array(z.unknown()).max(250, "A trip can have at most 250 items.").optional() })
+  .strict();
 
 function parse<S extends z.ZodType>(schemaToUse: S, args: unknown): { value: z.infer<S> } | { error: ToolResult } {
   const parsed = schemaToUse.safeParse(args ?? {});
   if (parsed.success) return { value: parsed.data };
-  return { error: fail(`The arguments are not valid: ${toFieldErrors(parsed.error).map((e) => `${e.path || "(arguments)"}: ${e.message}`).join("; ")}`.slice(0, 4000)) };
+  return {
+    error: fail(
+      `The arguments are not valid: ${toFieldErrors(parsed.error)
+        .map((e) => `${e.path || "(arguments)"}: ${e.message}`)
+        .join("; ")}`.slice(0, 4000),
+    ),
+  };
 }
 
 const ok = (value: unknown): ToolResult => ({ text: toJson(value) });
@@ -135,11 +200,17 @@ const fail = (text: string): ToolResult => ({ text, isError: true });
 export function describeError(err: unknown): string {
   if (err instanceof HttpError) {
     if (err.status === 422 && err.fields?.length) {
-      return `Nothing was saved. Fix these and call again: ${err.fields.map((f) => `${f.path || "(call)"}: ${f.message}`).join("; ")}`.slice(0, 6000);
+      return `Nothing was saved. Fix these and call again: ${err.fields.map((f) => `${f.path || "(call)"}: ${f.message}`).join("; ")}`.slice(
+        0,
+        6000,
+      );
     }
-    if (err.status === 404) return "That trip or item doesn't exist, or this account can't see it. Use list_trips and get_trip to find the right ids.";
-    if (err.status === 403) return "This account isn't allowed to do that: it may have view-only access to the trip, or the action needs the trip's owner or an account allowed to create trips. Tell the person instead of retrying.";
-    if (err.status === 409 && err.code === "version_conflict") return "The item changed while this call ran. Read it again with get_item and retry.";
+    if (err.status === 404)
+      return "That trip or item doesn't exist, or this account can't see it. Use list_trips and get_trip to find the right ids.";
+    if (err.status === 403)
+      return "This account isn't allowed to do that: it may have view-only access to the trip, or the action needs the trip's owner or an account allowed to create trips. Tell the person instead of retrying.";
+    if (err.status === 409 && err.code === "version_conflict")
+      return "The item changed while this call ran. Read it again with get_item and retry.";
     return err.message;
   }
   const requestId = randomUUID();
@@ -153,7 +224,8 @@ const TOOLS: Tool[] = [
   {
     name: "list_trips",
     title: "List trips",
-    description: "Lists the trips this person can see in Field Notes: id, title, destination, dates, time zone, status (upcoming, ongoing or past) and their role (owner, editor or viewer). Start here to find a trip's id.",
+    description:
+      "Lists the trips this person can see in Field Notes: id, title, destination, dates, time zone, status (upcoming, ongoing or past) and their role (owner, editor or viewer). Start here to find a trip's id.",
     inputSchema: object({}, []),
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     access: "read",
@@ -195,16 +267,25 @@ const TOOLS: Tool[] = [
     title: "Add items to a trip",
     description:
       "Adds up to 50 items to a trip's itinerary. Each item uses the Field Notes JSON v1 item format. They are saved as unverified AI drafts, and prices as estimates, for the person to review; do not tell them anything is booked. If any item is invalid nothing is saved and every problem is listed with its path, so fix and call again. Needs edit access to the trip, and a trip holds at most 250 items.",
-    inputSchema: object({ tripId: TRIP_ID, items: { type: "array", minItems: 1, maxItems: 50, items: itemSchema } }, ["tripId", "items"]),
+    inputSchema: object({ tripId: TRIP_ID, items: { type: "array", minItems: 1, maxItems: 50, items: itemSchema } }, [
+      "tripId",
+      "items",
+    ]),
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     access: "write",
     async run(ctx, args) {
       const a = parse(addArgs, args);
       if ("error" in a) return a.error;
       const added = await appendAiItems(ctx.db, ctx.actor, a.value.tripId, a.value.items, ctx.now, ctx.later);
-      const pins = placeLookupConfigured() ? " Places with one clear match are pinned on the map within a few seconds." : "";
+      const pins = placeLookupConfigured()
+        ? " Places with one clear match are pinned on the map within a few seconds."
+        : "";
       const url = tripUrl(a.value.tripId);
-      return ok({ added: added.map((i) => itemView(i)), tripUrl: url, message: `Added ${added.length} item${added.length === 1 ? "" : "s"} as unverified AI drafts; they show in Field Notes within a few seconds (${url}), where the person checks them and marks them reviewed.${pins}` });
+      return ok({
+        added: added.map((i) => itemView(i)),
+        tripUrl: url,
+        message: `Added ${added.length} item${added.length === 1 ? "" : "s"} as unverified AI drafts; they show in Field Notes within a few seconds (${url}), where the person checks them and marks them reviewed.${pins}`,
+      });
     },
   },
   {
@@ -220,14 +301,20 @@ const TOOLS: Tool[] = [
       if ("error" in a) return a.error;
       const { tripId, itemId, ...patch } = a.value;
       const { item, clearedPin } = await updateItemByAi(ctx.db, ctx.actor, tripId, itemId, patch, ctx.now, ctx.later);
-      const repin = placeLookupConfigured() ? "the new place is pinned automatically if the lookup finds one clear match." : "the person can pin it again in Field Notes.";
-      return ok({ item: itemView(item), message: clearedPin ? `Saved. The place changed, so the item's saved map pin was removed; ${repin}` : "Saved." });
+      const repin = placeLookupConfigured()
+        ? "the new place is pinned automatically if the lookup finds one clear match."
+        : "the person can pin it again in Field Notes.";
+      return ok({
+        item: itemView(item),
+        message: clearedPin ? `Saved. The place changed, so the item's saved map pin was removed; ${repin}` : "Saved.",
+      });
     },
   },
   {
     name: "delete_item",
     title: "Delete an item",
-    description: "Deletes an item from the itinerary. restore_item can undo it for 10 minutes; after that it is gone for good. Ask the person first. Needs edit access to the trip.",
+    description:
+      "Deletes an item from the itinerary. restore_item can undo it for 10 minutes; after that it is gone for good. Ask the person first. Needs edit access to the trip.",
     inputSchema: object({ tripId: TRIP_ID, itemId: ITEM_ID }, ["tripId", "itemId"]),
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
     access: "write",
@@ -235,7 +322,10 @@ const TOOLS: Tool[] = [
       const a = parse(itemArgs, args);
       if ("error" in a) return a.error;
       const { title } = await deleteItemByAi(ctx.db, ctx.actor, a.value.tripId, a.value.itemId);
-      return ok({ deleted: { id: a.value.itemId, title }, message: "Deleted. restore_item with the same ids undoes this for 10 minutes." });
+      return ok({
+        deleted: { id: a.value.itemId, title },
+        message: "Deleted. restore_item with the same ids undoes this for 10 minutes.",
+      });
     },
   },
   {
@@ -256,25 +346,41 @@ const TOOLS: Tool[] = [
     title: "Create a trip",
     description:
       "Creates a new trip with its items, in the Field Notes JSON v1 format ({trip, items}). Items are saved as unverified AI drafts. Only accounts allowed to create trips can do this. Include a budget only if the person gave one; copy it exactly. Atomic: if the trip or any item is invalid nothing is created and the problems are listed. Check list_trips first so you do not create a duplicate.",
-    inputSchema: object({ trip: tripBlockSchema, items: { type: "array", maxItems: 250, items: itemSchema } }, ["trip"]),
+    inputSchema: object({ trip: tripBlockSchema, items: { type: "array", maxItems: 250, items: itemSchema } }, [
+      "trip",
+    ]),
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     access: "write",
     ownerAccountOnly: true,
     async run(ctx, args) {
       const a = parse(createArgs, args);
       if ("error" in a) return a.error;
-      const created = await createTripByAi(ctx.db, ctx.actor, { trip: a.value.trip, items: a.value.items ?? [] }, ctx.now, ctx.later);
-      return ok({ trip: tripView(created.trip), items: created.items.map((i) => itemView(i)), message: `Created the trip with ${created.items.length} item${created.items.length === 1 ? "" : "s"} as unverified AI drafts. Give the person its url (${tripUrl(created.trip.id)}): they can watch further changes there and mark the drafts reviewed.` });
+      const created = await createTripByAi(
+        ctx.db,
+        ctx.actor,
+        { trip: a.value.trip, items: a.value.items ?? [] },
+        ctx.now,
+        ctx.later,
+      );
+      return ok({
+        trip: tripView(created.trip),
+        items: created.items.map((i) => itemView(i)),
+        message: `Created the trip with ${created.items.length} item${created.items.length === 1 ? "" : "s"} as unverified AI drafts. Give the person its url (${tripUrl(created.trip.id)}): they can watch further changes there and mark the drafts reviewed.`,
+      });
     },
   },
 ];
 
 /** What each tool needs, in the form ChatGPT reads (top-level `securitySchemes`, mirrored in `_meta` for clients that only read that). */
-const securitySchemes = (t: Tool) => [{ type: "oauth2", scopes: t.access === "write" ? ["trips:read", "trips:write"] : ["trips:read"] }];
+const securitySchemes = (t: Tool) => [
+  { type: "oauth2", scopes: t.access === "write" ? ["trips:read", "trips:write"] : ["trips:read"] },
+];
 
 /** The tools this connection may use: read tools always, write tools with the write scope, and `create_trip` only for an allowlisted owner. */
 export function listTools(ctx: Pick<ToolContext, "scope" | "actor">) {
-  return TOOLS.filter((t) => (t.access === "read" || hasWrite(ctx.scope)) && (!t.ownerAccountOnly || ctx.actor.isOwner)).map((t) => ({
+  return TOOLS.filter(
+    (t) => (t.access === "read" || hasWrite(ctx.scope)) && (!t.ownerAccountOnly || ctx.actor.isOwner),
+  ).map((t) => ({
     name: t.name,
     title: t.title,
     description: t.description,
@@ -290,7 +396,9 @@ export async function callTool(ctx: ToolContext, name: string, args: unknown): P
   const tool = TOOLS.find((t) => t.name === name);
   if (!tool) return null;
   if (tool.access === "write" && !hasWrite(ctx.scope)) {
-    return fail("This connection is read-only. The person needs to reconnect Field Notes and allow changes before you can do that.");
+    return fail(
+      "This connection is read-only. The person needs to reconnect Field Notes and allow changes before you can do that.",
+    );
   }
   try {
     return await tool.run(ctx, args);

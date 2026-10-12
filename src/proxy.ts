@@ -16,7 +16,11 @@ export function proxy(request: NextRequest) {
       return own;
     }
   };
-  const signInHosts = ["https://accounts.google.com", hostOf(process.env.APPLE_ORIGIN, "https://appleid.apple.com"), hostOf(process.env.WECHAT_OPEN_ORIGIN, "https://open.weixin.qq.com")];
+  const signInHosts = [
+    "https://accounts.google.com",
+    hostOf(process.env.APPLE_ORIGIN, "https://appleid.apple.com"),
+    hostOf(process.env.WECHAT_OPEN_ORIGIN, "https://open.weixin.qq.com"),
+  ];
   const csp = [
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${dev ? " 'unsafe-eval'" : ""}`,

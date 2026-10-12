@@ -4,7 +4,9 @@ import type { DB } from "@/server/core/db/schema";
 
 /** Adds to today's (database date) totals, one row per name. */
 export async function addUsage(db: Kysely<DB>, counts: Map<string, number>): Promise<void> {
-  const values = [...counts.entries()].filter(([, n]) => n > 0).map(([name, count]) => ({ day: sql<string>`current_date`, name, count }));
+  const values = [...counts.entries()]
+    .filter(([, n]) => n > 0)
+    .map(([name, count]) => ({ day: sql<string>`current_date`, name, count }));
   if (!values.length) return;
   await db
     .insertInto("usage_counts")

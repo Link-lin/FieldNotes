@@ -18,22 +18,30 @@ if (process.env.NODE_ENV === "production") {
 const url = process.env.DATABASE_URL;
 const email = normalizeEmail(process.argv[2] ?? process.env.TRIP_OWNER_EMAILS?.split(",")[0] ?? "");
 if (!url || !email) {
-  console.error("Set DATABASE_URL and TRIP_OWNER_EMAILS in .env.local (or pass your email: npm run db:seed:hawaii -- you@example.com).");
+  console.error(
+    "Set DATABASE_URL and TRIP_OWNER_EMAILS in .env.local (or pass your email: npm run db:seed:hawaii -- you@example.com).",
+  );
   process.exit(1);
 }
 
 const db = createDb(url);
 try {
   // Gmail addresses match by key, so the allowlist spelling need not equal the address Google signed in with.
-  const you = (await db.selectFrom("User").select(["id", "email"]).execute()).flatMap((u) => (u.email && emailKey(u.email) === emailKey(email) ? [{ id: u.id, email: u.email }] : []))[0];
+  const you = (await db.selectFrom("User").select(["id", "email"]).execute()).flatMap((u) =>
+    u.email && emailKey(u.email) === emailKey(email) ? [{ id: u.id, email: u.email }] : [],
+  )[0];
   if (!you) {
-    console.error(`No account for ${email} yet. Sign in to the app once with that Google account, then run this again.`);
+    console.error(
+      `No account for ${email} yet. Sign in to the app once with that Google account, then run this again.`,
+    );
     process.exitCode = 1;
   } else {
     const { trips } = await seedDemoTrips(db, you);
     console.log(`Test trips loaded for ${email}:`);
     for (const t of trips) console.log(`  ${t.title}: ${t.items} events, ${t.viewers} sharing entries`);
-    console.log(`\nOpen "${HAWAII_TITLE}" on the dashboard. The Kyoto trip is owned by ${TEST_FRIEND.name} and shared with you read-only.`);
+    console.log(
+      `\nOpen "${HAWAII_TITLE}" on the dashboard. The Kyoto trip is owned by ${TEST_FRIEND.name} and shared with you read-only.`,
+    );
     console.log("Run this again any time to reset them; your other trips are not touched.");
   }
 } catch (err) {

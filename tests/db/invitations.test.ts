@@ -3,7 +3,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { makeActor, NOW, reset, testDb, tripInput } from "./helpers";
 import { createTrip, getTripDetail } from "@/server/modules/trips/trips.service";
 import { getDashboard } from "@/server/modules/dashboard/dashboard.service";
-import { acceptInvitation, createInvitation, listInvitations, revokeInvitation, stageInvitation } from "@/server/modules/invitations/invitations.service";
+import {
+  acceptInvitation,
+  createInvitation,
+  listInvitations,
+  revokeInvitation,
+  stageInvitation,
+} from "@/server/modules/invitations/invitations.service";
 import { allowSignIn } from "@/server/auth/sign-in-gate";
 import { actorFor, type Actor } from "@/server/auth/actor";
 import { HttpError } from "@/server/core/http/errors";
@@ -32,7 +38,11 @@ const req = (method: string, body?: unknown, opts: { origin?: string | null; coo
   const origin = opts.origin === undefined ? ORIGIN : opts.origin;
   return new Request(`${ORIGIN}/api/x`, {
     method,
-    headers: { "content-type": "application/json", ...(origin ? { origin } : {}), ...(opts.cookie ? { cookie: opts.cookie } : {}) },
+    headers: {
+      "content-type": "application/json",
+      ...(origin ? { origin } : {}),
+      ...(opts.cookie ? { cookie: opts.cookie } : {}),
+    },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
 };
@@ -43,7 +53,10 @@ const sha = (token: string) => createHash("sha256").update(token).digest();
 const later = (days: number) => new Date(NOW.getTime() + days * 864e5);
 
 async function expectHttp(p: Promise<unknown>, status: number, code?: string) {
-  const err = await p.then(() => null, (e: unknown) => e);
+  const err = await p.then(
+    () => null,
+    (e: unknown) => e,
+  );
   expect(err).toBeInstanceOf(HttpError);
   expect((err as HttpError).status).toBe(status);
   if (code) expect((err as HttpError).code).toBe(code);
@@ -64,7 +77,17 @@ describe("invitation service", () => {
     const link = await createInvitation(db(), owner, tripId, "viewer@example.com", NOW);
     expect(link.invitationUrl).toMatch(/^http:\/\/localhost:3000\/invite#[A-Za-z0-9_-]{43}$/);
     expect(link.expiresAt).toBe(later(7).toISOString());
-    expect(link.invitation).toEqual({ id: link.invitationId, email: "viewer@example.com", label: null, joinedAs: null, role: "viewer", status: "pending", expiresAt: link.expiresAt, acceptedAt: null, revokedAt: null });
+    expect(link.invitation).toEqual({
+      id: link.invitationId,
+      email: "viewer@example.com",
+      label: null,
+      joinedAs: null,
+      role: "viewer",
+      status: "pending",
+      expiresAt: link.expiresAt,
+      acceptedAt: null,
+      revokedAt: null,
+    });
     const rows = await db().selectFrom("trip_viewers").selectAll().execute();
     expect(rows).toHaveLength(1);
     expect(rows[0]!.invitation_token_hash).toEqual(sha(tokenOf(link.invitationUrl)));
@@ -131,7 +154,11 @@ describe("invitation service", () => {
     expect(await acceptInvitation(db(), viewer, hash, later(30))).toEqual({ tripId });
     await expectHttp(acceptInvitation(db(), stranger, hash, NOW), 404, "invitation_invalid");
     expect((await getTripDetail(db(), viewer, tripId, NOW)).trip.role).toBe("viewer");
-    expect((await listInvitations(db(), owner, tripId, NOW))[0]).toMatchObject({ status: "accepted", acceptedAt: NOW.toISOString(), expiresAt: null });
+    expect((await listInvitations(db(), owner, tripId, NOW))[0]).toMatchObject({
+      status: "accepted",
+      acceptedAt: NOW.toISOString(),
+      expiresAt: null,
+    });
   });
 
   it("lets the bound account reopen an accepted link, and no one else", async () => {
@@ -147,7 +174,10 @@ describe("invitation service", () => {
   it("binds a link to one account when accepts race", async () => {
     const link = await createInvitation(db(), owner, tripId, "viewer@example.com", NOW);
     const hash = sha(tokenOf(link.invitationUrl));
-    const results = await Promise.all([acceptInvitation(db(), viewer, hash, NOW), acceptInvitation(db(), viewer, hash, NOW)]);
+    const results = await Promise.all([
+      acceptInvitation(db(), viewer, hash, NOW),
+      acceptInvitation(db(), viewer, hash, NOW),
+    ]);
     expect(results).toEqual([{ tripId }, { tripId }]);
     const rows = await db().selectFrom("trip_viewers").selectAll().execute();
     expect(rows).toHaveLength(1);
@@ -173,7 +203,12 @@ describe("invitation service", () => {
   it("keeps an accepted viewer's access after their email changes", async () => {
     const link = await createInvitation(db(), owner, tripId, "viewer@example.com", NOW);
     await acceptInvitation(db(), viewer, sha(tokenOf(link.invitationUrl)), NOW);
-    const renamed = await db().updateTable("User").set({ email: "sam@new.example" }).where("id", "=", viewer.userId).returning(["id", "email"]).executeTakeFirstOrThrow();
+    const renamed = await db()
+      .updateTable("User")
+      .set({ email: "sam@new.example" })
+      .where("id", "=", viewer.userId)
+      .returning(["id", "email"])
+      .executeTakeFirstOrThrow();
     expect((await getTripDetail(db(), actorFor(renamed), tripId, NOW)).trip.role).toBe("viewer");
   });
 
@@ -187,10 +222,18 @@ describe("invitation service", () => {
     // The same trick on another domain is a different person and stays refused.
     const plain = await createInvitation(db(), owner, tripId, "sam.rivera@example.com", NOW);
     const other = await makeActor("samrivera@example.com", "Sam");
-    await expectHttp(acceptInvitation(db(), other, sha(tokenOf(plain.invitationUrl)), NOW), 403, "invitation_wrong_account");
+    await expectHttp(
+      acceptInvitation(db(), other, sha(tokenOf(plain.invitationUrl)), NOW),
+      403,
+      "invitation_wrong_account",
+    );
     // Gmail names that really differ stay refused too.
     const near = await createInvitation(db(), owner, tripId, "sam.rivera@gmail.com", NOW);
-    await expectHttp(acceptInvitation(db(), await makeActor("samrivera2@gmail.com", "Sam 2"), sha(tokenOf(near.invitationUrl)), NOW), 403, "invitation_wrong_account");
+    await expectHttp(
+      acceptInvitation(db(), await makeActor("samrivera2@gmail.com", "Sam 2"), sha(tokenOf(near.invitationUrl)), NOW),
+      403,
+      "invitation_wrong_account",
+    );
   });
 
   it("keeps one entry per person across spellings, and refuses the owner's own address in any spelling", async () => {
@@ -204,7 +247,11 @@ describe("invitation service", () => {
     await expectHttp(createInvitation(db(), owner, tripId, "j.anedoe@gmail.com", NOW), 409, "invitation_accepted");
     const ownerGmail = await makeActor("my.owner@gmail.com", "Mine");
     const t2 = (await createTrip(db(), { ...ownerGmail, isOwner: true }, tripInput, NOW)).id;
-    await expectHttp(createInvitation(db(), { ...ownerGmail, isOwner: true }, t2, "myowner+me@googlemail.com", NOW), 422, "validation_error");
+    await expectHttp(
+      createInvitation(db(), { ...ownerGmail, isOwner: true }, t2, "myowner+me@googlemail.com", NOW),
+      422,
+      "validation_error",
+    );
   });
 
   it("admits a new account for a pending invitation only while it can be accepted", async () => {
@@ -217,7 +264,12 @@ describe("invitation service", () => {
   });
 
   it("admits a new Gmail identity for an invitation typed with other dots or a +tag, but not another domain's lookalike", async () => {
-    const gmail = (email: string) => ({ provider: "google", providerAccountId: `sub-${email}`, email, emailVerified: true });
+    const gmail = (email: string) => ({
+      provider: "google",
+      providerAccountId: `sub-${email}`,
+      email,
+      emailVerified: true,
+    });
     await createInvitation(db(), owner, tripId, "jane.doe+trip@gmail.com", NOW);
     expect(await allowSignIn(db(), gmail("janedoe@gmail.com"), NOW)).toBe(true);
     expect(await allowSignIn(db(), gmail("Jane.Doe@googlemail.com"), NOW)).toBe(true);
@@ -264,7 +316,11 @@ describe("invitation routes", () => {
     expect(bad.status).toBe(422);
     const created = await list.POST(req("POST", { email: "  Viewer@Example.com " }), ctx({ tripId }));
     expect(created.status).toBe(201);
-    const body = (await created.json()) as { invitationId: string; invitationUrl: string; invitation: { email: string } };
+    const body = (await created.json()) as {
+      invitationId: string;
+      invitationUrl: string;
+      invitation: { email: string };
+    };
     expect(body.invitation.email).toBe("viewer@example.com");
     const listed = await list.GET(req("GET"), ctx({ tripId }));
     expect(listed.status).toBe(200);
@@ -273,7 +329,14 @@ describe("invitation routes", () => {
     expect(text).not.toContain(tokenOf(body.invitationUrl));
     expect(text).not.toContain("invite#");
     expect((await one.DELETE(req("DELETE"), ctx({ tripId, invitationId: body.invitationId }))).status).toBe(204);
-    expect((await one.DELETE(req("DELETE", undefined, { origin: "https://evil.example" }), ctx({ tripId, invitationId: body.invitationId }))).status).toBe(403);
+    expect(
+      (
+        await one.DELETE(
+          req("DELETE", undefined, { origin: "https://evil.example" }),
+          ctx({ tripId, invitationId: body.invitationId }),
+        )
+      ).status,
+    ).toBe(403);
 
     session.actor = viewer;
     expect((await list.GET(req("GET"), ctx({ tripId }))).status).toBe(404);
@@ -313,7 +376,9 @@ describe("invitation routes", () => {
     session.actor = stranger;
     const wrong = await accept.POST(req("POST", undefined, { cookie }));
     expect(wrong.status).toBe(403);
-    expect(((await wrong.json()) as { error: { code: string; message: string } }).error.code).toBe("invitation_wrong_account");
+    expect(((await wrong.json()) as { error: { code: string; message: string } }).error.code).toBe(
+      "invitation_wrong_account",
+    );
     expect(wrong.headers.get("set-cookie")).toBeNull();
 
     session.actor = viewer;

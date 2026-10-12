@@ -25,7 +25,15 @@ export async function ownedTripRows(db: Conn, userId: string, lock = false): Pro
   let q = db
     .selectFrom("trips")
     .leftJoin("User as creator", "creator.id", "trips.owner_user_id")
-    .select(["trips.id", "trips.title", "trips.start_date", "trips.end_date", "trips.owner_user_id", "creator.name as creator_name", "creator.email as creator_email"])
+    .select([
+      "trips.id",
+      "trips.title",
+      "trips.start_date",
+      "trips.end_date",
+      "trips.owner_user_id",
+      "creator.name as creator_name",
+      "creator.email as creator_email",
+    ])
     .where((eb) =>
       eb.or([
         eb("trips.owner_user_id", "=", userId),
@@ -74,7 +82,11 @@ export async function promoteToOwner(tx: Transaction<DB>, grantId: string, userI
 }
 
 /** The accepted grants on these trips other than the given account's, with who and since when. */
-export async function acceptedPeople(db: Conn, tripIds: string[], exceptUserId: string): Promise<Array<Person & { tripId: string }>> {
+export async function acceptedPeople(
+  db: Conn,
+  tripIds: string[],
+  exceptUserId: string,
+): Promise<Array<Person & { tripId: string }>> {
   if (!tripIds.length) return [];
   const rows = await db
     .selectFrom("trip_viewers")
@@ -86,5 +98,12 @@ export async function acceptedPeople(db: Conn, tripIds: string[], exceptUserId: 
     .orderBy("id")
     .execute();
   // Accepted rows always carry a user and an acceptance time (a table check), which the column types can't say.
-  return rows.map((r) => ({ id: r.id, tripId: r.trip_id, userId: r.viewer_user_id!, name: r.invitee_email_normalized ?? r.label ?? "Someone", role: r.role as Role, acceptedAt: r.accepted_at! }));
+  return rows.map((r) => ({
+    id: r.id,
+    tripId: r.trip_id,
+    userId: r.viewer_user_id!,
+    name: r.invitee_email_normalized ?? r.label ?? "Someone",
+    role: r.role as Role,
+    acceptedAt: r.accepted_at!,
+  }));
 }

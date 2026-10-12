@@ -15,7 +15,9 @@ export async function saveTripFields(
   start: Partial<TripFields>,
   zone?: { confirmTimeZoneImpact: true; timeDisambiguationByItem: Record<string, "earlier" | "later"> },
 ): Promise<{ ok: true; trip: TripSummaryDTO } | Fail> {
-  const changes = Object.fromEntries(Object.entries(next).filter(([k, v]) => !sameValue(v, start[k as keyof TripFields])));
+  const changes = Object.fromEntries(
+    Object.entries(next).filter(([k, v]) => !sameValue(v, start[k as keyof TripFields])),
+  );
   const base = Object.fromEntries(Object.keys(changes).map((k) => [k, start[k as keyof TripFields] ?? null]));
   const r = await api<TripSummaryDTO>("PATCH", `/api/trips/${tripId}/fields`, { changes, base, ...zone });
   return r.ok ? { ok: true, trip: r.data } : r;
@@ -24,7 +26,13 @@ export async function saveTripFields(
 /** What a failed trip save tells the person. */
 export function tripFailure(r: Fail): Extract<FieldSaveResult, { ok: false }> {
   if (r.code === "field_conflict") {
-    return { ok: false, conflict: true, message: "This was changed elsewhere (in another tab or window, or by another owner) while you were editing, so yours wasn't saved. Cancel to see it as it is now, then make your change again.", fields: r.fields };
+    return {
+      ok: false,
+      conflict: true,
+      message:
+        "This was changed elsewhere (in another tab or window, or by another owner) while you were editing, so yours wasn't saved. Cancel to see it as it is now, then make your change again.",
+      fields: r.fields,
+    };
   }
   return { ok: false, message: r.message, fields: r.fields };
 }

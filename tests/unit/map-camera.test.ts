@@ -1,6 +1,26 @@
 import { describe, expect, it } from "vitest";
-import { centerOf, clampView, easeInOutCubic, fitView, H0, relaxView, sameView, viewAround, viewOnDay, viewOnStop, W0, zoomPath, type Framing, type View } from "@/features/trips/TripPage/MapPanel/DayMap/camera";
-import { createCameraDirector, FRAMED, TIMING, type Clock } from "@/features/trips/TripPage/MapPanel/DayMap/camera-director";
+import {
+  centerOf,
+  clampView,
+  easeInOutCubic,
+  fitView,
+  H0,
+  relaxView,
+  sameView,
+  viewAround,
+  viewOnDay,
+  viewOnStop,
+  W0,
+  zoomPath,
+  type Framing,
+  type View,
+} from "@/features/trips/TripPage/MapPanel/DayMap/camera";
+import {
+  createCameraDirector,
+  FRAMED,
+  TIMING,
+  type Clock,
+} from "@/features/trips/TripPage/MapPanel/DayMap/camera-director";
 import { createMapFocus, type MapFocus } from "@/features/trips/TripPage/MapPanel/map-focus";
 
 const HOME: View = { x: 0, y: 0, w: W0, h: H0 };
@@ -20,11 +40,21 @@ describe("views", () => {
   });
 
   it("fits stops that fill the usual margins into the starting view", () => {
-    near(fitView([{ x: 76, y: 56 }, { x: 324, y: 284 }]), HOME);
+    near(
+      fitView([
+        { x: 76, y: 56 },
+        { x: 324, y: 284 },
+      ]),
+      HOME,
+    );
   });
 
   it("fits any stops with the margin to spare, in the middle, and never narrower than asked", () => {
-    const pts = [{ x: 10, y: 20 }, { x: 14, y: 21 }, { x: 12, y: 26 }];
+    const pts = [
+      { x: 10, y: 20 },
+      { x: 14, y: 21 },
+      { x: 12, y: 26 },
+    ];
     const v = fitView(pts);
     for (const p of pts) {
       expect(p.x - v.x).toBeGreaterThanOrEqual((56 * v.w) / W0 - 1e-9);
@@ -100,7 +130,9 @@ describe("the flight between two views", () => {
         const v = path.at(i / 400);
         // A step changes the scale by a fraction of a percent of the total, and the centre by a fraction of the view.
         expect(Math.abs(Math.log(v.w / prev.w))).toBeLessThan(0.06 + Math.abs(Math.log(to.w / from.w)) / 100);
-        expect(Math.hypot(centerOf(v).x - centerOf(prev).x, centerOf(v).y - centerOf(prev).y)).toBeLessThan(Math.max(prev.w, v.w) * 0.2 + 1e-9);
+        expect(Math.hypot(centerOf(v).x - centerOf(prev).x, centerOf(v).y - centerOf(prev).y)).toBeLessThan(
+          Math.max(prev.w, v.w) * 0.2 + 1e-9,
+        );
         prev = v;
       }
     }
@@ -160,10 +192,18 @@ describe("where to look", () => {
     const roomy: Framing = { home: HOME, span: 10, floor: 1, pixels: 400 };
     const at = { x: 100, y: 100 };
     // The nearest other place is 0.3 units away: for it to be 21 px away on a 400 px map the view can be 0.3 × 400 / 21 wide.
-    const v = viewOnStop(at, HOME, roomy, [{ x: 100.3, y: 100 }, { x: 160, y: 100 }])!;
+    const v = viewOnStop(at, HOME, roomy, [
+      { x: 100.3, y: 100 },
+      { x: 160, y: 100 },
+    ])!;
     expect(v.w).toBeCloseTo((0.3 * 400) / 21, 9);
     // Another place at the very same spot, or a fraction of the span away, is the same place and doesn't count.
-    expect(viewOnStop(at, HOME, roomy, [{ x: 100, y: 100 }, { x: 100.01, y: 100 }])!.w).toBe(10);
+    expect(
+      viewOnStop(at, HOME, roomy, [
+        { x: 100, y: 100 },
+        { x: 100.01, y: 100 },
+      ])!.w,
+    ).toBe(10);
     // Never tighter than the map allows, and never wider than a stop's neighbourhood.
     expect(viewOnStop(at, HOME, { ...roomy, floor: 2 }, [{ x: 100.06, y: 100 }])!.w).toBe(2);
     expect(viewOnStop(at, HOME, roomy, [{ x: 160, y: 100 }])!.w).toBe(10);
@@ -182,23 +222,40 @@ describe("where to look", () => {
   });
 
   it("holds a day's stops, with at least a stop's neighbourhood around them", () => {
-    const day = [{ x: 100, y: 100 }, { x: 100.4, y: 100.1 }, { x: 100.2, y: 100.5 }];
+    const day = [
+      { x: 100, y: 100 },
+      { x: 100.4, y: 100.1 },
+      { x: 100.2, y: 100.5 },
+    ];
     const v = viewOnDay(day, HOME, wide)!;
     for (const p of day) expect(p.x > v.x && p.x < v.x + v.w && p.y > v.y && p.y < v.y + v.h).toBe(true);
     expect(v.w).toBeGreaterThanOrEqual(1.5);
-    const tight = viewOnDay([{ x: 100, y: 100 }, { x: 100.01, y: 100 }], HOME, wide)!;
+    const tight = viewOnDay(
+      [
+        { x: 100, y: 100 },
+        { x: 100.01, y: 100 },
+      ],
+      HOME,
+      wide,
+    )!;
     expect(tight.w).toBe(1.5);
   });
 
   it("stays put when the view already shows the day and isn't much wider than it", () => {
-    const day = [{ x: 100, y: 100 }, { x: 100.4, y: 100.1 }];
+    const day = [
+      { x: 100, y: 100 },
+      { x: 100.4, y: 100.1 },
+    ];
     const fit = viewOnDay(day, HOME, wide)!;
     expect(viewOnDay(day, fit, wide)).toBeNull();
     expect(viewOnDay([], HOME, wide)).toBeNull();
   });
 
   it("zooms out to show a day that the person's own view cuts off", () => {
-    const day = [{ x: 100, y: 100 }, { x: 105, y: 102 }];
+    const day = [
+      { x: 100, y: 100 },
+      { x: 105, y: 102 },
+    ];
     const mine = viewAround(100, 100, 1.5);
     const v = viewOnDay(day, mine, wide)!;
     expect(v.w).toBeGreaterThan(mine.w);
@@ -242,7 +299,13 @@ describe("what the page points the map at", () => {
     store.set({ kind: "event", id: "2026-10-21" });
     store.set(null);
     store.set(null);
-    expect(seen).toEqual([{ kind: "event", id: "a" }, { kind: "day", day: "2026-10-20" }, { kind: "day", day: "2026-10-21" }, { kind: "event", id: "2026-10-21" }, null]);
+    expect(seen).toEqual([
+      { kind: "event", id: "a" },
+      { kind: "day", day: "2026-10-20" },
+      { kind: "day", day: "2026-10-21" },
+      { kind: "event", id: "2026-10-21" },
+      null,
+    ]);
     off();
     store.set({ kind: "event", id: "b" });
     expect(seen).toHaveLength(5);
@@ -262,7 +325,10 @@ describe("the camera director", () => {
   const eased = (v: View) => relaxView(v, HOME);
 
   /** A director on a fake clock and a fake frame loop that steps 16 ms at a time. */
-  function rig(over: Partial<Parameters<typeof createCameraDirector>[0]> = {}, hooks: { onShow?: (count: number) => void; stubbornFrames?: boolean } = {}) {
+  function rig(
+    over: Partial<Parameters<typeof createCameraDirector>[0]> = {},
+    hooks: { onShow?: (count: number) => void; stubbornFrames?: boolean } = {},
+  ) {
     let now = 0;
     let seq = 0;
     const timers = new Map<number, { at: number; fn: () => void }>();
@@ -416,7 +482,9 @@ describe("the camera director", () => {
     for (let i = 1; i < r.shown.length; i++) {
       const [a, b] = [r.shown[i - 1]!, r.shown[i]!];
       expect(Math.abs(Math.log(b.w / a.w))).toBeLessThan(0.35);
-      expect(Math.hypot(centerOf(b).x - centerOf(a).x, centerOf(b).y - centerOf(a).y)).toBeLessThan(Math.max(a.w, b.w) * 0.5);
+      expect(Math.hypot(centerOf(b).x - centerOf(a).x, centerOf(b).y - centerOf(a).y)).toBeLessThan(
+        Math.max(a.w, b.w) * 0.5,
+      );
     }
   });
 

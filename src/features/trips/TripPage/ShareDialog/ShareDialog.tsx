@@ -24,14 +24,27 @@ type Props = {
   onExited: () => void;
 };
 /** A link shown once. `name` is the address, or the label of an entry made by link. */
-type Shown = { id: string; name: string; byLink: boolean; role: Role; url: string; expiresAt: string; delivery: InvitationDelivery; copied: boolean };
+type Shown = {
+  id: string;
+  name: string;
+  byLink: boolean;
+  role: Role;
+  url: string;
+  expiresAt: string;
+  delivery: InvitationDelivery;
+  copied: boolean;
+};
 /** What an owner can ask for: a new entry by email or by link, or a new link for an entry made by link. */
-type Issue = { kind: "email"; email: string; role: Role } | { kind: "link"; label: string; role: Role } | { kind: "renew"; entry: InvitationDTO };
+type Issue =
+  | { kind: "email"; email: string; role: Role }
+  | { kind: "link"; label: string; role: Role }
+  | { kind: "renew"; entry: InvitationDTO };
 
 /** Insert or replace entries by ID, keeping list order. */
 function upsert(list: InvitationDTO[], add: InvitationDTO[]): InvitationDTO[] {
   let out = list;
-  for (const entry of add) out = out.some((e) => e.id === entry.id) ? out.map((e) => (e.id === entry.id ? entry : e)) : [...out, entry];
+  for (const entry of add)
+    out = out.some((e) => e.id === entry.id) ? out.map((e) => (e.id === entry.id ? entry : e)) : [...out, entry];
   return out;
 }
 
@@ -85,9 +98,15 @@ export function ShareDialog({ trip, canEmail, open, triggerSelector, guardRef, o
   async function issue(what: Issue): Promise<IssueResult> {
     const r =
       what.kind === "email"
-        ? await api<InvitationLinkDTO>("POST", `/api/trips/${trip.id}/invitations`, { email: what.email, role: what.role })
+        ? await api<InvitationLinkDTO>("POST", `/api/trips/${trip.id}/invitations`, {
+            email: what.email,
+            role: what.role,
+          })
         : what.kind === "link"
-          ? await api<InvitationLinkDTO>("POST", `/api/trips/${trip.id}/invitations`, { label: what.label, role: what.role })
+          ? await api<InvitationLinkDTO>("POST", `/api/trips/${trip.id}/invitations`, {
+              label: what.label,
+              role: what.role,
+            })
           : await api<InvitationLinkDTO>("POST", `/api/trips/${trip.id}/invitations/${what.entry.id}/link`);
     if (!r.ok) {
       const field = r.fields.find((f) => f.path === "email" || f.path === "label");
@@ -113,7 +132,8 @@ export function ShareDialog({ trip, canEmail, open, triggerSelector, guardRef, o
   }
 
   /** A new link for an existing entry: sent to its address, or for an entry made by link, shown to copy. */
-  const renew = (entry: InvitationDTO) => issue(entry.email !== null ? { kind: "email", email: entry.email, role: entry.role } : { kind: "renew", entry });
+  const renew = (entry: InvitationDTO) =>
+    issue(entry.email !== null ? { kind: "email", email: entry.email, role: entry.role } : { kind: "renew", entry });
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -121,7 +141,11 @@ export function ShareDialog({ trip, canEmail, open, triggerSelector, guardRef, o
     setFormError(null);
     const fieldId = mode === "email" ? "share-email" : "share-label";
     if (mode === "email" ? !email.trim() : !label.trim()) {
-      setFieldError(mode === "email" ? "Enter the email address of the person you want to invite." : "Give the person a name or note, like Mei on WeChat.");
+      setFieldError(
+        mode === "email"
+          ? "Enter the email address of the person you want to invite."
+          : "Give the person a name or note, like Mei on WeChat.",
+      );
       document.getElementById(fieldId)?.focus();
       return;
     }
@@ -177,37 +201,79 @@ export function ShareDialog({ trip, canEmail, open, triggerSelector, guardRef, o
         confirmClose && uncopied.length ? (
           <Banner tone="warn" role="alert" className={styles.closeWarning}>
             <span>
-              You haven&apos;t copied the link for {uncopied.map((l) => l.name).join(", ")}. It can&apos;t be shown again; you would need to create a new
-              link.
+              You haven&apos;t copied the link for {uncopied.map((l) => l.name).join(", ")}. It can&apos;t be shown
+              again; you would need to create a new link.
             </span>
             <span className={styles.closeActions}>
-              <Button variant="quiet" onClick={() => setConfirmClose(false)}>Keep open</Button>
-              <Button variant="danger" data-close-anyway onClick={onClose}>Close anyway</Button>
+              <Button variant="quiet" onClick={() => setConfirmClose(false)}>
+                Keep open
+              </Button>
+              <Button variant="danger" data-close-anyway onClick={onClose}>
+                Close anyway
+              </Button>
             </span>
           </Banner>
         ) : null
       }
-      footer={<Button variant="quiet" onClick={requestClose}>Done</Button>}
+      footer={
+        <Button variant="quiet" onClick={requestClose}>
+          Done
+        </Button>
+      }
     >
-      <p className={styles.lede}>{canEmail ? "Invite people by email and choose what each can do. They sign in with Google." : "Invite people and choose what each can do. They sign in with Google."}</p>
+      <p className={styles.lede}>
+        {canEmail
+          ? "Invite people by email and choose what each can do. They sign in with Google."
+          : "Invite people and choose what each can do. They sign in with Google."}
+      </p>
       <Banner tone="info">
         <p>
-          Everyone you invite can see everything in this trip: all events, place names, map links and exact pinned positions, planned prices, booking
-          status and links. You can&apos;t share only part of a trip.
+          Everyone you invite can see everything in this trip: all events, place names, map links and exact pinned
+          positions, planned prices, booking status and links. You can&apos;t share only part of a trip.
         </p>
         <ul>
-          {ROLES.map((r) => <li key={r}><b>{ROLE_LABEL[r]}:</b> {ROLE_HELP[r]}</li>)}
+          {ROLES.map((r) => (
+            <li key={r}>
+              <b>{ROLE_LABEL[r]}:</b> {ROLE_HELP[r]}
+            </li>
+          ))}
         </ul>
       </Banner>
 
       <form className={styles.invite} onSubmit={onSubmit} noValidate>
         <fieldset className={styles.mode}>
           <legend className="visually-hidden">How they will join</legend>
-          <CheckField type="radio" name="share-mode" checked={mode === "email"} onChange={() => { setMode("email"); setFieldError(null); }} label="By email" />
-          <CheckField type="radio" name="share-mode" checked={mode === "link"} onChange={() => { setMode("link"); setFieldError(null); }} label="By link (for example, a WeChat contact)" />
+          <CheckField
+            type="radio"
+            name="share-mode"
+            checked={mode === "email"}
+            onChange={() => {
+              setMode("email");
+              setFieldError(null);
+            }}
+            label="By email"
+          />
+          <CheckField
+            type="radio"
+            name="share-mode"
+            checked={mode === "link"}
+            onChange={() => {
+              setMode("link");
+              setFieldError(null);
+            }}
+            label="By link (for example, a WeChat contact)"
+          />
         </fieldset>
         {mode === "email" ? (
-          <Field label="Invite by email" htmlFor="share-email" hint="Gmail addresses match even if the dots, a +tag or googlemail.com differ." hintId="share-email-hint" error={fieldError} errorId="share-email-error" className={styles.email}>
+          <Field
+            label="Invite by email"
+            htmlFor="share-email"
+            hint="Gmail addresses match even if the dots, a +tag or googlemail.com differ."
+            hintId="share-email-hint"
+            error={fieldError}
+            errorId="share-email-error"
+            className={styles.email}
+          >
             <input
               id="share-email"
               type="email"
@@ -221,7 +287,15 @@ export function ShareDialog({ trip, canEmail, open, triggerSelector, guardRef, o
             />
           </Field>
         ) : (
-          <Field label="Name or note" htmlFor="share-label" hint="Only you see this. For example: Mei, on WeChat." hintId="share-label-hint" error={fieldError} errorId="share-label-error" className={styles.email}>
+          <Field
+            label="Name or note"
+            htmlFor="share-label"
+            hint="Only you see this. For example: Mei, on WeChat."
+            hintId="share-label-hint"
+            error={fieldError}
+            errorId="share-label-error"
+            className={styles.email}
+          >
             <input
               id="share-label"
               type="text"
@@ -235,19 +309,44 @@ export function ShareDialog({ trip, canEmail, open, triggerSelector, guardRef, o
             />
           </Field>
         )}
-        <Field label="Can" htmlFor="share-role" hint={ROLE_HELP[role]} hintId="share-role-hint" className={styles.roleField}>
-          <select id="share-role" value={role} onChange={(e) => setRole(e.target.value as Role)} aria-describedby="share-role-hint">
-            {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
+        <Field
+          label="Can"
+          htmlFor="share-role"
+          hint={ROLE_HELP[role]}
+          hintId="share-role-hint"
+          className={styles.roleField}
+        >
+          <select
+            id="share-role"
+            value={role}
+            onChange={(e) => setRole(e.target.value as Role)}
+            aria-describedby="share-role-hint"
+          >
+            {ROLES.map((r) => (
+              <option key={r} value={r}>
+                {ROLE_LABEL[r]}
+              </option>
+            ))}
           </select>
         </Field>
         <Button variant="fill" type="submit" disabled={creating}>
-          {mode === "link" ? (creating ? "Creating…" : "Create link") : creating ? (canEmail ? "Sending…" : "Creating…") : canEmail ? "Send invitation" : "Create invitation"}
+          {mode === "link"
+            ? creating
+              ? "Creating…"
+              : "Create link"
+            : creating
+              ? canEmail
+                ? "Sending…"
+                : "Creating…"
+              : canEmail
+                ? "Send invitation"
+                : "Create invitation"}
         </Button>
       </form>
       {mode === "link" ? (
         <p className="note">
-          Whoever opens the link first joins as {ROLE_LABEL[role].toLowerCase()}, whoever they are, so send it only to the person you mean. It works once and
-          expires in seven days. You can revoke it afterwards.
+          Whoever opens the link first joins as {ROLE_LABEL[role].toLowerCase()}, whoever they are, so send it only to
+          the person you mean. It works once and expires in seven days. You can revoke it afterwards.
         </p>
       ) : null}
       {formError ? <FormError>{formError}</FormError> : null}
@@ -267,7 +366,9 @@ export function ShareDialog({ trip, canEmail, open, triggerSelector, guardRef, o
       ))}
 
       <section className={styles.people} aria-labelledby="share-people">
-        <h3 id="share-people" className={styles.heading}>People and invitations</h3>
+        <h3 id="share-people" className={styles.heading}>
+          People and invitations
+        </h3>
         <p className="note">
           {trip.primaryOwner
             ? "You created this trip and are always an owner."
@@ -278,10 +379,14 @@ export function ShareDialog({ trip, canEmail, open, triggerSelector, guardRef, o
         {loadError ? (
           <div className={styles.loadError}>
             <FormError>{loadError}</FormError>
-            <Button variant="quiet" onClick={reload}>Try again</Button>
+            <Button variant="quiet" onClick={reload}>
+              Try again
+            </Button>
           </div>
         ) : entries === null ? (
-          <p className="muted" role="status">Loading…</p>
+          <p className="muted" role="status">
+            Loading…
+          </p>
         ) : (
           <ViewerList
             entries={entries}
@@ -300,7 +405,6 @@ export function ShareDialog({ trip, canEmail, open, triggerSelector, guardRef, o
           />
         )}
       </section>
-
     </SidePanel>
   );
 }

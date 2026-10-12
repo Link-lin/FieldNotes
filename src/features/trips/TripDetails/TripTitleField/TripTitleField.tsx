@@ -45,7 +45,14 @@ export function TripTitleField({ tripId, title, canEdit, as, headingId, classNam
       status={field.status}
       controls={({ describedBy }) => (
         <Field label="Trip name" htmlFor={`${headingId ?? "trip"}-name`} error={field.error("title")}>
-          <input id={`${headingId ?? "trip"}-name`} value={field.draft} maxLength={120} onChange={(e) => field.setDraft(e.target.value)} aria-describedby={describedBy} aria-invalid={field.error("title") ? true : undefined} />
+          <input
+            id={`${headingId ?? "trip"}-name`}
+            value={field.draft}
+            maxLength={120}
+            onChange={(e) => field.setDraft(e.target.value)}
+            aria-describedby={describedBy}
+            aria-invalid={field.error("title") ? true : undefined}
+          />
         </Field>
       )}
     >

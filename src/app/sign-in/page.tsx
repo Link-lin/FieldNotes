@@ -47,14 +47,38 @@ export default async function SignInPage({ searchParams }: { searchParams: Searc
   // WeChat's own browser can't reach Google, so a visitor inside it sees WeChat first.
   const inWeChat = /MicroMessenger/i.test((await headers()).get("user-agent") ?? "");
   const state: SignInState = connecting
-    ? wrongAccount ? "linkFailed" : "error"
-    : denied ? (invited ? "inviteWrongAccount" : "denied") : wrongAccount ? "wrongAccount" : otherError ? "error" : sp.deleted ? "deleted" : sp.signedOut ? "signedOut" : null;
+    ? wrongAccount
+      ? "linkFailed"
+      : "error"
+    : denied
+      ? invited
+        ? "inviteWrongAccount"
+        : "denied"
+      : wrongAccount
+        ? "wrongAccount"
+        : otherError
+          ? "error"
+          : sp.deleted
+            ? "deleted"
+            : sp.signedOut
+              ? "signedOut"
+              : null;
   if (connecting) {
     return (
       <SignInCard state={state}>
-        <ButtonLink block href="/">Back to Field Notes</ButtonLink>
+        <ButtonLink block href="/">
+          Back to Field Notes
+        </ButtonLink>
       </SignInCard>
     );
   }
-  return <SignInCard state={state} action={google} appleAction={appleEnabled() ? apple : undefined} wechatAction={wechatEnabled() ? wechat : undefined} wechatFirst={inWeChat} />;
+  return (
+    <SignInCard
+      state={state}
+      action={google}
+      appleAction={appleEnabled() ? apple : undefined}
+      wechatAction={wechatEnabled() ? wechat : undefined}
+      wechatFirst={inWeChat}
+    />
+  );
 }

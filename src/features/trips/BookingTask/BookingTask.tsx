@@ -46,11 +46,17 @@ export function BookingTask({ task, canEdit, onOpen, onDateSaved, emptyFocus }: 
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const current = saved && saved.version > task.itemVersion ? saved : { version: task.itemVersion, dueDate: task.dueDate, state: task.state, booked: false };
+  const current =
+    saved && saved.version > task.itemVersion
+      ? saved
+      : { version: task.itemVersion, dueDate: task.dueDate, state: task.state, booked: false };
   const url = `/api/trips/${task.tripId}/items/${task.itemId}/booking`;
   const dateButton = `[data-due-edit="${task.itemId}"]`;
 
-  async function send(bookingStatus: "needs_booking" | "booked", bookingDueDate: string | null): Promise<PlanItemDTO | null> {
+  async function send(
+    bookingStatus: "needs_booking" | "booked",
+    bookingDueDate: string | null,
+  ): Promise<PlanItemDTO | null> {
     setBusy(true);
     setError(null);
     const r = await api<PlanItemDTO>("PATCH", url, { bookingStatus, bookingDueDate, expectedVersion: current.version });
@@ -61,14 +67,21 @@ export function BookingTask({ task, canEdit, onOpen, onDateSaved, emptyFocus }: 
       if (r.status === 409) router.refresh();
       return null;
     }
-    setSaved({ version: r.data.version, dueDate: r.data.bookingDueDate, state: r.data.bookingDueState ?? "no_due_date", booked: r.data.bookingStatus === "booked" });
+    setSaved({
+      version: r.data.version,
+      dueDate: r.data.bookingDueDate,
+      state: r.data.bookingDueState ?? "no_due_date",
+      booked: r.data.bookingStatus === "booked",
+    });
     return r.data;
   }
 
   // Once this task leaves the list, focus moves to the next task (or the one before), else the list's fallback.
   function focusAfterBooking(): string {
     const row = document.querySelector(`[data-task="${task.itemId}"]`);
-    const next = [row?.nextElementSibling, row?.previousElementSibling].find((el): el is HTMLElement => el instanceof HTMLElement && el.dataset.task !== undefined);
+    const next = [row?.nextElementSibling, row?.previousElementSibling].find(
+      (el): el is HTMLElement => el instanceof HTMLElement && el.dataset.task !== undefined,
+    );
     return next ? `[data-task-open="${next.dataset.task}"]` : emptyFocus;
   }
 
@@ -84,7 +97,11 @@ export function BookingTask({ task, canEdit, onOpen, onDateSaved, emptyFocus }: 
       actionLabel: "Undo",
       afterFocus: after,
       onAction: async () => {
-        const back = await api<PlanItemDTO>("PATCH", url, { bookingStatus: "needs_booking", bookingDueDate: dueBefore, expectedVersion: booked.version });
+        const back = await api<PlanItemDTO>("PATCH", url, {
+          bookingStatus: "needs_booking",
+          bookingDueDate: dueBefore,
+          expectedVersion: booked.version,
+        });
         if (!back.ok) {
           toast({ message: back.message });
           return;
@@ -116,13 +133,21 @@ export function BookingTask({ task, canEdit, onOpen, onDateSaved, emptyFocus }: 
     setEditing(false);
     onDateSaved(task.itemId, done.version);
     router.refresh();
-    toast({ message: due ? `"${task.itemTitle}": book by ${fmtShort(due)}.` : `Book-by date removed from "${task.itemTitle}".` });
+    toast({
+      message: due
+        ? `"${task.itemTitle}": book by ${fmtShort(due)}.`
+        : `Book-by date removed from "${task.itemTitle}".`,
+    });
   }
 
   if (current.booked) return null;
   return (
     <Task overdue={current.state === "overdue"} data-task={task.itemId}>
-      <p className={styles.head}><button type="button" className={styles.title} data-task-open={task.itemId} onClick={onOpen}>{task.itemTitle}</button></p>
+      <p className={styles.head}>
+        <button type="button" className={styles.title} data-task-open={task.itemId} onClick={onOpen}>
+          {task.itemTitle}
+        </button>
+      </p>
       {editing ? (
         <form
           className={styles.editor}
@@ -138,10 +163,25 @@ export function BookingTask({ task, canEdit, onOpen, onDateSaved, emptyFocus }: 
           }}
         >
           <label htmlFor={`${id}-due`}>Book by</label>
-          <input id={`${id}-due`} type="date" value={draft} onChange={(e) => setDraft(e.target.value)} aria-invalid={error ? true : undefined} aria-describedby={error ? `${id}-error` : undefined} />
-          <Button type="submit" variant="fill" className={styles.save} disabled={!draft}>{busy ? "Saving…" : "Save"}</Button>
-          {current.dueDate ? <Button variant="quiet" onClick={() => void saveDate(null)}>Remove date</Button> : null}
-          <Button variant="quiet" onClick={stopEditing}>Cancel</Button>
+          <input
+            id={`${id}-due`}
+            type="date"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={error ? `${id}-error` : undefined}
+          />
+          <Button type="submit" variant="fill" className={styles.save} disabled={!draft}>
+            {busy ? "Saving…" : "Save"}
+          </Button>
+          {current.dueDate ? (
+            <Button variant="quiet" onClick={() => void saveDate(null)}>
+              Remove date
+            </Button>
+          ) : null}
+          <Button variant="quiet" onClick={stopEditing}>
+            Cancel
+          </Button>
         </form>
       ) : (
         <p className={styles.due}>{dueText(current.dueDate, current.state)}</p>
@@ -149,16 +189,32 @@ export function BookingTask({ task, canEdit, onOpen, onDateSaved, emptyFocus }: 
       {canEdit && !editing ? (
         <div className={styles.actions}>
           {task.canMarkBooked ? (
-            <Button variant="quiet" data-book={task.itemId} onClick={() => void markBooked()} aria-label={`Mark ${task.itemTitle} booked`}>{busy ? "Saving…" : "Mark booked"}</Button>
+            <Button
+              variant="quiet"
+              data-book={task.itemId}
+              onClick={() => void markBooked()}
+              aria-label={`Mark ${task.itemTitle} booked`}
+            >
+              {busy ? "Saving…" : "Mark booked"}
+            </Button>
           ) : (
             <span className={styles.hint}>Add both airports and times to mark it booked.</span>
           )}
-          <Button variant="link" data-due-edit={task.itemId} onClick={startEditing} aria-label={`${current.dueDate ? "Change" : "Set"} the book-by date for ${task.itemTitle}`}>
+          <Button
+            variant="link"
+            data-due-edit={task.itemId}
+            onClick={startEditing}
+            aria-label={`${current.dueDate ? "Change" : "Set"} the book-by date for ${task.itemTitle}`}
+          >
             {current.dueDate ? "Change date" : "Set book-by date"}
           </Button>
         </div>
       ) : null}
-      {error ? <p className={styles.error} id={`${id}-error`} role="alert">{error}</p> : null}
+      {error ? (
+        <p className={styles.error} id={`${id}-error`} role="alert">
+          {error}
+        </p>
+      ) : null}
     </Task>
   );
 }

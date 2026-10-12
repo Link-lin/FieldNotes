@@ -14,5 +14,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 }
 
 export async function down(db: Kysely<unknown>): Promise<void> {
-  await sql`alter table plan_items drop constraint if exists plan_items_review_ai, drop column if exists reviewed_at`.execute(db);
+  await sql`alter table plan_items drop constraint if exists plan_items_review_ai, drop column if exists reviewed_at`.execute(
+    db,
+  );
 }

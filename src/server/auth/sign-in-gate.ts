@@ -36,13 +36,24 @@ export function cookieValue(cookieHeader: string | null, name: string): string |
 }
 
 /** Auth.js's session cookie: `__Secure-` on HTTPS, a plain name on http://localhost during development. */
-export const sessionCookieName = (origin: string): string => (origin.startsWith("https:") ? "__Secure-authjs.session-token" : "authjs.session-token");
+export const sessionCookieName = (origin: string): string =>
+  origin.startsWith("https:") ? "__Secure-authjs.session-token" : "authjs.session-token";
 
 /** The account this request is already signed in as, from its session cookie; null when signed out or expired. */
-export async function signedInUserId(db: Kysely<DB>, origin: string, cookieHeader: string | null, now = new Date()): Promise<string | null> {
+export async function signedInUserId(
+  db: Kysely<DB>,
+  origin: string,
+  cookieHeader: string | null,
+  now = new Date(),
+): Promise<string | null> {
   const token = cookieValue(cookieHeader, sessionCookieName(origin));
   if (!token) return null;
-  const row = await db.selectFrom("Session").select("userId").where("sessionToken", "=", token).where("expires", ">", now).executeTakeFirst();
+  const row = await db
+    .selectFrom("Session")
+    .select("userId")
+    .where("sessionToken", "=", token)
+    .where("expires", ">", now)
+    .executeTakeFirst();
   return row?.userId ?? null;
 }
 
@@ -61,7 +72,8 @@ export async function signedInUserId(db: Kysely<DB>, origin: string, cookieHeade
  * "+tag" still admits them.
  */
 export async function allowSignIn(db: Kysely<DB>, a: SignInAttempt, now = new Date()): Promise<boolean> {
-  if ((a.provider !== "google" && a.provider !== "apple" && a.provider !== "wechat") || !a.providerAccountId) return false;
+  if ((a.provider !== "google" && a.provider !== "apple" && a.provider !== "wechat") || !a.providerAccountId)
+    return false;
   const linked = await db
     .selectFrom("Account")
     .select("userId")
@@ -69,7 +81,11 @@ export async function allowSignIn(db: Kysely<DB>, a: SignInAttempt, now = new Da
     .where("providerAccountId", "=", a.providerAccountId)
     .executeTakeFirst();
   if (linked || a.signedInUserId) return true;
-  const email = verifiedEmail(a.provider, { email: a.email, email_verified: a.emailVerified, is_private_email: a.emailPrivate });
+  const email = verifiedEmail(a.provider, {
+    email: a.email,
+    email_verified: a.emailVerified,
+    is_private_email: a.emailPrivate,
+  });
   const link = Boolean(a.stagedHash && (await linkInvitationOpen(db, a.stagedHash, now)));
   if (email === null) return a.provider !== "google" && link;
   if (link) return true;
@@ -82,7 +98,12 @@ export async function allowSignIn(db: Kysely<DB>, a: SignInAttempt, now = new Da
     .select("invitee_email_normalized")
     .where("status", "=", "pending")
     .where("expires_at", ">", now)
-    .where((eb) => eb.or([eb("invitee_email_normalized", "=", typed), eb(sql<string>`split_part(invitee_email_normalized, '@', 2)`, "in", [...GMAIL_DOMAINS])]))
+    .where((eb) =>
+      eb.or([
+        eb("invitee_email_normalized", "=", typed),
+        eb(sql<string>`split_part(invitee_email_normalized, '@', 2)`, "in", [...GMAIL_DOMAINS]),
+      ]),
+    )
     .execute();
   return invites.some((row) => row.invitee_email_normalized !== null && emailKey(row.invitee_email_normalized) === key);
 }

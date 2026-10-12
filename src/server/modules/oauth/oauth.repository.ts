@@ -10,7 +10,11 @@ export type ClientRow = Selectable<OAuthClientsTable>;
 export type GrantRow = Selectable<OAuthGrantsTable>;
 
 export async function insertClient(db: Conn, name: string, redirectUris: string[]): Promise<ClientRow> {
-  return db.insertInto("oauth_clients").values({ name, redirect_uris: redirectUris }).returningAll().executeTakeFirstOrThrow();
+  return db
+    .insertInto("oauth_clients")
+    .values({ name, redirect_uris: redirectUris })
+    .returningAll()
+    .executeTakeFirstOrThrow();
 }
 
 export async function clientById(db: Conn, id: string): Promise<ClientRow | undefined> {
@@ -23,12 +27,24 @@ export async function countUnapprovedClients(db: Conn): Promise<number> {
   const row = await db
     .selectFrom("oauth_clients")
     .select((eb) => eb.fn.countAll<number>().as("n"))
-    .where((eb) => eb.not(eb.exists(eb.selectFrom("oauth_grants").select("oauth_grants.id").whereRef("oauth_grants.client_id", "=", "oauth_clients.id"))))
+    .where((eb) =>
+      eb.not(
+        eb.exists(
+          eb
+            .selectFrom("oauth_grants")
+            .select("oauth_grants.id")
+            .whereRef("oauth_grants.client_id", "=", "oauth_clients.id"),
+        ),
+      ),
+    )
     .executeTakeFirst();
   return Number(row?.n ?? 0);
 }
 
-export async function insertGrant(tx: Tx, v: { userId: string; clientId: string; scope: ConnectorScope; resource: string; expiresAt: Date }): Promise<GrantRow> {
+export async function insertGrant(
+  tx: Tx,
+  v: { userId: string; clientId: string; scope: ConnectorScope; resource: string; expiresAt: Date },
+): Promise<GrantRow> {
   return tx
     .insertInto("oauth_grants")
     .values({ user_id: v.userId, client_id: v.clientId, scope: v.scope, resource: v.resource, expires_at: v.expiresAt })
@@ -36,8 +52,20 @@ export async function insertGrant(tx: Tx, v: { userId: string; clientId: string;
     .executeTakeFirstOrThrow();
 }
 
-export async function insertCode(tx: Tx, v: { hash: Buffer; grantId: string; redirectUri: string; challenge: string; expiresAt: Date }): Promise<void> {
-  await tx.insertInto("oauth_codes").values({ code_hash: v.hash, grant_id: v.grantId, redirect_uri: v.redirectUri, code_challenge: v.challenge, expires_at: v.expiresAt }).execute();
+export async function insertCode(
+  tx: Tx,
+  v: { hash: Buffer; grantId: string; redirectUri: string; challenge: string; expiresAt: Date },
+): Promise<void> {
+  await tx
+    .insertInto("oauth_codes")
+    .values({
+      code_hash: v.hash,
+      grant_id: v.grantId,
+      redirect_uri: v.redirectUri,
+      code_challenge: v.challenge,
+      expires_at: v.expiresAt,
+    })
+    .execute();
 }
 
 /** An authorization code with the approval it belongs to, locked for the exchange. */
@@ -76,26 +104,55 @@ export async function refreshTokenForUpdate(tx: Tx, hash: Buffer) {
     .forUpdate()
     .executeTakeFirst();
   if (!token) return undefined;
-  const grant = await tx.selectFrom("oauth_grants").select(["client_id", "resource", "expires_at", "revoked_at"]).where("id", "=", token.grant_id).forUpdate().executeTakeFirst();
-  return grant ? { ...token, token_expires_at: token.expires_at, client_id: grant.client_id, resource: grant.resource, grant_expires_at: grant.expires_at, revoked_at: grant.revoked_at } : undefined;
+  const grant = await tx
+    .selectFrom("oauth_grants")
+    .select(["client_id", "resource", "expires_at", "revoked_at"])
+    .where("id", "=", token.grant_id)
+    .forUpdate()
+    .executeTakeFirst();
+  return grant
+    ? {
+        ...token,
+        token_expires_at: token.expires_at,
+        client_id: grant.client_id,
+        resource: grant.resource,
+        grant_expires_at: grant.expires_at,
+        revoked_at: grant.revoked_at,
+      }
+    : undefined;
 }
 
 export async function markRefreshUsed(tx: Tx, hash: Buffer, now: Date): Promise<void> {
   await tx.updateTable("oauth_tokens").set({ used_at: now }).where("token_hash", "=", hash).execute();
 }
 
-export async function insertToken(tx: Tx, v: { hash: Buffer; grantId: string; kind: "access" | "refresh"; scope: ConnectorScope; expiresAt: Date }): Promise<void> {
-  await tx.insertInto("oauth_tokens").values({ token_hash: v.hash, grant_id: v.grantId, kind: v.kind, scope: v.scope, expires_at: v.expiresAt }).execute();
+export async function insertToken(
+  tx: Tx,
+  v: { hash: Buffer; grantId: string; kind: "access" | "refresh"; scope: ConnectorScope; expiresAt: Date },
+): Promise<void> {
+  await tx
+    .insertInto("oauth_tokens")
+    .values({ token_hash: v.hash, grant_id: v.grantId, kind: v.kind, scope: v.scope, expires_at: v.expiresAt })
+    .execute();
 }
 
 /** An approval is used: its idle expiry slides forward and its last use is recorded. */
 export async function slideGrant(tx: Tx, grantId: string, expiresAt: Date, now: Date): Promise<void> {
-  await tx.updateTable("oauth_grants").set({ expires_at: expiresAt, last_used_at: now }).where("id", "=", grantId).execute();
+  await tx
+    .updateTable("oauth_grants")
+    .set({ expires_at: expiresAt, last_used_at: now })
+    .where("id", "=", grantId)
+    .execute();
 }
 
 /** Ends an approval; every token it issued stops working with it. */
 export async function revokeGrant(db: Conn, grantId: string, now: Date): Promise<void> {
-  await db.updateTable("oauth_grants").set({ revoked_at: now }).where("id", "=", grantId).where("revoked_at", "is", null).execute();
+  await db
+    .updateTable("oauth_grants")
+    .set({ revoked_at: now })
+    .where("id", "=", grantId)
+    .where("revoked_at", "is", null)
+    .execute();
 }
 
 /** What a bearer token stands for: the token, its approval and the person. */
@@ -188,7 +245,15 @@ export async function pruneExpired(db: Conn, now: Date): Promise<void> {
   await db
     .deleteFrom("oauth_clients")
     .where("created_at", "<", day)
-    .where((eb) => eb.not(eb.exists(eb.selectFrom("oauth_grants").select("oauth_grants.id").whereRef("oauth_grants.client_id", "=", "oauth_clients.id"))))
+    .where((eb) =>
+      eb.not(
+        eb.exists(
+          eb
+            .selectFrom("oauth_grants")
+            .select("oauth_grants.id")
+            .whereRef("oauth_grants.client_id", "=", "oauth_clients.id"),
+        ),
+      ),
+    )
     .execute();
 }
-

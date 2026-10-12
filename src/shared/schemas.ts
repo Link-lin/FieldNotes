@@ -1,7 +1,15 @@
 import { z } from "zod";
 import { AMOUNT_PATTERN } from "./money";
 import { isCurrencyCode } from "./currencies";
-import { canonicalTimeZone, isDate, isTime, isLocalDateTime, isTimeZone, MAX_TRIP_DAYS, withinTripLength } from "./time";
+import {
+  canonicalTimeZone,
+  isDate,
+  isTime,
+  isLocalDateTime,
+  isTimeZone,
+  MAX_TRIP_DAYS,
+  withinTripLength,
+} from "./time";
 import { parseWebUrl, MAX_URL_LENGTH } from "./map-links";
 import type { FieldError } from "./dto";
 import { ITEM_FIELDS, TRIP_FIELDS } from "./fields";
@@ -9,7 +17,11 @@ import { ITEM_FIELDS, TRIP_FIELDS } from "./fields";
 const dateStr = z.string().refine(isDate, { message: "Use a real date (YYYY-MM-DD)." });
 const timeStr = z.string().refine(isTime, { message: "Use a 24-hour time (HH:MM)." });
 const localDateTime = z.string().refine(isLocalDateTime, { message: "Use a local date and time (YYYY-MM-DDTHH:MM)." });
-const zone = z.string().max(100).refine(isTimeZone, { message: "Choose a valid time zone." }).transform(canonicalTimeZone);
+const zone = z
+  .string()
+  .max(100)
+  .refine(isTimeZone, { message: "Choose a valid time zone." })
+  .transform(canonicalTimeZone);
 const currency = z.string().refine(isCurrencyCode, { message: "Choose a real currency code, like USD." });
 const amount = z.string().regex(AMOUNT_PATTERN, { message: "Use zero or more, with up to 4 decimals." });
 const optionalText = (max: number) =>
@@ -35,11 +47,18 @@ const tripShape = {
   timeZone: zone,
   budget: moneySchema.nullable(),
 };
-const atlasPoint = z.object({ latitude: z.number().min(-90).max(90), longitude: z.number().min(-180).max(180) }).strict().nullable();
+const atlasPoint = z
+  .object({ latitude: z.number().min(-90).max(90), longitude: z.number().min(-180).max(180) })
+  .strict()
+  .nullable();
 const startsBeforeEnd = (t: { startDate: string; endDate: string }) => t.startDate <= t.endDate;
 const startsBeforeEndIssue = { path: ["endDate"], message: "The trip can't end before it starts." };
 
-export const tripInputSchema = z.object(tripShape).strict().refine(startsBeforeEnd, startsBeforeEndIssue).refine(tripLengthOk, tripLengthIssue);
+export const tripInputSchema = z
+  .object(tripShape)
+  .strict()
+  .refine(startsBeforeEnd, startsBeforeEndIssue)
+  .refine(tripLengthOk, tripLengthIssue);
 
 export const tripPatchSchema = z
   .object({
@@ -54,15 +73,26 @@ export const tripPatchSchema = z
   .refine(tripLengthOk, tripLengthIssue);
 
 /** A trip's editable fields after a field-level save is merged onto them: the same rules as a full edit. */
-export const tripFieldsSchema = z.object({ ...tripShape, atlasLocation: atlasPoint }).strict().refine(startsBeforeEnd, startsBeforeEndIssue).refine(tripLengthOk, tripLengthIssue);
+export const tripFieldsSchema = z
+  .object({ ...tripShape, atlasLocation: atlasPoint })
+  .strict()
+  .refine(startsBeforeEnd, startsBeforeEndIssue)
+  .refine(tripLengthOk, tripLengthIssue);
 
 /** Some of the named fields, each holding any JSON value; the merged result is what gets validated. */
-const someFields = <K extends string>(keys: readonly K[]) => z.object(Object.fromEntries(keys.map((k) => [k, z.unknown()])) as Record<K, z.ZodUnknown>).partial().strict();
+const someFields = <K extends string>(keys: readonly K[]) =>
+  z
+    .object(Object.fromEntries(keys.map((k) => [k, z.unknown()])) as Record<K, z.ZodUnknown>)
+    .partial()
+    .strict();
 /** A field-level save changes at least one field and sends the value each changed field had when the edit began. */
 const fieldSaveRules = <S extends z.ZodType<{ changes: object; base: object }>>(schema: S) =>
   schema
     .refine((b) => Object.keys(b.changes).length > 0, { path: ["changes"], message: "Nothing to save." })
-    .refine((b) => Object.keys(b.changes).every((k) => k in b.base), { path: ["base"], message: "Send the value each changed field had when the edit began." });
+    .refine((b) => Object.keys(b.changes).every((k) => k in b.base), {
+      path: ["base"],
+      message: "Send the value each changed field had when the edit began.",
+    });
 
 /**
  * DASH-6: change some of a trip's fields (TRIP_FIELDS), each with the value it had when the edit began. A time-zone
@@ -80,18 +110,26 @@ export const tripFieldsPatchSchema = fieldSaveRules(
 );
 export type TripFieldsPatch = z.infer<typeof tripFieldsPatchSchema>;
 
-export const tripDeleteSchema = z.object({ confirm: z.literal(true), expectedVersion: z.number().int().min(1) }).strict();
+export const tripDeleteSchema = z
+  .object({ confirm: z.literal(true), expectedVersion: z.number().int().min(1) })
+  .strict();
 /** DASH-8: removing a trip's cover names the cover it removes (its version, "" for none), so one changed elsewhere stays. */
 export const coverRemoveSchema = z.object({ base: z.string().regex(/^([0-9a-f]{16})?$/) }).strict();
 
 const link = z
   .object({
     label: z.string().trim().min(1).max(80),
-    url: z.string().max(MAX_URL_LENGTH).refine((u) => parseWebUrl(u) !== null, { message: "Use an http or https link." }),
+    url: z
+      .string()
+      .max(MAX_URL_LENGTH)
+      .refine((u) => parseWebUrl(u) !== null, { message: "Use an http or https link." }),
   })
   .strict();
 
-const priceSchema = z.object({ amount, currency, label: z.enum(["estimate", "quote"]) }).strict().nullable();
+const priceSchema = z
+  .object({ amount, currency, label: z.enum(["estimate", "quote"]) })
+  .strict()
+  .nullable();
 
 const common = {
   title: z.string().trim().min(1, { message: "Describe what it is." }).max(200),
@@ -143,15 +181,18 @@ const otherItem = z
 
 function crossRules(item: z.infer<typeof flightItem> | z.infer<typeof otherItem>, ctx: z.RefinementCtx) {
   const add = (path: (string | number)[], message: string) => ctx.addIssue({ code: "custom", path, message });
-  if (item.bookingDueDate && item.bookingStatus !== "needs_booking") add(["bookingDueDate"], "A book-by date is only for events that need booking.");
+  if (item.bookingDueDate && item.bookingStatus !== "needs_booking")
+    add(["bookingDueDate"], "A book-by date is only for events that need booking.");
   if (item.type === "flight") {
     if (item.bookingStatus === "not_required") add(["bookingStatus"], "A flight either needs booking or is booked.");
     for (const side of ["departure", "arrival"] as const) {
       const e = item[side];
       if (e.localDateTime && !e.timeZone) add([side, "timeZone"], "Add the airport's time zone.");
-      if (e.timeDisambiguation && !e.localDateTime) add([side, "timeDisambiguation"], "Only for a repeated local time.");
+      if (e.timeDisambiguation && !e.localDateTime)
+        add([side, "timeDisambiguation"], "Only for a repeated local time.");
     }
-    if (item.plannedDepartureDate && item.departure.localDateTime) add(["plannedDepartureDate"], "Use either a planned date or the exact departure time.");
+    if (item.plannedDepartureDate && item.departure.localDateTime)
+      add(["plannedDepartureDate"], "Use either a planned date or the exact departure time.");
     if (item.bookingStatus === "booked") {
       for (const side of ["departure", "arrival"] as const) {
         const e = item[side];
@@ -172,7 +213,12 @@ export type TripInput = z.infer<typeof tripInputSchema>;
 export type TripPatch = z.infer<typeof tripPatchSchema>;
 
 export const itemPatchSchema = z
-  .object({ item: itemInputSchema, expectedVersion: z.number().int().min(1), confirmTypeChange: z.boolean().optional(), confirmPrice: z.boolean().optional() })
+  .object({
+    item: itemInputSchema,
+    expectedVersion: z.number().int().min(1),
+    confirmTypeChange: z.boolean().optional(),
+    confirmPrice: z.boolean().optional(),
+  })
   .strict();
 /**
  * TRIP-10: change some of an event's fields (ITEM_FIELDS) from its view, each with the value it had when the edit began.
@@ -180,7 +226,12 @@ export const itemPatchSchema = z
  */
 export const itemFieldsPatchSchema = fieldSaveRules(
   z
-    .object({ changes: someFields(ITEM_FIELDS), base: someFields(ITEM_FIELDS), confirmTypeChange: z.boolean().optional(), confirmPrice: z.boolean().optional() })
+    .object({
+      changes: someFields(ITEM_FIELDS),
+      base: someFields(ITEM_FIELDS),
+      confirmTypeChange: z.boolean().optional(),
+      confirmPrice: z.boolean().optional(),
+    })
     .strict(),
 );
 export type ItemFieldsPatch = z.infer<typeof itemFieldsPatchSchema>;
@@ -188,7 +239,13 @@ export type ItemFieldsPatch = z.infer<typeof itemFieldsPatchSchema>;
  * TRIP-10: the owner edits an event's notes from its side panel; the rest of the event is unchanged. `baseNotes`, the notes
  * the edit started from, lets it save over a newer version of the event whose notes are still those (TRIP-11).
  */
-export const itemNotesSchema = z.object({ notes: optionalText(5000), expectedVersion: z.number().int().min(1), baseNotes: z.string().max(5000).nullable().optional() }).strict();
+export const itemNotesSchema = z
+  .object({
+    notes: optionalText(5000),
+    expectedVersion: z.number().int().min(1),
+    baseNotes: z.string().max(5000).nullable().optional(),
+  })
+  .strict();
 export const versionSchema = z.object({ expectedVersion: z.number().int().min(1) }).strict();
 /** IMPORT-7: mark AI drafts reviewed, one event or a whole trip's at once; `reviewed: false` undoes it. */
 export const itemReviewSchema = z
@@ -204,14 +261,24 @@ export const itemReviewSchema = z
 export type ItemReview = z.infer<typeof itemReviewSchema>;
 /** BOOK-3, BOOK-4: a booking-list action. Booked clears the book-by date; the service checks FLIGHT-2. */
 export const itemBookingSchema = z
-  .object({ bookingStatus: z.enum(["needs_booking", "booked"]), bookingDueDate: dateStr.nullable(), expectedVersion: z.number().int().min(1) })
+  .object({
+    bookingStatus: z.enum(["needs_booking", "booked"]),
+    bookingDueDate: dateStr.nullable(),
+    expectedVersion: z.number().int().min(1),
+  })
   .strict()
-  .refine((b) => !b.bookingDueDate || b.bookingStatus === "needs_booking", { path: ["bookingDueDate"], message: "A book-by date is only for events that need booking." });
+  .refine((b) => !b.bookingDueDate || b.bookingStatus === "needs_booking", {
+    path: ["bookingDueDate"],
+    message: "A book-by date is only for events that need booking.",
+  });
 
 /** Convert zod issues into stable, path-addressed field errors. */
 export function toFieldErrors(error: z.ZodError): FieldError[] {
   return error.issues.map((i) => ({
-    path: i.path.map((p) => (typeof p === "number" ? `[${p}]` : String(p))).join(".").replace(/\.\[/g, "["),
+    path: i.path
+      .map((p) => (typeof p === "number" ? `[${p}]` : String(p)))
+      .join(".")
+      .replace(/\.\[/g, "["),
     code: i.code === "custom" ? "invalid" : i.code,
     message: i.message,
   }));
@@ -236,7 +303,8 @@ export const accountDeleteSchema = z
   .superRefine((value, ctx) => {
     const seen = new Set<string>();
     value.trips.forEach((d, i) => {
-      if (seen.has(d.tripId)) ctx.addIssue({ code: "custom", path: ["trips", i, "tripId"], message: "Choose one thing for each trip." });
+      if (seen.has(d.tripId))
+        ctx.addIssue({ code: "custom", path: ["trips", i, "tripId"], message: "Choose one thing for each trip." });
       seen.add(d.tripId);
     });
   });
@@ -248,14 +316,31 @@ export const accountDeleteSchema = z
 const memberRole = z.enum(["viewer", "editor", "owner"], { message: "Choose viewer, editor or owner." });
 export const invitationCreateSchema = z
   .object({
-    email: z.string().trim().toLowerCase().max(254, { message: "That email address is too long." }).pipe(z.email({ message: "Enter an email address, like sam@example.com." })).optional(),
-    label: z.string().trim().min(1, { message: "Give the person a name or note, like Mei on WeChat." }).max(80, { message: "Keep it to 80 characters or fewer." }).optional(),
+    email: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .max(254, { message: "That email address is too long." })
+      .pipe(z.email({ message: "Enter an email address, like sam@example.com." }))
+      .optional(),
+    label: z
+      .string()
+      .trim()
+      .min(1, { message: "Give the person a name or note, like Mei on WeChat." })
+      .max(80, { message: "Keep it to 80 characters or fewer." })
+      .optional(),
     role: memberRole.default("viewer"),
   })
   .strict()
   .superRefine((value, ctx) => {
-    if (value.email === undefined && value.label === undefined) ctx.addIssue({ code: "custom", path: ["email"], message: "Enter the email address of the person you want to invite." });
-    if (value.email !== undefined && value.label !== undefined) ctx.addIssue({ code: "custom", path: ["label"], message: "Invite by email or by link, not both." });
+    if (value.email === undefined && value.label === undefined)
+      ctx.addIssue({
+        code: "custom",
+        path: ["email"],
+        message: "Enter the email address of the person you want to invite.",
+      });
+    if (value.email !== undefined && value.label !== undefined)
+      ctx.addIssue({ code: "custom", path: ["label"], message: "Invite by email or by link, not both." });
   });
 
 /** ACCESS-5: an owner changes what a person the trip is shared with may do. */

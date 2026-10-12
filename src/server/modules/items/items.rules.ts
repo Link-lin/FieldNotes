@@ -20,64 +20,152 @@ export function scheduleErrors(input: ItemInput, tripZone: string): FieldError[]
   const errors: FieldError[] = [];
   const check = (date: string, time: string, zone: string, choice: "earlier" | "later" | null, path: string) => {
     const r = resolveLocal(date, time, zone, choice);
-    if (!r.ok && r.reason === "gap") errors.push({ path, code: "nonexistent_local_time", message: `${time} doesn't exist on ${date} in ${zone} (clocks change). Pick another time.` });
-    if (!r.ok && r.reason === "ambiguous") errors.push({ path: path.replace(/local(Date)?Time$/, "timeDisambiguation"), code: "ambiguous_local_time", message: `${time} happens twice on ${date} in ${zone}. Choose the earlier or later one.` });
+    if (!r.ok && r.reason === "gap")
+      errors.push({
+        path,
+        code: "nonexistent_local_time",
+        message: `${time} doesn't exist on ${date} in ${zone} (clocks change). Pick another time.`,
+      });
+    if (!r.ok && r.reason === "ambiguous")
+      errors.push({
+        path: path.replace(/local(Date)?Time$/, "timeDisambiguation"),
+        code: "ambiguous_local_time",
+        message: `${time} happens twice on ${date} in ${zone}. Choose the earlier or later one.`,
+      });
     return r.ok ? r.epochMs : null;
   };
   if (input.type === "flight") {
     const d = input.departure;
     const a = input.arrival;
-    const dep = d.localDateTime && d.timeZone ? check(d.localDateTime.slice(0, 10), d.localDateTime.slice(11), d.timeZone, d.timeDisambiguation, "departure.localDateTime") : null;
-    const arr = a.localDateTime && a.timeZone ? check(a.localDateTime.slice(0, 10), a.localDateTime.slice(11), a.timeZone, a.timeDisambiguation, "arrival.localDateTime") : null;
-    if (dep !== null && arr !== null && arr <= dep) errors.push({ path: "arrival.localDateTime", code: "arrival_before_departure", message: "Arrival must be after departure." });
+    const dep =
+      d.localDateTime && d.timeZone
+        ? check(
+            d.localDateTime.slice(0, 10),
+            d.localDateTime.slice(11),
+            d.timeZone,
+            d.timeDisambiguation,
+            "departure.localDateTime",
+          )
+        : null;
+    const arr =
+      a.localDateTime && a.timeZone
+        ? check(
+            a.localDateTime.slice(0, 10),
+            a.localDateTime.slice(11),
+            a.timeZone,
+            a.timeDisambiguation,
+            "arrival.localDateTime",
+          )
+        : null;
+    if (dep !== null && arr !== null && arr <= dep)
+      errors.push({
+        path: "arrival.localDateTime",
+        code: "arrival_before_departure",
+        message: "Arrival must be after departure.",
+      });
   } else if (input.localDate && input.localTime) {
     check(input.localDate, input.localTime, input.timeZone ?? tripZone, input.timeDisambiguation, "localTime");
   }
   return errors;
 }
 
-type FlightColumns = "type" | "departure_airport_code" | "departure_local_datetime" | "departure_time_zone" | "arrival_airport_code" | "arrival_local_datetime" | "arrival_time_zone";
+type FlightColumns =
+  | "type"
+  | "departure_airport_code"
+  | "departure_local_datetime"
+  | "departure_time_zone"
+  | "arrival_airport_code"
+  | "arrival_local_datetime"
+  | "arrival_time_zone";
 
 /** FLIGHT-2 on a stored row: any other event can be marked Booked; a flight needs both airports, local times and zones. */
 export function canMarkBooked(row: Pick<PlanItemRow, FlightColumns>): boolean {
-  return row.type !== "flight" || flightReadyToBook({
-    departure: { airportCode: row.departure_airport_code, localDateTime: row.departure_local_datetime, timeZone: row.departure_time_zone },
-    arrival: { airportCode: row.arrival_airport_code, localDateTime: row.arrival_local_datetime, timeZone: row.arrival_time_zone },
-  });
+  return (
+    row.type !== "flight" ||
+    flightReadyToBook({
+      departure: {
+        airportCode: row.departure_airport_code,
+        localDateTime: row.departure_local_datetime,
+        timeZone: row.departure_time_zone,
+      },
+      arrival: {
+        airportCode: row.arrival_airport_code,
+        localDateTime: row.arrival_local_datetime,
+        timeZone: row.arrival_time_zone,
+      },
+    })
+  );
 }
 
-type MapColumns = { map_url: string | null; latitude: string | null; longitude: string | null; pin_source: "lookup" | null };
+type MapColumns = {
+  map_url: string | null;
+  latitude: string | null;
+  longitude: string | null;
+  pin_source: "lookup" | null;
+};
 const NO_PIN: MapColumns = { map_url: null, latitude: null, longitude: null, pin_source: null };
 const blankText = (v: string | null | undefined) => (v ?? "").trim();
 
 function mapFields(input: ItemInput, current: PlanItemRow | null): MapColumns | FieldError {
   const raw = input.mapUrl;
-  const kept: MapColumns | null = current ? { map_url: current.map_url, latitude: current.latitude, longitude: current.longitude, pin_source: current.pin_source } : null;
+  const kept: MapColumns | null = current
+    ? {
+        map_url: current.map_url,
+        latitude: current.latitude,
+        longitude: current.longitude,
+        pin_source: current.pin_source,
+      }
+    : null;
   // MAP-2: only a changed link is re-read; re-sending the stored link never re-pins.
   if (kept && (raw ?? null) === kept.map_url) return kept;
   if (!raw) return NO_PIN;
   const clean = cleanMapUrl(mapLinkFromInput(raw));
-  if (!clean) return { path: "mapUrl", code: "invalid_url", message: "Use a full https link (at most 2048 characters) without a user name, or coordinates such as 35.0116, 135.7681." };
+  if (!clean)
+    return {
+      path: "mapUrl",
+      code: "invalid_url",
+      message:
+        "Use a full https link (at most 2048 characters) without a user name, or coordinates such as 35.0116, 135.7681.",
+    };
   if (kept && clean === kept.map_url) return kept;
   // A link a person saves is theirs, whoever found it.
   const c = coordinatesFromMapUrl(clean);
-  return { map_url: clean, latitude: c ? c[0].toFixed(5) : null, longitude: c ? c[1].toFixed(5) : null, pin_source: null };
+  return {
+    map_url: clean,
+    latitude: c ? c[0].toFixed(5) : null,
+    longitude: c ? c[1].toFixed(5) : null,
+    pin_source: null,
+  };
 }
 
 /** Columns that record when or how a row changed, or what it was made from, rather than what the event says. */
-const BOOKKEEPING = new Set<string>(["id", "trip_id", "version", "created_at", "updated_at", "deleted_at", "reviewed_at", "person_edited_at", "is_copy"]);
+const BOOKKEEPING = new Set<string>([
+  "id",
+  "trip_id",
+  "version",
+  "created_at",
+  "updated_at",
+  "deleted_at",
+  "reviewed_at",
+  "person_edited_at",
+  "is_copy",
+]);
 
 /**
  * Whether a write changed what an event says, or where its price or pin came from, rather than only its version: a
  * title saved again with a trailing space is trimmed back and changes nothing. Compares the rows as stored before and after.
  */
 export function contentChanged(before: PlanItemRow, after: PlanItemRow): boolean {
-  return (Object.keys(after) as Array<keyof PlanItemRow>).some((k) => !BOOKKEEPING.has(k) && JSON.stringify(before[k]) !== JSON.stringify(after[k]));
+  return (Object.keys(after) as Array<keyof PlanItemRow>).some(
+    (k) => !BOOKKEEPING.has(k) && JSON.stringify(before[k]) !== JSON.stringify(after[k]),
+  );
 }
 
 /** An automatic pin (MAP-2) belongs to the place name it was found for: a new name drops it, and the lookup runs again. */
-export const placeChanged = (input: Pick<ItemInput, "location">, current: Pick<PlanItemRow, "location"> | null): boolean =>
-  !current || blankText(input.location) !== blankText(current.location);
+export const placeChanged = (
+  input: Pick<ItemInput, "location">,
+  current: Pick<PlanItemRow, "location"> | null,
+): boolean => !current || blankText(input.location) !== blankText(current.location);
 
 function priceFields(input: ItemInput, current: PlanItemRow | null, confirmPrice: boolean) {
   const p = input.plannedPrice;
@@ -89,7 +177,12 @@ function priceFields(input: ItemInput, current: PlanItemRow | null, confirmPrice
     trimAmount(current.planned_amount) === trimAmount(p.amount) &&
     current.planned_currency === p.currency &&
     current.price_label === p.label;
-  return { planned_amount: p.amount, planned_currency: p.currency, price_label: p.label, price_source: unchangedAi && !confirmPrice ? ("ai" as const) : ("owner" as const) };
+  return {
+    planned_amount: p.amount,
+    planned_currency: p.currency,
+    price_label: p.label,
+    price_source: unchangedAi && !confirmPrice ? ("ai" as const) : ("owner" as const),
+  };
 }
 
 export function toValues(input: ItemInput, current: PlanItemRow | null, confirmPrice = false): Values | FieldError {
@@ -111,7 +204,11 @@ export function toValues(input: ItemInput, current: PlanItemRow | null, confirmP
   if (input.type === "flight") {
     return {
       ...base,
-      local_date: null, local_time: null, time_zone: null, time_disambiguation: null, duration_minutes: null,
+      local_date: null,
+      local_time: null,
+      time_zone: null,
+      time_disambiguation: null,
+      duration_minutes: null,
       planned_departure_date: input.departure.localDateTime ? null : input.plannedDepartureDate,
       airline: input.airline,
       flight_number: input.flightNumber,
@@ -132,8 +229,16 @@ export function toValues(input: ItemInput, current: PlanItemRow | null, confirmP
     time_zone: input.timeZone,
     time_disambiguation: input.localTime ? input.timeDisambiguation : null,
     duration_minutes: input.durationMinutes,
-    planned_departure_date: null, airline: null, flight_number: null,
-    departure_airport_code: null, departure_local_datetime: null, departure_time_zone: null, departure_disambiguation: null,
-    arrival_airport_code: null, arrival_local_datetime: null, arrival_time_zone: null, arrival_disambiguation: null,
+    planned_departure_date: null,
+    airline: null,
+    flight_number: null,
+    departure_airport_code: null,
+    departure_local_datetime: null,
+    departure_time_zone: null,
+    departure_disambiguation: null,
+    arrival_airport_code: null,
+    arrival_local_datetime: null,
+    arrival_time_zone: null,
+    arrival_disambiguation: null,
   };
 }

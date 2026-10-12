@@ -13,14 +13,18 @@ export function Tickets({ trips }: { trips: TripSummaryDTO[] }) {
       {current ? (
         <Link className={styles.ticket} href={`/trips/${current.id}`} data-trip-link={current.id}>
           <span className={cx("mono", styles.kind)}>Travelling now</span>
-          <span className={styles.when}>Day {current.dayIndex} of {current.dayCount}</span>
+          <span className={styles.when}>
+            Day {current.dayIndex} of {current.dayCount}
+          </span>
           <span className={styles.title}>{current.title}</span>
         </Link>
       ) : null}
       {next ? (
         <Link className={styles.ticket} href={`/trips/${next.id}`} data-trip-link={next.id}>
           <span className={cx("mono", styles.kind)}>Next departure</span>
-          <span className={styles.when}>{next.daysToStart} {next.daysToStart === 1 ? "day" : "days"} to go</span>
+          <span className={styles.when}>
+            {next.daysToStart} {next.daysToStart === 1 ? "day" : "days"} to go
+          </span>
           <span className={styles.title}>{next.title}</span>
         </Link>
       ) : null}

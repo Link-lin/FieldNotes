@@ -2,7 +2,11 @@ import { z } from "zod";
 import { HttpError } from "@/server/core/http/errors";
 import { requireConnector } from "@/server/core/http/oauth";
 import { route } from "@/server/core/http/route";
-import { AuthorizationPageError, AuthorizationRedirectError, decideAuthorization } from "@/server/modules/oauth/oauth.service";
+import {
+  AuthorizationPageError,
+  AuthorizationRedirectError,
+  decideAuthorization,
+} from "@/server/modules/oauth/oauth.service";
 
 /** The consent page's decision on an authorization request (CONNECT-2): the request's own parameters plus allow or deny. */
 const body = z

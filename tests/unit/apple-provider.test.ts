@@ -1,23 +1,50 @@
 import { generateKeyPairSync, verify } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { appleClientSecret, appleConfig, appleEnabled, appleName, appleOrigin, applePrivateKey, appleProvider, cachedAppleClientSecret } from "@/server/auth/apple";
+import {
+  appleClientSecret,
+  appleConfig,
+  appleEnabled,
+  appleName,
+  appleOrigin,
+  applePrivateKey,
+  appleProvider,
+  cachedAppleClientSecret,
+} from "@/server/auth/apple";
 import { appleReturn } from "@/server/auth/apple-return";
 import { verifiedEmail } from "@/server/auth/identity";
 
 const ec = generateKeyPairSync("ec", { namedCurve: "prime256v1" });
 const pem = ec.privateKey.export({ type: "pkcs8", format: "pem" }) as string;
 const pemBody = pem.replace(/-----(BEGIN|END) PRIVATE KEY-----/g, "").replace(/\s+/g, "");
-const rsaPem = generateKeyPairSync("rsa", { modulusLength: 2048 }).privateKey.export({ type: "pkcs8", format: "pem" }) as string;
-const p384Pem = generateKeyPairSync("ec", { namedCurve: "secp384r1" }).privateKey.export({ type: "pkcs8", format: "pem" }) as string;
+const rsaPem = generateKeyPairSync("rsa", { modulusLength: 2048 }).privateKey.export({
+  type: "pkcs8",
+  format: "pem",
+}) as string;
+const p384Pem = generateKeyPairSync("ec", { namedCurve: "secp384r1" }).privateKey.export({
+  type: "pkcs8",
+  format: "pem",
+}) as string;
 
 const SETTINGS = { servicesId: "com.example.notes.web", teamId: "TEAMID1234", keyId: "KEYID12345", privateKey: pem };
 const env = (vars: Record<string, string>) => {
   for (const [k, v] of Object.entries(vars)) vi.stubEnv(k, v);
 };
-const configured = () => env({ AUTH_APPLE_ID: SETTINGS.servicesId, AUTH_APPLE_TEAM_ID: SETTINGS.teamId, AUTH_APPLE_KEY_ID: SETTINGS.keyId, AUTH_APPLE_PRIVATE_KEY: pem });
+const configured = () =>
+  env({
+    AUTH_APPLE_ID: SETTINGS.servicesId,
+    AUTH_APPLE_TEAM_ID: SETTINGS.teamId,
+    AUTH_APPLE_KEY_ID: SETTINGS.keyId,
+    AUTH_APPLE_PRIVATE_KEY: pem,
+  });
 
 beforeEach(() => {
-  env({ AUTH_APPLE_ID: "", AUTH_APPLE_TEAM_ID: "", AUTH_APPLE_KEY_ID: "", AUTH_APPLE_PRIVATE_KEY: "", APPLE_ORIGIN: "" });
+  env({
+    AUTH_APPLE_ID: "",
+    AUTH_APPLE_TEAM_ID: "",
+    AUTH_APPLE_KEY_ID: "",
+    AUTH_APPLE_PRIVATE_KEY: "",
+    APPLE_ORIGIN: "",
+  });
 });
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -59,10 +86,15 @@ describe("the signing key", () => {
 
   it("refuses anything that isn't the P-256 key Apple issues, without echoing it", () => {
     expect(() => applePrivateKey("not a key")).toThrow("not a key Node can read");
-    expect(() => applePrivateKey("-----BEGIN PRIVATE KEY-----\nAAAA\n-----END PRIVATE KEY-----")).toThrow("not a key Node can read");
+    expect(() => applePrivateKey("-----BEGIN PRIVATE KEY-----\nAAAA\n-----END PRIVATE KEY-----")).toThrow(
+      "not a key Node can read",
+    );
     expect(() => applePrivateKey(rsaPem)).toThrow("not a P-256 key");
     expect(() => applePrivateKey(p384Pem)).toThrow("not a P-256 key");
-    for (const [bad, secret] of [["SECRETKEYMATERIAL-0123456789-abcdef", "SECRETKEYMATERIAL"], [rsaPem, rsaPem.split("\n")[1]!]] as const) {
+    for (const [bad, secret] of [
+      ["SECRETKEYMATERIAL-0123456789-abcdef", "SECRETKEYMATERIAL"],
+      [rsaPem, rsaPem.split("\n")[1]!],
+    ] as const) {
       expect(() => applePrivateKey(bad)).toThrow();
       try {
         applePrivateKey(bad);
@@ -77,19 +109,35 @@ describe("the client secret", () => {
   const now = new Date("2026-10-04T12:00:00Z");
   const parts = (secret: string) => {
     const [h, c, s] = secret.split(".") as [string, string, string];
-    return { h, c, s, header: JSON.parse(Buffer.from(h, "base64url").toString()), claims: JSON.parse(Buffer.from(c, "base64url").toString()) };
+    return {
+      h,
+      c,
+      s,
+      header: JSON.parse(Buffer.from(h, "base64url").toString()),
+      claims: JSON.parse(Buffer.from(c, "base64url").toString()),
+    };
   };
 
   it("is an ES256 token Apple can verify: the key's ID, the team, the Services ID, Apple as audience, an hour of life", () => {
     const { h, c, s, header, claims } = parts(appleClientSecret(SETTINGS, now));
     expect(header).toEqual({ alg: "ES256", kid: "KEYID12345", typ: "JWT" });
     const iat = Math.floor(now.getTime() / 1000) - 60; // a little in the past, for a clock slightly ahead of Apple's
-    expect(claims).toEqual({ iss: "TEAMID1234", sub: "com.example.notes.web", aud: "https://appleid.apple.com", iat, exp: iat + 3600 });
+    expect(claims).toEqual({
+      iss: "TEAMID1234",
+      sub: "com.example.notes.web",
+      aud: "https://appleid.apple.com",
+      iat,
+      exp: iat + 3600,
+    });
     expect(claims.exp - iat).toBeLessThan(15777000); // Apple's six-month ceiling
     const raw = Buffer.from(s, "base64url");
     expect(raw).toHaveLength(64); // r and s, not DER
-    expect(verify("sha256", Buffer.from(`${h}.${c}`), { key: ec.publicKey, dsaEncoding: "ieee-p1363" }, raw)).toBe(true);
-    expect(verify("sha256", Buffer.from(`${h}.${c}x`), { key: ec.publicKey, dsaEncoding: "ieee-p1363" }, raw)).toBe(false);
+    expect(verify("sha256", Buffer.from(`${h}.${c}`), { key: ec.publicKey, dsaEncoding: "ieee-p1363" }, raw)).toBe(
+      true,
+    );
+    expect(verify("sha256", Buffer.from(`${h}.${c}x`), { key: ec.publicKey, dsaEncoding: "ieee-p1363" }, raw)).toBe(
+      false,
+    );
   });
 
   it("names whatever host the test points Apple at as its audience", () => {
@@ -102,9 +150,16 @@ describe("the client secret", () => {
     expect(cachedAppleClientSecret(SETTINGS, new Date(now.getTime() + 29 * 60_000))).toBe(first);
     const later = cachedAppleClientSecret(SETTINGS, new Date(now.getTime() + 31 * 60_000));
     expect(later).not.toBe(first);
-    const other = generateKeyPairSync("ec", { namedCurve: "prime256v1" }).privateKey.export({ type: "pkcs8", format: "pem" }) as string;
-    expect(cachedAppleClientSecret({ ...SETTINGS, privateKey: other }, new Date(now.getTime() + 31 * 60_000))).not.toBe(later);
-    expect(cachedAppleClientSecret({ ...SETTINGS, keyId: "OTHERKEY12" }, new Date(now.getTime() + 31 * 60_000))).not.toBe(later);
+    const other = generateKeyPairSync("ec", { namedCurve: "prime256v1" }).privateKey.export({
+      type: "pkcs8",
+      format: "pem",
+    }) as string;
+    expect(cachedAppleClientSecret({ ...SETTINGS, privateKey: other }, new Date(now.getTime() + 31 * 60_000))).not.toBe(
+      later,
+    );
+    expect(
+      cachedAppleClientSecret({ ...SETTINGS, keyId: "OTHERKEY12" }, new Date(now.getTime() + 31 * 60_000)),
+    ).not.toBe(later);
   });
 });
 
@@ -147,7 +202,10 @@ describe("the Apple provider", () => {
   it("is Auth.js's Apple provider with the app's Services ID, a signed client secret and no stored tokens", async () => {
     const p = provider();
     expect(p).toMatchObject({ id: "apple", name: "Apple", type: "oidc", checks: ["nonce", "state"] });
-    expect((p.authorization as { params: Record<string, string> }).params).toEqual({ scope: "name email", response_mode: "form_post" });
+    expect((p.authorization as { params: Record<string, string> }).params).toEqual({
+      scope: "name email",
+      response_mode: "form_post",
+    });
     const options = p.options as { clientId: string; clientSecret: string; issuer: string; account: () => unknown };
     expect(options.clientId).toBe("com.example.notes.web");
     expect(options.issuer).toBe("https://appleid.apple.com");
@@ -158,15 +216,36 @@ describe("the Apple provider", () => {
   it("gives the account Apple's subject, the name when sent, the address only when shared, and no avatar", async () => {
     const profile = (provider().options as { profile: Profile }).profile;
     const shared = { sub: "001.abc", email: "sam@example.com", email_verified: "true", is_private_email: "false" };
-    expect(await profile({ ...shared, user: { name: { firstName: "Sam", lastName: "Lee" } } }, {})).toEqual({ id: "001.abc", name: "Sam Lee", email: "sam@example.com", image: null });
+    expect(await profile({ ...shared, user: { name: { firstName: "Sam", lastName: "Lee" } } }, {})).toEqual({
+      id: "001.abc",
+      name: "Sam Lee",
+      email: "sam@example.com",
+      image: null,
+    });
     expect(await profile(shared, {})).toEqual({ id: "001.abc", name: null, email: "sam@example.com", image: null });
-    expect(await profile({ sub: "001.def", email: "x1y2@privaterelay.appleid.com", email_verified: "true", is_private_email: "true", user: { name: { firstName: "Mei" } } }, {})).toEqual({ id: "001.def", name: "Mei", email: null, image: null });
+    expect(
+      await profile(
+        {
+          sub: "001.def",
+          email: "x1y2@privaterelay.appleid.com",
+          email_verified: "true",
+          is_private_email: "true",
+          user: { name: { firstName: "Mei" } },
+        },
+        {},
+      ),
+    ).toEqual({ id: "001.def", name: "Mei", email: null, image: null });
     expect(await profile({ ...shared, email_verified: "false" }, {})).toMatchObject({ email: null });
   });
 
   it("doesn't fail on a user field without a name, which Auth.js's own mapping would", async () => {
     const profile = (provider().options as { profile: Profile }).profile;
-    expect(await profile({ sub: "001.abc", user: { email: "sam@example.com" } }, {})).toEqual({ id: "001.abc", name: null, email: null, image: null });
+    expect(await profile({ sub: "001.abc", user: { email: "sam@example.com" } }, {})).toEqual({
+      id: "001.abc",
+      name: null,
+      email: null,
+      image: null,
+    });
     expect(await profile({ sub: "001.abc", user: null }, {})).toMatchObject({ name: null });
   });
 });
@@ -188,7 +267,9 @@ describe("the name Apple sends once", () => {
   });
 
   it("drops control and direction-changing characters, and stops at 80 characters", () => {
-    expect(appleName({ user: { name: { firstName: "Sam\u0000\u0007", lastName: "\u202ELee\u202C" } } })).toBe("Sam Lee");
+    expect(appleName({ user: { name: { firstName: "Sam\u0000\u0007", lastName: "\u202ELee\u202C" } } })).toBe(
+      "Sam Lee",
+    );
     expect(appleName({ user: { name: { firstName: "a".repeat(200) } } })).toHaveLength(80);
   });
 });
@@ -219,11 +300,15 @@ describe("the address a sign-in vouches for", () => {
 
 describe("the page that carries Apple's callback back to the app", () => {
   const CALLBACK = "https://notes.example.com/api/auth/callback/apple";
-  const post = (url: string, body: BodyInit) => new Request(url, { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body });
+  const post = (url: string, body: BodyInit) =>
+    new Request(url, { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body });
 
   it("answers Apple's POST with a page that posts the same fields straight back, marked, under the CSP nonce", async () => {
     const user = JSON.stringify({ name: { firstName: "Sam", lastName: "Lee" } });
-    const res = await appleReturn(post(CALLBACK, new URLSearchParams({ code: "c1", state: "s1", id_token: "a.b.c", user })), "n0nce");
+    const res = await appleReturn(
+      post(CALLBACK, new URLSearchParams({ code: "c1", state: "s1", id_token: "a.b.c", user })),
+      "n0nce",
+    );
     expect(res?.status).toBe(200);
     expect(res?.headers.get("content-type")).toBe("text/html; charset=utf-8");
     expect(res?.headers.get("cache-control")).toBe("private, no-store");
@@ -240,7 +325,10 @@ describe("the page that carries Apple's callback back to the app", () => {
   });
 
   it("escapes whatever it is given, names and values alike", async () => {
-    const res = await appleReturn(post(CALLBACK, new URLSearchParams({ 'a"b': `"><img src=x onerror=alert(1)>&'` })), "n0nce");
+    const res = await appleReturn(
+      post(CALLBACK, new URLSearchParams({ 'a"b': `"><img src=x onerror=alert(1)>&'` })),
+      "n0nce",
+    );
     const html = await res!.text();
     expect(html).not.toContain("<img");
     expect(html).toContain('name="a&quot;b" value="&quot;&gt;&lt;img src=x onerror=alert(1)&gt;&amp;&#39;"');
@@ -259,13 +347,20 @@ describe("the page that carries Apple's callback back to the app", () => {
     expect(await appleReturn(new Request(CALLBACK), "n")).toBeNull(); // a GET
     expect(await appleReturn(post("https://notes.example.com/api/auth/callback/google", "code=c1"), "n")).toBeNull();
     expect(await appleReturn(post("https://notes.example.com/api/auth/signin/apple", "csrfToken=x"), "n")).toBeNull();
-    expect(await appleReturn(post("https://notes.example.com/api/auth/callback/apple/extra", "code=c1"), "n")).toBeNull();
+    expect(
+      await appleReturn(post("https://notes.example.com/api/auth/callback/apple/extra", "code=c1"), "n"),
+    ).toBeNull();
   });
 
   it("refuses a body far larger than anything Apple sends", async () => {
     const big = await appleReturn(post(CALLBACK, `code=${"a".repeat(20_000)}`), "n");
     expect(big?.status).toBe(413);
-    const declared = { method: "POST", url: CALLBACK, headers: new Headers({ "content-length": "99999" }), text: async () => "" } as unknown as Request;
+    const declared = {
+      method: "POST",
+      url: CALLBACK,
+      headers: new Headers({ "content-length": "99999" }),
+      text: async () => "",
+    } as unknown as Request;
     expect((await appleReturn(declared, "n"))?.status).toBe(413);
   });
 
@@ -278,7 +373,12 @@ describe("the page that carries Apple's callback back to the app", () => {
         if (pulled >= 50) controller.close();
       },
     });
-    const request = new Request(CALLBACK, { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body: stream, duplex: "half" } as RequestInit);
+    const request = new Request(CALLBACK, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: stream,
+      duplex: "half",
+    } as RequestInit);
     expect((await appleReturn(request, "n"))?.status).toBe(413);
     expect(pulled).toBeLessThan(10); // 16 KB is four chunks; it didn't read all fifty
   });

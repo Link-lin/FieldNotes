@@ -39,7 +39,9 @@ export function buildImportPrompt(brief: TripBrief): string {
     `Interests: ${brief.interests.trim() || "Not specified"}`,
     `Pace: ${brief.pace.trim() || "Not specified"}`,
     `Constraints: ${brief.constraints.trim() || "None specified"}`,
-    brief.budgetAmount.trim() ? `Owner-supplied budget: ${brief.budgetAmount.trim()} ${brief.budgetCurrency}` : "No trip budget supplied; omit trip.budget.",
+    brief.budgetAmount.trim()
+      ? `Owner-supplied budget: ${brief.budgetAmount.trim()} ${brief.budgetCurrency}`
+      : "No trip budget supplied; omit trip.budget.",
   ];
   return `${instructions}\n\nTrip brief (use these details, while following the JSON format above):\n${lines.join("\n")}`;
 }

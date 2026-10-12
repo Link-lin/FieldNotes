@@ -59,7 +59,11 @@ export const NotesEditor = forwardRef<NotesEditorHandle, Props>(function NotesEd
     if (value === saved.current.trim()) return { ok: true };
     setStatus("saving");
     // `baseNotes` lets the save go through when only the event's other fields changed meanwhile, here or not yet seen.
-    const request = api<PlanItemDTO>("PATCH", `/api/trips/${tripId}/items/${item.id}/notes`, { notes: value || null, expectedVersion: version.current, baseNotes: saved.current || null }).then((r): NotesFlushResult => {
+    const request = api<PlanItemDTO>("PATCH", `/api/trips/${tripId}/items/${item.id}/notes`, {
+      notes: value || null,
+      expectedVersion: version.current,
+      baseNotes: saved.current || null,
+    }).then((r): NotesFlushResult => {
       if (r.ok) {
         version.current = r.data.version;
         saved.current = r.data.notes ?? "";
@@ -71,7 +75,9 @@ export const NotesEditor = forwardRef<NotesEditorHandle, Props>(function NotesEd
       if (r.status === 409) {
         blocked.current = true;
         setStatus("conflict");
-        setError("These notes were changed elsewhere (in another tab or window, by someone you share the trip with, or by a connected chat), so yours weren't saved. Your text is still here: copy it, close and reopen the event to see the notes as they are now, then add yours again.");
+        setError(
+          "These notes were changed elsewhere (in another tab or window, by someone you share the trip with, or by a connected chat), so yours weren't saved. Your text is still here: copy it, close and reopen the event to see the notes as they are now, then add yours again.",
+        );
       } else {
         setStatus("error");
         setError(r.message);
@@ -108,7 +114,9 @@ export const NotesEditor = forwardRef<NotesEditorHandle, Props>(function NotesEd
   const near = text.length > MAX - 500;
   return (
     <div className={styles.notes}>
-      <label htmlFor={`${id}-notes`} className={styles.label}>Notes</label>
+      <label htmlFor={`${id}-notes`} className={styles.label}>
+        Notes
+      </label>
       <textarea
         id={`${id}-notes`}
         className={styles.field}
@@ -123,14 +131,30 @@ export const NotesEditor = forwardRef<NotesEditorHandle, Props>(function NotesEd
       />
       <div className={styles.foot}>
         <span id={`${id}-status`} role="status" className={styles.status} data-status={status}>
-          {status === "saving" ? "Saving…" : status === "saved" ? "Saved" : status === "error" ? "Couldn't save." : status === "conflict" ? "Not saved." : "Saves as you type."}
+          {status === "saving"
+            ? "Saving…"
+            : status === "saved"
+              ? "Saved"
+              : status === "error"
+                ? "Couldn't save."
+                : status === "conflict"
+                  ? "Not saved."
+                  : "Saves as you type."}
         </span>
-        {near ? <span className={styles.count}>{text.length.toLocaleString()} / {MAX.toLocaleString()}</span> : null}
+        {near ? (
+          <span className={styles.count}>
+            {text.length.toLocaleString()} / {MAX.toLocaleString()}
+          </span>
+        ) : null}
       </div>
       {error ? (
         <p className={styles.error} role="alert">
           {error}
-          {status === "error" ? <Button variant="quiet" onClick={() => void save()}>Try again</Button> : null}
+          {status === "error" ? (
+            <Button variant="quiet" onClick={() => void save()}>
+              Try again
+            </Button>
+          ) : null}
         </p>
       ) : null}
     </div>

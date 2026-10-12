@@ -18,16 +18,25 @@ export function animateDayEnter(main: HTMLElement, direction: number): void {
   main.getAnimations().forEach((a) => a.cancel());
   const shift = window.matchMedia("(max-width: 600px)").matches ? 0 : direction * SHIFT_PX;
   main.animate(
-    [{ opacity: 0, transform: `translateX(${shift}px)` }, { opacity: 1, transform: "none" }],
+    [
+      { opacity: 0, transform: `translateX(${shift}px)` },
+      { opacity: 1, transform: "none" },
+    ],
     { duration: 320, easing: EASE },
   );
   const rows = Array.from(main.querySelectorAll<HTMLElement>("[data-hl]")).slice(0, MAX_STAGGERED);
   rows.forEach((row, i) => {
-    row.animate([{ opacity: 0, transform: "translateY(8px)" }, { opacity: 1, transform: "none" }], {
-      duration: 300,
-      delay: 60 + i * 35,
-      easing: EASE,
-      fill: "backwards",
-    });
+    row.animate(
+      [
+        { opacity: 0, transform: "translateY(8px)" },
+        { opacity: 1, transform: "none" },
+      ],
+      {
+        duration: 300,
+        delay: 60 + i * 35,
+        easing: EASE,
+        fill: "backwards",
+      },
+    );
   });
 }

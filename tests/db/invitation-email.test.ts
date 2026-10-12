@@ -1,12 +1,23 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { makeActor, NOW, reset, testDb, tripInput } from "./helpers";
 import { createTrip } from "@/server/modules/trips/trips.service";
-import { createInvitation, EMAIL_COOLDOWN_MS, listInvitations, revokeInvitation, stageInvitation, updateInvitationRole } from "@/server/modules/invitations/invitations.service";
+import {
+  createInvitation,
+  EMAIL_COOLDOWN_MS,
+  listInvitations,
+  revokeInvitation,
+  stageInvitation,
+  updateInvitationRole,
+} from "@/server/modules/invitations/invitations.service";
 import { HttpError } from "@/server/core/http/errors";
 import type { Actor } from "@/server/auth/actor";
 
 // Email is switched on and off per test; every send is recorded or made to fail.
-const mail = vi.hoisted(() => ({ on: true, fail: null as Error | null, sent: [] as Array<Record<string, string | undefined>> }));
+const mail = vi.hoisted(() => ({
+  on: true,
+  fail: null as Error | null,
+  sent: [] as Array<Record<string, string | undefined>>,
+}));
 vi.mock("@/server/core/mail", () => ({
   mailConfigured: () => mail.on,
   sendMail: async (message: Record<string, string | undefined>) => {
@@ -18,7 +29,10 @@ vi.mock("@/server/core/mail", () => ({
 const db = () => testDb();
 const tokenOf = (url: string) => url.split("#")[1]!;
 async function expectHttp(p: Promise<unknown>, status: number, code?: string) {
-  const err = await p.then(() => null, (e: unknown) => e);
+  const err = await p.then(
+    () => null,
+    (e: unknown) => e,
+  );
   expect(err).toBeInstanceOf(HttpError);
   expect((err as HttpError).status).toBe(status);
   if (code) expect((err as HttpError).code).toBe(code);
@@ -88,7 +102,11 @@ describe("emailing invitations", () => {
   it("refuses a second link for a pending person within a minute, so the emailed link keeps working", async () => {
     const t0 = new Date();
     const first = await createInvitation(db(), owner, tripId, "newcomer@example.com", t0);
-    await expectHttp(createInvitation(db(), owner, tripId, "newcomer@example.com", new Date(t0.getTime() + 1000)), 429, "invitation_recent");
+    await expectHttp(
+      createInvitation(db(), owner, tripId, "newcomer@example.com", new Date(t0.getTime() + 1000)),
+      429,
+      "invitation_recent",
+    );
     expect(mail.sent).toHaveLength(1);
     await stageInvitation(db(), tokenOf(first.invitationUrl), t0); // untouched: the emailed link still works
     // Changing what they can do needs no new link, so it isn't held up.

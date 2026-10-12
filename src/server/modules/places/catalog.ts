@@ -2,7 +2,16 @@ import "server-only";
 import placesData from "@/data/places.json";
 import type { PlaceDTO } from "@/shared/dto";
 
-type Place = { id: string; name: string; country: string; lat: number; lon: number; kind: "city" | "country"; tz: string[]; rank: number };
+type Place = {
+  id: string;
+  name: string;
+  country: string;
+  lat: number;
+  lon: number;
+  kind: "city" | "country";
+  tz: string[];
+  rank: number;
+};
 const places = placesData as unknown as Place[];
 
 /** Atlas matching normalization: Unicode NFKC, trim, case folding, collapsed whitespace. */
@@ -81,5 +90,12 @@ export function searchPlaces(query: string, limit = 10): PlaceDTO[] {
   return tiers
     .flatMap((t) => t.sort((a, b) => a.p.rank - b.p.rank || a.label.length - b.label.length))
     .slice(0, limit)
-    .map((l) => ({ id: l.p.id, label: l.label, latitude: l.p.lat, longitude: l.p.lon, kind: l.p.kind, timeZones: l.p.tz }));
+    .map((l) => ({
+      id: l.p.id,
+      label: l.label,
+      latitude: l.p.lat,
+      longitude: l.p.lon,
+      kind: l.p.kind,
+      timeZones: l.p.tz,
+    }));
 }

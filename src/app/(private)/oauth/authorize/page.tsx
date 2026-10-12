@@ -6,7 +6,12 @@ import { currentSession, pageActor } from "@/server/auth/session";
 import { getDb } from "@/server/core/db/client";
 import { connectorEnabled } from "@/server/core/env";
 import { allLoopback, hasWrite, redirectHost } from "@/server/modules/oauth/oauth.rules";
-import { AuthorizationPageError, AuthorizationRedirectError, checkAuthorizationRequest, type AuthorizationParams } from "@/server/modules/oauth/oauth.service";
+import {
+  AuthorizationPageError,
+  AuthorizationRedirectError,
+  checkAuthorizationRequest,
+  type AuthorizationParams,
+} from "@/server/modules/oauth/oauth.service";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +22,11 @@ const first = (value: string | string[] | undefined): string | undefined => (Arr
  * signed out signs in first and returns to this exact address. A request that cannot be trusted enough to send the
  * person back to the app shows an error and redirects nowhere; one the app got wrong goes back to it as an OAuth error.
  */
-export default async function AuthorizePage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+export default async function AuthorizePage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   if (!connectorEnabled()) notFound();
   await pageActor();
   const query = await searchParams;

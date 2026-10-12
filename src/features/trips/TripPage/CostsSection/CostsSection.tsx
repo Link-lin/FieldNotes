@@ -12,29 +12,56 @@ import styles from "./CostsSection.module.css";
  * budget's currency only, a breakdown by type, and a note while AI estimates remain. Owners set or change the budget
  * from here (it opens the trip details with the budget ready to change).
  */
-export function CostsSection({ data, canManage, onSetBudget }: { data: TripDetailDTO; canManage: boolean; onSetBudget: () => void }) {
+export function CostsSection({
+  data,
+  canManage,
+  onSetBudget,
+}: {
+  data: TripDetailDTO;
+  canManage: boolean;
+  onSetBudget: () => void;
+}) {
   const { trip, plannedTotals: totals, budgetComparison: cmp } = data;
   const budgetOnly = trip.budget && !totals.some((t) => t.currency === trip.budget!.currency);
-  const cards: PlannedTotalDTO[] = [...(budgetOnly ? [{ currency: trip.budget!.currency, total: "0", priceCount: 0, unverifiedCount: 0, byType: [] }] : []), ...totals]
-    .sort((a, b) => Number(b.currency === trip.budget?.currency) - Number(a.currency === trip.budget?.currency));
+  const cards: PlannedTotalDTO[] = [
+    ...(budgetOnly
+      ? [{ currency: trip.budget!.currency, total: "0", priceCount: 0, unverifiedCount: 0, byType: [] }]
+      : []),
+    ...totals,
+  ].sort((a, b) => Number(b.currency === trip.budget?.currency) - Number(a.currency === trip.budget?.currency));
   return (
     <Section title="Planned costs" titleId="costs-title">
       {!totals.length && !trip.budget ? (
         <Card className={styles.empty}>
-          <p className="note">No prices yet.{canManage ? " Add a price to an event, or set a budget for the trip." : ""}</p>
-          {canManage ? <div><Button variant="quiet" data-set-budget onClick={onSetBudget}>Set a budget</Button></div> : null}
+          <p className="note">
+            No prices yet.{canManage ? " Add a price to an event, or set a budget for the trip." : ""}
+          </p>
+          {canManage ? (
+            <div>
+              <Button variant="quiet" data-set-budget onClick={onSetBudget}>
+                Set a budget
+              </Button>
+            </div>
+          ) : null}
         </Card>
       ) : (
         <>
           <div className={styles.costs}>
             {cards.map((t) => (
               <Card className={styles.cost} key={t.currency}>
-                <div className={cx("mono", styles.head)}><span>{t.currency}</span><span>{plural(t.priceCount, "price")}</span></div>
+                <div className={cx("mono", styles.head)}>
+                  <span>{t.currency}</span>
+                  <span>{plural(t.priceCount, "price")}</span>
+                </div>
                 <b className={styles.total}>{formatMoney(t.total, t.currency)}</b>
                 {cmp && cmp.currency === t.currency ? (
                   <>
                     <div className={styles.budgetBar} data-over={cmp.over} aria-hidden="true">
-                      <i style={{ width: `${Math.min(100, Number(cmp.budget) > 0 ? (Number(cmp.planned) / Number(cmp.budget)) * 100 : 100)}%` }} />
+                      <i
+                        style={{
+                          width: `${Math.min(100, Number(cmp.budget) > 0 ? (Number(cmp.planned) / Number(cmp.budget)) * 100 : 100)}%`,
+                        }}
+                      />
                     </div>
                     <span className={styles.budgetText} data-over={cmp.over}>
                       {cmp.over
@@ -47,24 +74,43 @@ export function CostsSection({ data, canManage, onSetBudget }: { data: TripDetai
                   <>
                     <div className={styles.stack} aria-hidden="true">
                       {t.byType.map((b) => (
-                        <i key={b.type} data-type={b.type} style={{ flex: `${Math.max(Number(b.amount), 0.0001)} 1 0` }} />
+                        <i
+                          key={b.type}
+                          data-type={b.type}
+                          style={{ flex: `${Math.max(Number(b.amount), 0.0001)} 1 0` }}
+                        />
                       ))}
                     </div>
                     <ul className={styles.breakdown}>
                       {t.byType.map((b) => (
-                        <li key={b.type}><i data-type={b.type} aria-hidden="true" /><span>{TYPE_LABEL[b.type]}</span><b>{formatMoney(b.amount, t.currency)}</b></li>
+                        <li key={b.type}>
+                          <i data-type={b.type} aria-hidden="true" />
+                          <span>{TYPE_LABEL[b.type]}</span>
+                          <b>{formatMoney(b.amount, t.currency)}</b>
+                        </li>
                       ))}
                     </ul>
                   </>
                 ) : null}
-                {t.unverifiedCount ? <p className="note">Includes {plural(t.unverifiedCount, "unverified AI estimate")}.</p> : null}
+                {t.unverifiedCount ? (
+                  <p className="note">Includes {plural(t.unverifiedCount, "unverified AI estimate")}.</p>
+                ) : null}
               </Card>
             ))}
           </div>
           {cards.length > 1 ? (
-            <p className="note">Different currencies are never added together or converted.{trip.budget ? ` Only ${trip.budget.currency} costs count toward the budget.` : ""}</p>
+            <p className="note">
+              Different currencies are never added together or converted.
+              {trip.budget ? ` Only ${trip.budget.currency} costs count toward the budget.` : ""}
+            </p>
           ) : null}
-          {canManage ? <div><Button variant="link" data-set-budget onClick={onSetBudget}>{trip.budget ? "Change the budget" : "Set a budget"}</Button></div> : null}
+          {canManage ? (
+            <div>
+              <Button variant="link" data-set-budget onClick={onSetBudget}>
+                {trip.budget ? "Change the budget" : "Set a budget"}
+              </Button>
+            </div>
+          ) : null}
         </>
       )}
     </Section>

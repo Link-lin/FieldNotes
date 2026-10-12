@@ -31,13 +31,19 @@ describe("invitation email", () => {
   });
 
   it("escapes user text in the HTML part and adds no images or scripts", () => {
-    const html = invitationEmail({ ...input, tripTitle: `<script>alert("x")</script> & "Co"`, inviterName: `Eve <eve@evil.example>` }).html;
+    const html = invitationEmail({
+      ...input,
+      tripTitle: `<script>alert("x")</script> & "Co"`,
+      inviterName: `Eve <eve@evil.example>`,
+    }).html;
     expect(html).not.toContain("<script");
     expect(html).not.toContain("<img");
     expect(html).toContain("&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt; &amp; &quot;Co&quot;");
     expect(html).toContain("Eve &lt;eve@evil.example&gt;");
     // The link is escaped inside its attribute too.
-    expect(invitationEmail({ ...input, url: 'https://x.example/invite#a"b' }).html).toContain('href="https://x.example/invite#a&quot;b"');
+    expect(invitationEmail({ ...input, url: 'https://x.example/invite#a"b' }).html).toContain(
+      'href="https://x.example/invite#a&quot;b"',
+    );
   });
 
   it("loads nothing from anywhere: its only links are the invitation, with no images, style sheets or web fonts", () => {
@@ -53,9 +59,15 @@ describe("invitation email", () => {
   });
 
   it("cannot be used to start a new header from the trip title or the name", () => {
-    const mail = invitationEmail({ ...input, tripTitle: "Trip\r\nBcc: attacker@evil.example", inviterName: "Link\nSubject: spoofed" });
+    const mail = invitationEmail({
+      ...input,
+      tripTitle: "Trip\r\nBcc: attacker@evil.example",
+      inviterName: "Link\nSubject: spoofed",
+    });
     expect(mail.subject).not.toMatch(/[\r\n]/);
-    expect(mail.subject).toBe("Link Subject: spoofed shared \u201cTrip Bcc: attacker@evil.example\u201d with you on Field Notes");
+    expect(mail.subject).toBe(
+      "Link Subject: spoofed shared \u201cTrip Bcc: attacker@evil.example\u201d with you on Field Notes",
+    );
     expect(mail.text.split("\n")[0]).not.toMatch(/\r/);
   });
 });

@@ -10,11 +10,19 @@ function classes({ variant = "outline", size = "md", block }: Look, extra?: stri
 }
 
 /** The app's button. `outline` is the default pill; `link` looks like a text link. */
-export function Button({ variant, size, block, className, type = "button", ...rest }: Look & React.ButtonHTMLAttributes<HTMLButtonElement>) {
+export function Button({
+  variant,
+  size,
+  block,
+  className,
+  type = "button",
+  ...rest
+}: Look & React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return <button type={type} className={classes({ variant, size, block }, className)} {...rest} />;
 }
 
-type LinkProps = Look & Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, "href"> & { href: string; external?: boolean };
+type LinkProps = Look &
+  Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, "href"> & { href: string; external?: boolean };
 
 /** A link that looks like a Button. `external` opens in a new tab without sharing the opener. */
 export function ButtonLink({ variant, size, block, className, href, external, ...rest }: LinkProps) {

@@ -1,0 +1,11 @@
+# Prettier formats the code: TypeScript and JavaScript. Markdown, CSS, JSON and YAML keep their hand-written layout,
+# and generated or bundled files are left alone. Whatever .gitignore lists is skipped as well.
+*.md
+*.css
+*.json
+*.yml
+*.yaml
+next-env.d.ts
+src/data/
+docs/
+public/

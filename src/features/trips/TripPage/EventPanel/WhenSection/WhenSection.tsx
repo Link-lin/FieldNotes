@@ -49,7 +49,14 @@ export function WhenSection({ trip, item, canEdit, onSaved }: Props) {
         </div>
       }
     >
-      <WhenFields value={field.draft} onChange={(patch) => field.setDraft((d) => ({ ...d, ...patch }))} tripZone={trip.timeZone} tripDates={trip} currentZone={item.timeZone} error={field.error} />
+      <WhenFields
+        value={field.draft}
+        onChange={(patch) => field.setDraft((d) => ({ ...d, ...patch }))}
+        tripZone={trip.timeZone}
+        tripDates={trip}
+        currentZone={item.timeZone}
+        error={field.error}
+      />
     </EditSection>
   );
 }

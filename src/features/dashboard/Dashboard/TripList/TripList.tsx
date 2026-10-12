@@ -23,7 +23,17 @@ type Props = {
 };
 
 /** ATLAS-2: every trip the viewer may see, filtered by status; ongoing first, then upcoming, then past. */
-export function TripList({ trips, bookingTasks, filter, onFilter, selectedId, onShowOnGlobe, canCreate, onCreate, className }: Props) {
+export function TripList({
+  trips,
+  bookingTasks,
+  filter,
+  onFilter,
+  selectedId,
+  onShowOnGlobe,
+  canCreate,
+  onCreate,
+  className,
+}: Props) {
   const bookingByTrip = useMemo(() => {
     const counts = new Map<string, { total: number; overdue: number }>();
     for (const task of bookingTasks) {
@@ -38,13 +48,19 @@ export function TripList({ trips, bookingTasks, filter, onFilter, selectedId, on
     () =>
       trips
         .filter((t) => filter === "all" || t.status === filter)
-        .sort((a, b) => ORDER[a.status] - ORDER[b.status] || (a.status === "past" ? (a.startDate < b.startDate ? 1 : -1) : a.startDate < b.startDate ? -1 : 1)),
+        .sort(
+          (a, b) =>
+            ORDER[a.status] - ORDER[b.status] ||
+            (a.status === "past" ? (a.startDate < b.startDate ? 1 : -1) : a.startDate < b.startDate ? -1 : 1),
+        ),
     [trips, filter],
   );
   return (
     <section className={cx(styles.col, className)} aria-labelledby="list-title">
       <div className={styles.head}>
-        <h2 id="list-title" tabIndex={-1} className={trips.length ? "visually-hidden" : undefined}>On your itinerary</h2>
+        <h2 id="list-title" tabIndex={-1} className={trips.length ? "visually-hidden" : undefined}>
+          On your itinerary
+        </h2>
         <TripFilters trips={trips} value={filter} onChange={onFilter} />
       </div>
       <div className={styles.body}>
@@ -54,7 +70,9 @@ export function TripList({ trips, bookingTasks, filter, onFilter, selectedId, on
             {canCreate ? (
               <>
                 <span>Create your first trip to start planning.</span>
-                <Button variant="fill" onClick={onCreate}><PlusIcon /> New trip</Button>
+                <Button variant="fill" onClick={onCreate}>
+                  <PlusIcon /> New trip
+                </Button>
                 <ButtonLink href="/import">Create from an AI plan</ButtonLink>
               </>
             ) : (
@@ -66,7 +84,14 @@ export function TripList({ trips, bookingTasks, filter, onFilter, selectedId, on
         ) : (
           <ul className={styles.list}>
             {sorted.map((t, i) => (
-              <TripCard key={t.id} trip={t} booking={bookingByTrip.get(t.id)} index={i} selected={t.id === selectedId} onShowOnGlobe={() => onShowOnGlobe(t.id)} />
+              <TripCard
+                key={t.id}
+                trip={t}
+                booking={bookingByTrip.get(t.id)}
+                index={i}
+                selected={t.id === selectedId}
+                onShowOnGlobe={() => onShowOnGlobe(t.id)}
+              />
             ))}
           </ul>
         )}

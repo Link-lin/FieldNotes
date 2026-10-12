@@ -16,135 +16,243 @@ const amount = z.string().regex(AMOUNT_PATTERN, "Enter a nonnegative decimal str
 const nullable = <T extends z.ZodType>(schema: T) => schema.nullable();
 
 export const importMoneySchema = z.object({ amount, currency }).strict();
-export const previewRequestSchema = z.object({
-  responseText: z.string().min(1),
-  ownerProvidedBudget: nullable(importMoneySchema),
-}).strict();
+export const previewRequestSchema = z
+  .object({
+    responseText: z.string().min(1),
+    ownerProvidedBudget: nullable(importMoneySchema),
+  })
+  .strict();
 
-const link = z.object({
-  label: z.string().trim().min(1).max(80),
-  url: z.string().max(2048).refine((value) => parseWebUrl(value) !== null, "Enter a full http or https link without user information."),
-}).strict();
+const link = z
+  .object({
+    label: z.string().trim().min(1).max(80),
+    url: z
+      .string()
+      .max(2048)
+      .refine((value) => parseWebUrl(value) !== null, "Enter a full http or https link without user information."),
+  })
+  .strict();
 
-const endpoint = z.object({
-  airportCode: nullable(z.string().regex(/^[A-Z0-9]{3,4}$/, "Use a 3–4 character uppercase airport code.")),
-  localDateTime: nullable(localDateTime),
-  timeZone: nullable(zone),
-  timeDisambiguation: nullable(z.enum(["earlier", "later"])),
-}).strict();
+const endpoint = z
+  .object({
+    airportCode: nullable(z.string().regex(/^[A-Z0-9]{3,4}$/, "Use a 3–4 character uppercase airport code.")),
+    localDateTime: nullable(localDateTime),
+    timeZone: nullable(zone),
+    timeDisambiguation: nullable(z.enum(["earlier", "later"])),
+  })
+  .strict();
 
-const flightDetails = z.object({
-  plannedDepartureDate: nullable(date),
-  airline: nullable(z.string().max(120)),
-  flightNumber: nullable(z.string().max(24)),
-  departure: endpoint,
-  arrival: endpoint,
-}).strict();
+const flightDetails = z
+  .object({
+    plannedDepartureDate: nullable(date),
+    airline: nullable(z.string().max(120)),
+    flightNumber: nullable(z.string().max(24)),
+    departure: endpoint,
+    arrival: endpoint,
+  })
+  .strict();
 
-export const tripDraftSchema = z.object({
-  title: z.string().trim().min(1).max(120),
-  destination: z.string().trim().min(1).max(160),
-  startDate: date,
-  endDate: date,
-  timeZone: zone,
-  budget: nullable(importMoneySchema),
-}).strict().refine((trip) => trip.startDate <= trip.endDate, { path: ["endDate"], message: "The trip can't end before it starts." }).refine(tripLengthOk, tripLengthIssue);
+export const tripDraftSchema = z
+  .object({
+    title: z.string().trim().min(1).max(120),
+    destination: z.string().trim().min(1).max(160),
+    startDate: date,
+    endDate: date,
+    timeZone: zone,
+    budget: nullable(importMoneySchema),
+  })
+  .strict()
+  .refine((trip) => trip.startDate <= trip.endDate, {
+    path: ["endDate"],
+    message: "The trip can't end before it starts.",
+  })
+  .refine(tripLengthOk, tripLengthIssue);
 
-export const planItemDraftSchema = z.object({
-  type: z.enum(["flight", "lodging", "transport", "meal", "activity", "other"]),
-  title: z.string().trim().min(1).max(200),
-  location: nullable(z.string().max(500)),
-  notes: nullable(z.string().max(5000)),
-  links: z.array(link).max(20),
-  bookingStatus: z.enum(["needs_booking", "not_required"]),
-  bookingDueDate: nullable(date),
-  plannedPrice: nullable(importMoneySchema),
-  localDate: nullable(date),
-  localTime: nullable(time),
-  timeZone: nullable(zone),
-  durationMinutes: nullable(z.number().int().min(1).max(1440)),
-  timeDisambiguation: nullable(z.enum(["earlier", "later"])),
-  flightDetails: nullable(flightDetails),
-}).strict().superRefine((item, ctx) => {
-  const issue = (path: (string | number)[], message: string) => ctx.addIssue({ code: "custom", path, message });
-  if (item.bookingDueDate && item.bookingStatus !== "needs_booking") issue(["bookingDueDate"], "A book-by date requires Needs booking.");
-  if (item.type === "flight") {
-    if (item.bookingStatus !== "needs_booking") issue(["bookingStatus"], "Imported flights must need booking.");
-    if (!item.flightDetails) issue(["flightDetails"], "Add flight details, even if no segment values are known yet.");
-    if (item.localDate !== null || item.localTime !== null || item.timeZone !== null || item.durationMinutes !== null || item.timeDisambiguation !== null) {
-      issue(["flightDetails"], "Flights use flightDetails instead of the general schedule fields.");
-    }
-    if (item.flightDetails) {
-      const flight = item.flightDetails;
-      if (flight.plannedDepartureDate && flight.departure.localDateTime) issue(["flightDetails", "plannedDepartureDate"], "Use the exact departure time instead of a fallback date.");
-      for (const side of ["departure", "arrival"] as const) {
-        const endpoint = flight[side];
-        if (endpoint.localDateTime && !endpoint.timeZone) issue(["flightDetails", side, "timeZone"], "Add the airport's time zone.");
-        if (endpoint.timeDisambiguation && !endpoint.localDateTime) issue(["flightDetails", side, "timeDisambiguation"], "Only choose an offset for a supplied local time.");
+export const planItemDraftSchema = z
+  .object({
+    type: z.enum(["flight", "lodging", "transport", "meal", "activity", "other"]),
+    title: z.string().trim().min(1).max(200),
+    location: nullable(z.string().max(500)),
+    notes: nullable(z.string().max(5000)),
+    links: z.array(link).max(20),
+    bookingStatus: z.enum(["needs_booking", "not_required"]),
+    bookingDueDate: nullable(date),
+    plannedPrice: nullable(importMoneySchema),
+    localDate: nullable(date),
+    localTime: nullable(time),
+    timeZone: nullable(zone),
+    durationMinutes: nullable(z.number().int().min(1).max(1440)),
+    timeDisambiguation: nullable(z.enum(["earlier", "later"])),
+    flightDetails: nullable(flightDetails),
+  })
+  .strict()
+  .superRefine((item, ctx) => {
+    const issue = (path: (string | number)[], message: string) => ctx.addIssue({ code: "custom", path, message });
+    if (item.bookingDueDate && item.bookingStatus !== "needs_booking")
+      issue(["bookingDueDate"], "A book-by date requires Needs booking.");
+    if (item.type === "flight") {
+      if (item.bookingStatus !== "needs_booking") issue(["bookingStatus"], "Imported flights must need booking.");
+      if (!item.flightDetails) issue(["flightDetails"], "Add flight details, even if no segment values are known yet.");
+      if (
+        item.localDate !== null ||
+        item.localTime !== null ||
+        item.timeZone !== null ||
+        item.durationMinutes !== null ||
+        item.timeDisambiguation !== null
+      ) {
+        issue(["flightDetails"], "Flights use flightDetails instead of the general schedule fields.");
       }
-    }
-  } else {
-    if (item.flightDetails) issue(["flightDetails"], "Only flights can have flight details.");
-    if (item.localTime && !item.localDate) issue(["localTime"], "A time needs a date.");
-    if (item.timeDisambiguation && !item.localTime) issue(["timeDisambiguation"], "Only choose an offset for a supplied local time.");
-  }
-});
-
-export const importCommitSchema = z.object({
-  expectedFormatVersion: z.literal(1),
-  ownerProvidedBudget: nullable(importMoneySchema),
-  trip: tripDraftSchema,
-  items: z.array(planItemDraftSchema).max(250),
-  /** Owner-selected place lookups, in the same order as items. External JSON v1 never supplies these. */
-  confirmedMapUrls: z.array(z.string().max(2048).refine((value) => coordinatesFromMapUrl(value) !== null, "Choose a map location from the preview.").nullable()).max(250).optional(),
-  /** How many previewed items the owner skipped; a pilot count only, not part of the import. */
-  previewSkipped: z.number().int().min(0).max(250).optional(),
-}).strict().superRefine((value, ctx) => {
-  if (value.confirmedMapUrls && value.confirmedMapUrls.length !== value.items.length) {
-    ctx.addIssue({ code: "custom", path: ["confirmedMapUrls"], message: "Map choices must match the included items." });
-  }
-  value.confirmedMapUrls?.forEach((url, index) => {
-    if (url && (!value.items[index]?.location || value.items[index]?.type === "flight")) {
-      ctx.addIssue({ code: "custom", path: ["confirmedMapUrls", index], message: "Only a placed, non-flight event can use a suggested map location." });
+      if (item.flightDetails) {
+        const flight = item.flightDetails;
+        if (flight.plannedDepartureDate && flight.departure.localDateTime)
+          issue(["flightDetails", "plannedDepartureDate"], "Use the exact departure time instead of a fallback date.");
+        for (const side of ["departure", "arrival"] as const) {
+          const endpoint = flight[side];
+          if (endpoint.localDateTime && !endpoint.timeZone)
+            issue(["flightDetails", side, "timeZone"], "Add the airport's time zone.");
+          if (endpoint.timeDisambiguation && !endpoint.localDateTime)
+            issue(["flightDetails", side, "timeDisambiguation"], "Only choose an offset for a supplied local time.");
+        }
+      }
+    } else {
+      if (item.flightDetails) issue(["flightDetails"], "Only flights can have flight details.");
+      if (item.localTime && !item.localDate) issue(["localTime"], "A time needs a date.");
+      if (item.timeDisambiguation && !item.localTime)
+        issue(["timeDisambiguation"], "Only choose an offset for a supplied local time.");
     }
   });
-  const budget = value.ownerProvidedBudget;
-  const tripBudget = value.trip.budget;
-  if ((budget === null) !== (tripBudget === null) || (budget && tripBudget &&
-    (trimAmount(budget.amount) !== trimAmount(tripBudget.amount) || budget.currency !== tripBudget.currency))) {
-    ctx.addIssue({ code: "custom", path: ["trip", "budget"], message: "The trip budget must match the owner-entered budget." });
-  }
-  for (let i = 0; i < value.items.length; i++) {
-    const item = value.items[i]!;
-    if (item.type === "flight") {
-      const flight = item.flightDetails;
-      if (!flight) continue;
-      const instants: Partial<Record<"departure" | "arrival", number>> = {};
-      for (const side of ["departure", "arrival"] as const) {
-        const endpoint = flight[side];
-        if (!endpoint.localDateTime || !endpoint.timeZone) continue;
-        const resolved = resolveLocal(endpoint.localDateTime.slice(0, 10), endpoint.localDateTime.slice(11), endpoint.timeZone, endpoint.timeDisambiguation);
-        if (!resolved.ok) ctx.addIssue({ code: "custom", path: ["items", i, "flightDetails", side, resolved.reason === "ambiguous" ? "timeDisambiguation" : "localDateTime"], message: resolved.reason === "gap" ? "This local time does not exist in its time zone." : "Choose the earlier or later occurrence of this local time." });
-        else instants[side] = resolved.epochMs;
-      }
-      if (instants.departure !== undefined && instants.arrival !== undefined && instants.arrival <= instants.departure) {
-        ctx.addIssue({ code: "custom", path: ["items", i, "flightDetails", "arrival", "localDateTime"], message: "Arrival must be after departure." });
-      }
-    } else if (item.localDate && item.localTime) {
-      const resolved = resolveLocal(item.localDate, item.localTime, item.timeZone ?? value.trip.timeZone, item.timeDisambiguation);
-      if (!resolved.ok) ctx.addIssue({ code: "custom", path: ["items", i, resolved.reason === "ambiguous" ? "timeDisambiguation" : "localTime"], message: resolved.reason === "gap" ? "This local time does not exist in its time zone." : "Choose the earlier or later occurrence of this local time." });
+
+export const importCommitSchema = z
+  .object({
+    expectedFormatVersion: z.literal(1),
+    ownerProvidedBudget: nullable(importMoneySchema),
+    trip: tripDraftSchema,
+    items: z.array(planItemDraftSchema).max(250),
+    /** Owner-selected place lookups, in the same order as items. External JSON v1 never supplies these. */
+    confirmedMapUrls: z
+      .array(
+        z
+          .string()
+          .max(2048)
+          .refine((value) => coordinatesFromMapUrl(value) !== null, "Choose a map location from the preview.")
+          .nullable(),
+      )
+      .max(250)
+      .optional(),
+    /** How many previewed items the owner skipped; a pilot count only, not part of the import. */
+    previewSkipped: z.number().int().min(0).max(250).optional(),
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    if (value.confirmedMapUrls && value.confirmedMapUrls.length !== value.items.length) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["confirmedMapUrls"],
+        message: "Map choices must match the included items.",
+      });
     }
-  }
-});
+    value.confirmedMapUrls?.forEach((url, index) => {
+      if (url && (!value.items[index]?.location || value.items[index]?.type === "flight")) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["confirmedMapUrls", index],
+          message: "Only a placed, non-flight event can use a suggested map location.",
+        });
+      }
+    });
+    const budget = value.ownerProvidedBudget;
+    const tripBudget = value.trip.budget;
+    if (
+      (budget === null) !== (tripBudget === null) ||
+      (budget &&
+        tripBudget &&
+        (trimAmount(budget.amount) !== trimAmount(tripBudget.amount) || budget.currency !== tripBudget.currency))
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["trip", "budget"],
+        message: "The trip budget must match the owner-entered budget.",
+      });
+    }
+    for (let i = 0; i < value.items.length; i++) {
+      const item = value.items[i]!;
+      if (item.type === "flight") {
+        const flight = item.flightDetails;
+        if (!flight) continue;
+        const instants: Partial<Record<"departure" | "arrival", number>> = {};
+        for (const side of ["departure", "arrival"] as const) {
+          const endpoint = flight[side];
+          if (!endpoint.localDateTime || !endpoint.timeZone) continue;
+          const resolved = resolveLocal(
+            endpoint.localDateTime.slice(0, 10),
+            endpoint.localDateTime.slice(11),
+            endpoint.timeZone,
+            endpoint.timeDisambiguation,
+          );
+          if (!resolved.ok)
+            ctx.addIssue({
+              code: "custom",
+              path: [
+                "items",
+                i,
+                "flightDetails",
+                side,
+                resolved.reason === "ambiguous" ? "timeDisambiguation" : "localDateTime",
+              ],
+              message:
+                resolved.reason === "gap"
+                  ? "This local time does not exist in its time zone."
+                  : "Choose the earlier or later occurrence of this local time.",
+            });
+          else instants[side] = resolved.epochMs;
+        }
+        if (
+          instants.departure !== undefined &&
+          instants.arrival !== undefined &&
+          instants.arrival <= instants.departure
+        ) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["items", i, "flightDetails", "arrival", "localDateTime"],
+            message: "Arrival must be after departure.",
+          });
+        }
+      } else if (item.localDate && item.localTime) {
+        const resolved = resolveLocal(
+          item.localDate,
+          item.localTime,
+          item.timeZone ?? value.trip.timeZone,
+          item.timeDisambiguation,
+        );
+        if (!resolved.ok)
+          ctx.addIssue({
+            code: "custom",
+            path: ["items", i, resolved.reason === "ambiguous" ? "timeDisambiguation" : "localTime"],
+            message:
+              resolved.reason === "gap"
+                ? "This local time does not exist in its time zone."
+                : "Choose the earlier or later occurrence of this local time.",
+          });
+      }
+    }
+  });
 
 export type TripDraftDTO = z.infer<typeof tripDraftSchema>;
 export type PlanItemDraftDTO = z.infer<typeof planItemDraftSchema>;
 export type ImportCommitInput = z.infer<typeof importCommitSchema>;
-export const importLocationRequestSchema = z.object({
-  location: z.string().trim().min(2).max(500),
-  destination: z.string().trim().min(2).max(160),
-}).strict();
-export type ImportLocationCandidate = { label: string; latitude: number; longitude: number; confidence: number; kind: string };
+export const importLocationRequestSchema = z
+  .object({
+    location: z.string().trim().min(2).max(500),
+    destination: z.string().trim().min(2).max(160),
+  })
+  .strict();
+export type ImportLocationCandidate = {
+  label: string;
+  latitude: number;
+  longitude: number;
+  confidence: number;
+  kind: string;
+};
 export type ImportLocationResult = { candidates: ImportLocationCandidate[]; suggestedIndex: number | null };
 export type ImportPreviewDTO = {
   trip: {
@@ -168,7 +276,11 @@ export type ImportPreviewDTO = {
 };
 export type PreviewImportResult =
   | { ok: true; preview: ImportPreviewDTO }
-  | { ok: false; code: "malformed_json" | "unsupported_version" | "invalid_structure" | "unknown_field" | "too_many_items"; errors: FieldError[] };
+  | {
+      ok: false;
+      code: "malformed_json" | "unsupported_version" | "invalid_structure" | "unknown_field" | "too_many_items";
+      errors: FieldError[];
+    };
 
 /** A source item type is checked before it becomes a normalized draft. */
 export type ImportSourceItemType = ItemType;

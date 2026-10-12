@@ -19,7 +19,11 @@ export function FlightCard({ item, className }: { item: PlanItemDTO; className?:
   const title = titleRestatesRoute(item.title, dep, arr) ? null : item.title;
   const carrier = [f.airline, f.flightNumber].filter(Boolean).join(" ");
   const status = item.bookingStatus === "booked" ? "Booked" : "Needs booking";
-  const ai = isAiDraft(item) ? <div><Tag>AI draft, unverified</Tag></div> : null;
+  const ai = isAiDraft(item) ? (
+    <div>
+      <Tag>AI draft, unverified</Tag>
+    </div>
+  ) : null;
 
   if (!f.departure.localDateTime && !f.arrival.localDateTime) {
     return (

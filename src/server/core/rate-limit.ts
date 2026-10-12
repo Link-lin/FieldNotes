@@ -9,7 +9,12 @@ type Window = { start: number; count: number };
 const globalForLimits = globalThis as unknown as { __fnRateWindows?: Map<string, Window> };
 const windows = (): Map<string, Window> => (globalForLimits.__fnRateWindows ??= new Map());
 
-export function rateLimit(key: string, limit: number, windowMs: number, now = Date.now()): { ok: true } | { ok: false; retryAfterSeconds: number } {
+export function rateLimit(
+  key: string,
+  limit: number,
+  windowMs: number,
+  now = Date.now(),
+): { ok: true } | { ok: false; retryAfterSeconds: number } {
   const all = windows();
   const w = all.get(key);
   if (!w || now - w.start >= windowMs) {
@@ -17,7 +22,8 @@ export function rateLimit(key: string, limit: number, windowMs: number, now = Da
     all.set(key, { start: now, count: 1 });
     return { ok: true };
   }
-  if (w.count >= limit) return { ok: false, retryAfterSeconds: Math.max(1, Math.ceil((w.start + windowMs - now) / 1000)) };
+  if (w.count >= limit)
+    return { ok: false, retryAfterSeconds: Math.max(1, Math.ceil((w.start + windowMs - now) / 1000)) };
   w.count += 1;
   return { ok: true };
 }

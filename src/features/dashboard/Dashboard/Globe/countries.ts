@@ -18,7 +18,9 @@ export type CountryLabel = { name: string; at: [number, number]; area: number };
  * Europe, not between Europe and French Guiana). `area` is in steradians; sorted largest first
  * so bigger countries win when labels would overlap.
  */
-export const COUNTRY_LABELS: CountryLabel[] = (feature(topo, objects).features as Array<Feature<Polygon | MultiPolygon, { name: string }>>)
+export const COUNTRY_LABELS: CountryLabel[] = (
+  feature(topo, objects).features as Array<Feature<Polygon | MultiPolygon, { name: string }>>
+)
   .filter((f) => f.geometry && f.properties?.name)
   .map((f) => {
     const g = f.geometry;
@@ -29,6 +31,10 @@ export const COUNTRY_LABELS: CountryLabel[] = (feature(topo, objects).features a
       const a = geoArea({ type: "Polygon", coordinates: p });
       if (a > bestArea) [best, bestArea] = [p, a];
     }
-    return { name: f.properties.name, at: geoCentroid({ type: "Polygon", coordinates: best }) as [number, number], area: bestArea };
+    return {
+      name: f.properties.name,
+      at: geoCentroid({ type: "Polygon", coordinates: best }) as [number, number],
+      area: bestArea,
+    };
   })
   .sort((a, b) => b.area - a.area);

@@ -21,9 +21,27 @@ type Props = {
 };
 
 /** One day of the itinerary, or the Undated / Undated flights / Recently deleted blocks after the last day. */
-export function DaySection({ title, titleId, meta, outside, empty, note, onAdd, addKey, highlightDay, className, children }: Props) {
+export function DaySection({
+  title,
+  titleId,
+  meta,
+  outside,
+  empty,
+  note,
+  onAdd,
+  addKey,
+  highlightDay,
+  className,
+  children,
+}: Props) {
   return (
-    <section className={cx(styles.day, className)} data-empty={empty} data-outside={outside} aria-label={titleId ? undefined : title} aria-labelledby={titleId}>
+    <section
+      className={cx(styles.day, className)}
+      data-empty={empty}
+      data-outside={outside}
+      aria-label={titleId ? undefined : title}
+      aria-labelledby={titleId}
+    >
       <div className={styles.head} data-hl-day={highlightDay}>
         <h2 id={titleId}>{title}</h2>
         <span className={cx("mono", styles.meta)}>{meta}</span>

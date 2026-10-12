@@ -19,7 +19,8 @@ type Props = {
   startOpen?: boolean;
 };
 
-const at = (p: LatLon) => `${Math.abs(p.latitude).toFixed(2)}° ${p.latitude >= 0 ? "N" : "S"}, ${Math.abs(p.longitude).toFixed(2)}° ${p.longitude >= 0 ? "E" : "W"}`;
+const at = (p: LatLon) =>
+  `${Math.abs(p.latitude).toFixed(2)}° ${p.latitude >= 0 ? "N" : "S"}, ${Math.abs(p.longitude).toFixed(2)}° ${p.longitude >= 0 ? "E" : "W"}`;
 
 /** ATLAS-4: where the trip sits on the dashboard globe, chosen from the bundled place list (nothing is sent out). */
 export function GlobePoint({ tripId, point, setByYou, startOpen = false }: Props) {
@@ -39,7 +40,13 @@ export function GlobePoint({ tripId, point, setByYou, startOpen = false }: Props
     read: () => start,
     save: async (next, from) => {
       const r = await save(next, from);
-      return r.ok ? { ok: true, note: next ? `Point saved${label ? `: ${label}` : ""}.` : "Point removed.", undo: () => save(from, next) } : r;
+      return r.ok
+        ? {
+            ok: true,
+            note: next ? `Point saved${label ? `: ${label}` : ""}.` : "Point removed.",
+            undo: () => save(from, next),
+          }
+        : r;
     },
   });
 
@@ -58,7 +65,12 @@ export function GlobePoint({ tripId, point, setByYou, startOpen = false }: Props
       title="Globe point"
       canEdit
       editing={field.editing}
-      onEdit={() => { setQ(""); setResults([]); setLabel(null); field.open(); }}
+      onEdit={() => {
+        setQ("");
+        setResults([]);
+        setLabel(null);
+        field.open();
+      }}
       onCancel={field.cancel}
       onSave={() => void field.commit()}
       status={field.status}
@@ -69,29 +81,65 @@ export function GlobePoint({ tripId, point, setByYou, startOpen = false }: Props
           {point ? (
             <>
               <p className={styles.coords}>{at(point)}</p>
-              <p className="note">{point.source === "owner" ? (setByYou ? "Point set by you." : "Point set by an owner.") : "Approximate destination, matched from the bundled place list."}</p>
-              <div><Button variant="quiet" onClick={() => void field.saveNow(null)}>Remove point</Button></div>
+              <p className="note">
+                {point.source === "owner"
+                  ? setByYou
+                    ? "Point set by you."
+                    : "Point set by an owner."
+                  : "Approximate destination, matched from the bundled place list."}
+              </p>
+              <div>
+                <Button variant="quiet" onClick={() => void field.saveNow(null)}>
+                  Remove point
+                </Button>
+              </div>
             </>
           ) : (
-            <p className="note">This trip has no point yet, so it appears in the list only. Edit to pick a place and show it on the globe.</p>
+            <p className="note">
+              This trip has no point yet, so it appears in the list only. Edit to pick a place and show it on the globe.
+            </p>
           )}
         </div>
       }
     >
       <Field label="Search places (bundled list, nothing is sent out)" htmlFor="td-place">
-        <input id="td-place" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Try Ushuaia or Santiago" autoComplete="off" />
+        <input
+          id="td-place"
+          type="search"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Try Ushuaia or Santiago"
+          autoComplete="off"
+        />
       </Field>
       {q.trim().length >= 2 && results.length ? (
         <div className={styles.results} role="group" aria-label="Matching places">
           {results.map((r) => {
             const on = !!picked && picked.latitude === r.latitude && picked.longitude === r.longitude;
-            return <button key={r.id} type="button" aria-pressed={on} onClick={() => { setLabel(r.label); field.setDraft({ latitude: r.latitude, longitude: r.longitude }); }}>{r.label}</button>;
+            return (
+              <button
+                key={r.id}
+                type="button"
+                aria-pressed={on}
+                onClick={() => {
+                  setLabel(r.label);
+                  field.setDraft({ latitude: r.latitude, longitude: r.longitude });
+                }}
+              >
+                {r.label}
+              </button>
+            );
           })}
         </div>
       ) : q.trim().length >= 2 ? (
         <p className="note">No match. Try a nearby city.</p>
       ) : null}
-      {picked ? <p className="note">{label ? `${label}: ` : "Current point: "}{at(picked)}</p> : null}
+      {picked ? (
+        <p className="note">
+          {label ? `${label}: ` : "Current point: "}
+          {at(picked)}
+        </p>
+      ) : null}
     </EditSection>
   );
 }

@@ -8,7 +8,11 @@
 export type TripFocus = "details" | "budget" | "globe";
 
 /** A panel the trip page can show, as its address says it. */
-export type PanelRequest = { kind: "event"; id: string; focusTitle?: boolean } | { kind: "add"; date: string } | { kind: "trip"; focus: TripFocus } | { kind: "share" };
+export type PanelRequest =
+  | { kind: "event"; id: string; focusTitle?: boolean }
+  | { kind: "add"; date: string }
+  | { kind: "trip"; focus: TripFocus }
+  | { kind: "share" };
 
 const FOCUS: readonly TripFocus[] = ["details", "budget", "globe"];
 

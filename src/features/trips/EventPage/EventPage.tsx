@@ -13,7 +13,15 @@ import { EventPanel } from "../TripPage/EventPanel/EventPanel";
 import { REVIEW_CHANGED, sendReview } from "../TripPage/review-events";
 import { tripDays, tripStops } from "../TripPage/trip-days";
 
-type Props = { data: TripDetailDTO; itemId: string; selectedDay: string | null; fromBookings: boolean; focusTitle: boolean; mapsKey: string | null; placeLookup: boolean };
+type Props = {
+  data: TripDetailDTO;
+  itemId: string;
+  selectedDay: string | null;
+  fromBookings: boolean;
+  focusTitle: boolean;
+  mapsKey: string | null;
+  placeLookup: boolean;
+};
 
 /** The same event view, edited in place, as the desktop panel, with a real URL and Back on phones (TRIP-10). */
 export function EventPage({ data, itemId, selectedDay, fromBookings, focusTitle, mapsKey, placeLookup }: Props) {
@@ -27,25 +35,37 @@ export function EventPage({ data, itemId, selectedDay, fromBookings, focusTitle,
   const item = saved && saved.version > original.version ? saved : original;
   const { byDate, days } = tripDays(trip, items);
   const day = selectedDay && days.includes(selectedDay) ? selectedDay : "all";
-  const shown = fromBookings ? items.filter((event) => event.bookingStatus === "needs_booking").sort((a, b) => (a.bookingDueDate ?? "9999").localeCompare(b.bookingDueDate ?? "9999")) : [
-    ...(day === "all" ? days : [day]).flatMap((date) => {
-      const list = byDate.get(date) ?? [];
-      return [...list.filter((event) => event.sortInstant), ...list.filter((event) => !event.sortInstant)];
-    }),
-    ...(day === "all" ? items.filter((event) => !event.timelineDate && event.flightDetails) : []),
-    ...(day === "all" ? items.filter((event) => !event.timelineDate && !event.flightDetails) : []),
-  ];
+  const shown = fromBookings
+    ? items
+        .filter((event) => event.bookingStatus === "needs_booking")
+        .sort((a, b) => (a.bookingDueDate ?? "9999").localeCompare(b.bookingDueDate ?? "9999"))
+    : [
+        ...(day === "all" ? days : [day]).flatMap((date) => {
+          const list = byDate.get(date) ?? [];
+          return [...list.filter((event) => event.sortInstant), ...list.filter((event) => !event.sortInstant)];
+        }),
+        ...(day === "all" ? items.filter((event) => !event.timelineDate && event.flightDetails) : []),
+        ...(day === "all" ? items.filter((event) => !event.timelineDate && !event.flightDetails) : []),
+      ];
   const at = shown.findIndex((event) => event.id === itemId);
   const numbers = new Map(tripStops(trip, byDate, days).map((stop) => [stop.id, { n: stop.n, need: stop.need }]));
-  const lastPriced = [...items].filter((event) => event.plannedPrice).sort((a, b) => a.updatedAt < b.updatedAt ? 1 : -1)[0];
-  const defaultCurrency = lastPriced?.plannedPrice?.currency ?? trip.budget?.currency ?? data.recentCurrencies[0] ?? "USD";
+  const lastPriced = [...items]
+    .filter((event) => event.plannedPrice)
+    .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1))[0];
+  const defaultCurrency =
+    lastPriced?.plannedPrice?.currency ?? trip.budget?.currency ?? data.recentCurrencies[0] ?? "USD";
   const query = fromBookings ? "?view=bookings" : day === "all" ? "" : `?day=${encodeURIComponent(day)}`;
   const back = `/trips/${trip.id}${query}`;
   const eventUrl = (target: PlanItemDTO) => `/trips/${trip.id}/items/${target.id}${query}`;
-  const leave = () => { if (takeEventReturn(trip.id, item.id)) router.back(); else router.replace(back); };
+  const leave = () => {
+    if (takeEventReturn(trip.id, item.id)) router.back();
+    else router.replace(back);
+  };
 
   async function duplicate(target: PlanItemDTO) {
-    const r = await api<PlanItemDTO>("POST", `/api/trips/${trip.id}/items/${target.id}/duplicate`, { expectedVersion: target.version });
+    const r = await api<PlanItemDTO>("POST", `/api/trips/${trip.id}/items/${target.id}/duplicate`, {
+      expectedVersion: target.version,
+    });
     if (!r.ok) return toast({ message: r.message });
     // The copy opens in place of this event, ready to change.
     replaceEventReturn(trip.id, r.data.id);
@@ -54,7 +74,9 @@ export function EventPage({ data, itemId, selectedDay, fromBookings, focusTitle,
   }
 
   async function remove(target: PlanItemDTO) {
-    const r = await api<void>("DELETE", `/api/trips/${trip.id}/items/${target.id}`, { expectedVersion: target.version });
+    const r = await api<void>("DELETE", `/api/trips/${trip.id}/items/${target.id}`, {
+      expectedVersion: target.version,
+    });
     if (!r.ok) return toast({ message: r.message });
     leave();
     // TRIP-8: Undo restores the same event within 10 minutes.
@@ -64,7 +86,13 @@ export function EventPage({ data, itemId, selectedDay, fromBookings, focusTitle,
       onAction: async () => {
         const back = await api<PlanItemDTO>("POST", `/api/trips/${trip.id}/items/${target.id}/restore`);
         router.refresh();
-        toast({ message: back.ok ? "Event restored." : back.status === 410 ? `"${target.title}" can no longer be restored.` : back.message });
+        toast({
+          message: back.ok
+            ? "Event restored."
+            : back.status === 410
+              ? `"${target.title}" can no longer be restored.`
+              : back.message,
+        });
       },
     });
   }
@@ -82,25 +110,38 @@ export function EventPage({ data, itemId, selectedDay, fromBookings, focusTitle,
       recentCurrencies={data.recentCurrencies}
       focusTitle={focusTitle}
       placeLookup={placeLookup}
-      prev={at > 0 ? shown[at - 1] ?? null : null}
-      next={at >= 0 ? shown[at + 1] ?? null : null}
-      onGo={(target) => { replaceEventReturn(trip.id, target.id); router.replace(eventUrl(target)); }}
+      prev={at > 0 ? (shown[at - 1] ?? null) : null}
+      next={at >= 0 ? (shown[at + 1] ?? null) : null}
+      onGo={(target) => {
+        replaceEventReturn(trip.id, target.id);
+        router.replace(eventUrl(target));
+      }}
       onClose={leave}
       onExited={() => {}}
-      onSaved={(updated) => { setSaved(updated); router.refresh(); }}
+      onSaved={(updated) => {
+        setSaved(updated);
+        router.refresh();
+      }}
       onDuplicate={canEdit(trip.role) ? (target) => void duplicate(target) : undefined}
       onDelete={canEdit(trip.role) ? (target) => void remove(target) : undefined}
-      onNotesSaved={(updated) => { setSaved(updated); router.refresh(); }}
-      onReview={canEdit(trip.role) ? async (target, reviewed) => {
-        const r = await sendReview(trip.id, [target], reviewed);
+      onNotesSaved={(updated) => {
+        setSaved(updated);
         router.refresh();
-        if (!r.ok) {
-          toast({ message: r.status === 409 ? REVIEW_CHANGED : r.message });
-          return null;
-        }
-        setSaved(r.data[0]!);
-        return r.data[0]!;
-      } : undefined}
+      }}
+      onReview={
+        canEdit(trip.role)
+          ? async (target, reviewed) => {
+              const r = await sendReview(trip.id, [target], reviewed);
+              router.refresh();
+              if (!r.ok) {
+                toast({ message: r.status === 409 ? REVIEW_CHANGED : r.message });
+                return null;
+              }
+              setSaved(r.data[0]!);
+              return r.data[0]!;
+            }
+          : undefined
+      }
     />
   );
 }

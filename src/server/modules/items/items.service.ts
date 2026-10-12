@@ -8,7 +8,13 @@ import { requireTripEditor, requireTripRead } from "@/server/auth/access";
 import { bumpTripVersion } from "@/server/modules/trips/trips.repository";
 import type { PlanItemDTO } from "@/shared/dto";
 import { mergeItemFields } from "@/shared/fields";
-import { itemInputSchema, toFieldErrors, type ItemFieldsPatch, type ItemInput, type ItemReview } from "@/shared/schemas";
+import {
+  itemInputSchema,
+  toFieldErrors,
+  type ItemFieldsPatch,
+  type ItemInput,
+  type ItemReview,
+} from "@/shared/schemas";
 import { dateInZone, resolveLocal } from "@/shared/time";
 import { itemDto } from "./items.mapper";
 import * as repo from "./items.repository";
@@ -27,11 +33,20 @@ export const RESTORE_WINDOW_MS = 10 * 60 * 1000;
  * checks the owner, purges expired deletions and bumps the trip version.
  */
 
-const dto = (row: PlanItemRow, zone: string, now: Date): PlanItemDTO => itemDto(row, zone, dateInZone(zone, now.getTime()));
+const dto = (row: PlanItemRow, zone: string, now: Date): PlanItemDTO =>
+  itemDto(row, zone, dateInZone(zone, now.getTime()));
 const capError = () => new HttpError(409, "item_cap", `A trip can have at most ${ITEM_CAP} events.`);
-const restoreExpired = () => new HttpError(410, "restore_expired", "This event was deleted more than 10 minutes ago and can't be restored.");
+const restoreExpired = () =>
+  new HttpError(410, "restore_expired", "This event was deleted more than 10 minutes ago and can't be restored.");
 
-export async function createItem(db: Kysely<DB>, actor: Actor, tripId: string, input: ItemInput, now = new Date(), later?: Later): Promise<PlanItemDTO> {
+export async function createItem(
+  db: Kysely<DB>,
+  actor: Actor,
+  tripId: string,
+  input: ItemInput,
+  now = new Date(),
+  later?: Later,
+): Promise<PlanItemDTO> {
   const created = await db.transaction().execute(async (tx) => {
     const { trip } = await requireTripEditor(tx, actor, tripId, true);
     await repo.purgeExpired(tx, trip.id);
@@ -51,7 +66,10 @@ export async function createItem(db: Kysely<DB>, actor: Actor, tripId: string, i
 }
 
 /** Pilot measures for a saved item: a new or changed book-by date, and a move to Booked. */
-function bookingUsage(before: { booking_due_date: string | null; booking_status: string } | null, after: PlanItemDTO): UsageEvent[] {
+function bookingUsage(
+  before: { booking_due_date: string | null; booking_status: string } | null,
+  after: PlanItemDTO,
+): UsageEvent[] {
   const events: UsageEvent[] = [];
   if (after.bookingDueDate && after.bookingDueDate !== before?.booking_due_date) events.push({ name: "due_date_set" });
   if (after.bookingStatus === "booked" && before?.booking_status !== "booked") events.push({ name: "item_booked" });
@@ -88,7 +106,15 @@ export async function updateItem(
  * edit began; a newer version of the event that left them alone is no clash. The merged event passes the same checks as
  * a full edit (schema, schedule, the flight-type confirmation, price and map rules) and counts the same.
  */
-export async function updateItemFields(db: Kysely<DB>, actor: Actor, tripId: string, itemId: string, body: ItemFieldsPatch, now = new Date(), later?: Later): Promise<PlanItemDTO> {
+export async function updateItemFields(
+  db: Kysely<DB>,
+  actor: Actor,
+  tripId: string,
+  itemId: string,
+  body: ItemFieldsPatch,
+  now = new Date(),
+  later?: Later,
+): Promise<PlanItemDTO> {
   let before: PlanItemRow | null = null;
   let input: ItemInput | null = null;
   let usage: UsageEvent[] = [];
@@ -96,7 +122,11 @@ export async function updateItemFields(db: Kysely<DB>, actor: Actor, tripId: str
     const { trip } = await requireTripEditor(tx, actor, tripId, true);
     await repo.purgeExpired(tx, trip.id);
     const current = await repo.loadItemForUpdate(tx, trip.id, itemId);
-    const { merged, conflicts } = mergeItemFields(itemInputOf(dto(current, trip.time_zone, now)), body.changes, body.base);
+    const { merged, conflicts } = mergeItemFields(
+      itemInputOf(dto(current, trip.time_zone, now)),
+      body.changes,
+      body.base,
+    );
     if (conflicts.length) throw fieldConflict(conflicts);
     const parsed = itemInputSchema.safeParse(merged);
     if (!parsed.success) throw invalid(toFieldErrors(parsed.error));
@@ -111,10 +141,21 @@ export async function updateItemFields(db: Kysely<DB>, actor: Actor, tripId: str
 }
 
 /** The checks and write a person's edit shares, full or field-level, with the AI item counts it earns. */
-async function writeItem(tx: Tx, trip: TripRow, current: PlanItemRow, input: ItemInput, opts: { confirmTypeChange?: boolean; confirmPrice?: boolean }, now: Date): Promise<{ item: PlanItemDTO; usage: UsageEvent[] }> {
+async function writeItem(
+  tx: Tx,
+  trip: TripRow,
+  current: PlanItemRow,
+  input: ItemInput,
+  opts: { confirmTypeChange?: boolean; confirmPrice?: boolean },
+  now: Date,
+): Promise<{ item: PlanItemDTO; usage: UsageEvent[] }> {
   const crossesFlight = (current.type === "flight") !== (input.type === "flight");
   if (crossesFlight && !opts.confirmTypeChange) {
-    throw new HttpError(409, "type_change_confirmation_required", "Changing to or from a flight clears the schedule fields. Confirm to continue.");
+    throw new HttpError(
+      409,
+      "type_change_confirmation_required",
+      "Changing to or from a flight clears the schedule fields. Confirm to continue.",
+    );
   }
   const errs = scheduleErrors(input, trip.time_zone);
   if (errs.length) throw invalid(errs);
@@ -142,10 +183,19 @@ async function recordAiEdit(tx: Tx, before: PlanItemRow, after: PlanItemRow, now
 }
 
 /** After a person's edit: its pilot counts, and a new place name looked up for a pin (MAP-2). */
-async function afterEdit(db: Kysely<DB>, tripId: string, prior: PlanItemRow | null, input: ItemInput, saved: PlanItemDTO, usage: UsageEvent[], later?: Later) {
+async function afterEdit(
+  db: Kysely<DB>,
+  tripId: string,
+  prior: PlanItemRow | null,
+  input: ItemInput,
+  saved: PlanItemDTO,
+  usage: UsageEvent[],
+  later?: Later,
+) {
   await countUsage(db, [...usage, ...bookingUsage(prior, saved)]);
   // Only a new place name is looked up: a pin the person removed on purpose doesn't come back on the next save.
-  if (later && placeChanged(input, prior) && wantsAutoPin(saved)) later(async () => void (await autoPin(db, tripId, [saved.id])));
+  if (later && placeChanged(input, prior) && wantsAutoPin(saved))
+    later(async () => void (await autoPin(db, tripId, [saved.id])));
 }
 
 /** TRIP-10: save an event's notes from its side panel. Same owner, version and trip-version rules as a full edit. */
@@ -197,10 +247,22 @@ export async function updateItemBooking(
     const current = await repo.loadItemForUpdate(tx, trip.id, itemId);
     if (current.version !== body.expectedVersion) throw conflict();
     if (body.bookingStatus === "booked" && !canMarkBooked(current)) {
-      throw invalid([{ path: "bookingStatus", code: "flight_incomplete", message: "Add both airports, their local times and time zones before marking this flight booked." }]);
+      throw invalid([
+        {
+          path: "bookingStatus",
+          code: "flight_incomplete",
+          message: "Add both airports, their local times and time zones before marking this flight booked.",
+        },
+      ]);
     }
     before = current;
-    const row = await repo.updateBooking(tx, current.id, body.expectedVersion, body.bookingStatus, body.bookingStatus === "needs_booking" ? body.bookingDueDate : null);
+    const row = await repo.updateBooking(
+      tx,
+      current.id,
+      body.expectedVersion,
+      body.bookingStatus,
+      body.bookingStatus === "needs_booking" ? body.bookingDueDate : null,
+    );
     if (!row) throw conflict();
     await bumpTripVersion(tx, trip.id);
     return dto(row, trip.time_zone, now);
@@ -210,7 +272,13 @@ export async function updateItemBooking(
 }
 
 /** TRIP-8: immediate soft delete; restorable for 10 minutes. */
-export async function deleteItem(db: Kysely<DB>, actor: Actor, tripId: string, itemId: string, expectedVersion: number): Promise<void> {
+export async function deleteItem(
+  db: Kysely<DB>,
+  actor: Actor,
+  tripId: string,
+  itemId: string,
+  expectedVersion: number,
+): Promise<void> {
   const counted = await db.transaction().execute(async (tx) => {
     const { trip } = await requireTripEditor(tx, actor, tripId, true);
     await repo.purgeExpired(tx, trip.id);
@@ -224,7 +292,13 @@ export async function deleteItem(db: Kysely<DB>, actor: Actor, tripId: string, i
 }
 
 /** Undo within 10 minutes: the same row comes back, if the cap allows and its time still exists. */
-export async function restoreItem(db: Kysely<DB>, actor: Actor, tripId: string, itemId: string, now = new Date()): Promise<PlanItemDTO> {
+export async function restoreItem(
+  db: Kysely<DB>,
+  actor: Actor,
+  tripId: string,
+  itemId: string,
+  now = new Date(),
+): Promise<PlanItemDTO> {
   return db.transaction().execute(async (tx) => {
     const { trip } = await requireTripEditor(tx, actor, tripId, true);
     const current = await repo.loadItemForUpdate(tx, trip.id, itemId, true);
@@ -233,9 +307,18 @@ export async function restoreItem(db: Kysely<DB>, actor: Actor, tripId: string, 
     if ((await repo.liveCount(tx, trip.id)) >= ITEM_CAP) throw capError();
     // The trip time zone may have changed since the delete; the restored time must still exist.
     if (current.type !== "flight" && current.local_date && current.local_time && !current.time_zone) {
-      const r = resolveLocal(current.local_date, current.local_time.slice(0, 5), trip.time_zone, current.time_disambiguation);
+      const r = resolveLocal(
+        current.local_date,
+        current.local_time.slice(0, 5),
+        trip.time_zone,
+        current.time_disambiguation,
+      );
       if (!r.ok) {
-        throw new HttpError(409, "restore_time_invalid", `This event's time ${current.local_time.slice(0, 5)} ${r.reason === "gap" ? "doesn't exist" : "happens twice"} on ${current.local_date} in ${trip.time_zone}, so it can't be restored. Add it again with a new time.`);
+        throw new HttpError(
+          409,
+          "restore_time_invalid",
+          `This event's time ${current.local_time.slice(0, 5)} ${r.reason === "gap" ? "doesn't exist" : "happens twice"} on ${current.local_date} in ${trip.time_zone}, so it can't be restored. Add it again with a new time.`,
+        );
       }
     }
     // The purge uses the database clock. If it is ahead of this server's, it may remove this row
@@ -249,7 +332,14 @@ export async function restoreItem(db: Kysely<DB>, actor: Actor, tripId: string, 
 }
 
 /** PLAN-3: duplicate; a booked item becomes "needs booking" with no due date. */
-export async function duplicateItem(db: Kysely<DB>, actor: Actor, tripId: string, itemId: string, expectedVersion: number, now = new Date()): Promise<PlanItemDTO> {
+export async function duplicateItem(
+  db: Kysely<DB>,
+  actor: Actor,
+  tripId: string,
+  itemId: string,
+  expectedVersion: number,
+  now = new Date(),
+): Promise<PlanItemDTO> {
   return db.transaction().execute(async (tx) => {
     const { trip } = await requireTripEditor(tx, actor, tripId, true);
     const src = await repo.loadItemForUpdate(tx, trip.id, itemId);
@@ -267,17 +357,37 @@ export async function duplicateItem(db: Kysely<DB>, actor: Actor, tripId: string
  * must be an AI draft of the trip at the version the person saw, so nothing they haven't seen is swept in. An event
  * already in the asked-for state is left as it is.
  */
-export async function reviewItems(db: Kysely<DB>, actor: Actor, tripId: string, body: ItemReview, now = new Date()): Promise<PlanItemDTO[]> {
+export async function reviewItems(
+  db: Kysely<DB>,
+  actor: Actor,
+  tripId: string,
+  body: ItemReview,
+  now = new Date(),
+): Promise<PlanItemDTO[]> {
   return db.transaction().execute(async (tx) => {
     const { trip } = await requireTripEditor(tx, actor, tripId, true);
     await repo.purgeExpired(tx, trip.id);
-    const rows = new Map((await repo.loadItemsForUpdate(tx, trip.id, body.items.map((i) => i.id))).map((r) => [r.id, r]));
+    const rows = new Map(
+      (
+        await repo.loadItemsForUpdate(
+          tx,
+          trip.id,
+          body.items.map((i) => i.id),
+        )
+      ).map((r) => [r.id, r]),
+    );
     body.items.forEach(({ id, expectedVersion }, index) => {
       const row = rows.get(id)!;
       if (row.version !== expectedVersion) throw conflict();
-      if (row.source !== "ai") throw invalid([{ path: `items[${index}].id`, code: "not_ai_draft", message: "Only an AI draft can be marked reviewed." }]);
+      if (row.source !== "ai")
+        throw invalid([
+          { path: `items[${index}].id`, code: "not_ai_draft", message: "Only an AI draft can be marked reviewed." },
+        ]);
     });
-    const toChange = body.items.map((i) => rows.get(i.id)!).filter((r) => (r.reviewed_at !== null) !== body.reviewed).map((r) => r.id);
+    const toChange = body.items
+      .map((i) => rows.get(i.id)!)
+      .filter((r) => (r.reviewed_at !== null) !== body.reviewed)
+      .map((r) => r.id);
     if (toChange.length) {
       for (const row of await repo.setReviewed(tx, toChange, body.reviewed ? now : null)) rows.set(row.id, row);
       await bumpTripVersion(tx, trip.id);
@@ -287,7 +397,13 @@ export async function reviewItems(db: Kysely<DB>, actor: Actor, tripId: string, 
 }
 
 /** CONNECT-3: read one item in full (a connected chat's `get_item`). Any role that can read the trip. */
-export async function getItem(db: Kysely<DB>, actor: Actor, tripId: string, itemId: string, now = new Date()): Promise<PlanItemDTO> {
+export async function getItem(
+  db: Kysely<DB>,
+  actor: Actor,
+  tripId: string,
+  itemId: string,
+  now = new Date(),
+): Promise<PlanItemDTO> {
   const { trip } = await requireTripRead(db, actor, tripId);
   const row = await repo.liveItem(db, trip.id, itemId);
   return dto(row, trip.time_zone, now);
@@ -324,19 +440,34 @@ export async function updateItemByAi(
     if ("path" in values) throw invalid([values]);
     if (priceChanged(before.plannedPrice, parsed.data.plannedPrice)) values.price_source = "ai";
     // What the person reviewed was the item as it was; a change the chat makes needs reviewing again.
-    if (current.source === "ai" && current.reviewed_at !== null && JSON.stringify(parsed.data) !== JSON.stringify(itemInputSchema.parse(itemInputOf(before)))) values.reviewed_at = null;
+    if (
+      current.source === "ai" &&
+      current.reviewed_at !== null &&
+      JSON.stringify(parsed.data) !== JSON.stringify(itemInputSchema.parse(itemInputOf(before)))
+    )
+      values.reviewed_at = null;
     const row = await repo.updateItemRow(tx, current.id, current.version, values);
     if (!row) throw conflict();
     await bumpTripVersion(tx, trip.id);
-    return { item: dto(row, trip.time_zone, now), clearedPin: applied.clearedPin, moved: placeChanged(parsed.data, current) };
+    return {
+      item: dto(row, trip.time_zone, now),
+      clearedPin: applied.clearedPin,
+      moved: placeChanged(parsed.data, current),
+    };
   });
   // A new place name gets its pin once the chat has its answer (MAP-2).
-  if (later && result.moved && wantsAutoPin(result.item)) later(async () => void (await autoPin(db, tripId, [result.item.id])));
+  if (later && result.moved && wantsAutoPin(result.item))
+    later(async () => void (await autoPin(db, tripId, [result.item.id])));
   return { item: result.item, clearedPin: result.clearedPin };
 }
 
 /** CONNECT-3: a connected AI chat deletes an item; it can be restored for 10 minutes (TRIP-8). Not counted in the pilot. */
-export async function deleteItemByAi(db: Kysely<DB>, actor: Actor, tripId: string, itemId: string): Promise<{ title: string }> {
+export async function deleteItemByAi(
+  db: Kysely<DB>,
+  actor: Actor,
+  tripId: string,
+  itemId: string,
+): Promise<{ title: string }> {
   return db.transaction().execute(async (tx) => {
     const { trip } = await requireTripEditor(tx, actor, tripId, true);
     await repo.purgeExpired(tx, trip.id);

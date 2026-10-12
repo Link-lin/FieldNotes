@@ -8,7 +8,10 @@ export const DELETE = route({ body: accountDeleteSchema }, async ({ db, actor, b
   await deleteAccount(db, actor, body.trips);
   const res = noContent();
   for (const name of ["authjs.session-token", "__Secure-authjs.session-token"]) {
-    res.headers.append("Set-Cookie", `${name}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax${name.startsWith("__Secure") ? "; Secure" : ""}`);
+    res.headers.append(
+      "Set-Cookie",
+      `${name}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax${name.startsWith("__Secure") ? "; Secure" : ""}`,
+    );
   }
   return res;
 });

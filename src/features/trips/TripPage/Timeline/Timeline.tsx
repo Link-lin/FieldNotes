@@ -18,7 +18,19 @@ type Props = {
 };
 
 /** A vertical line of events in time order. */
-export function Timeline({ items, numbers, canEdit, tripZone, menuFor, onMenu, onOpen, onEdit, onReview, onDuplicate, onDelete }: Props) {
+export function Timeline({
+  items,
+  numbers,
+  canEdit,
+  tripZone,
+  menuFor,
+  onMenu,
+  onOpen,
+  onEdit,
+  onReview,
+  onDuplicate,
+  onDelete,
+}: Props) {
   return (
     <ul className={styles.timeline} data-timeline>
       {items.map((i) => (

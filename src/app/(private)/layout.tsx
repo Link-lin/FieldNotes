@@ -20,7 +20,14 @@ export default async function PrivateLayout({ children }: { children: React.Reac
   // Offer "Sign-in methods" only when there is more than one to choose from.
   const apple = appleEnabled();
   const wechat = wechatEnabled();
-  const linked = apple || wechat ? new Set((await getDb().selectFrom("Account").select("provider").where("userId", "=", actor.userId).execute()).map((r) => r.provider)) : null;
+  const linked =
+    apple || wechat
+      ? new Set(
+          (await getDb().selectFrom("Account").select("provider").where("userId", "=", actor.userId).execute()).map(
+            (r) => r.provider,
+          ),
+        )
+      : null;
 
   async function doSignOut() {
     "use server";

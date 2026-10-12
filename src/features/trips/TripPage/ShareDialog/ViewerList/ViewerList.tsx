@@ -24,7 +24,12 @@ type Props = {
 };
 
 /** The status tag. An accepted person shows their role instead; the role picker beside it changes it. */
-const LABEL: Record<InvitationStatus, string> = { pending: "Invited", accepted: "Has access", expired: "Link expired", revoked: "Revoked" };
+const LABEL: Record<InvitationStatus, string> = {
+  pending: "Invited",
+  accepted: "Has access",
+  expired: "Link expired",
+  revoked: "Revoked",
+};
 
 function detail(e: InvitationDTO): string {
   if (e.status === "pending") return e.expiresAt ? `Link expires ${instantDate(e.expiresAt)}` : "";
@@ -140,8 +145,17 @@ export function ViewerList({ tripId, entries, canEmail, onNewLink, onRoleChanged
                 htmlFor={`role-${e.id}`}
                 className={styles.role}
               >
-                <select id={`role-${e.id}`} value={e.role} disabled={disabled} onChange={(ev) => pickRole(e, ev.target.value as Role)}>
-                  {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
+                <select
+                  id={`role-${e.id}`}
+                  value={e.role}
+                  disabled={disabled}
+                  onChange={(ev) => pickRole(e, ev.target.value as Role)}
+                >
+                  {ROLES.map((r) => (
+                    <option key={r} value={r}>
+                      {ROLE_LABEL[r]}
+                    </option>
+                  ))}
                 </select>
               </Field>
             ) : (
@@ -149,23 +163,57 @@ export function ViewerList({ tripId, entries, canEmail, onNewLink, onRoleChanged
             )}
             {promoting === e.id ? (
               <div className={styles.actions} role="group" aria-label={`Make ${who} an owner`}>
-                <span className={styles.ask}>{ROLE_HELP.owner} Make {who} an owner?</span>
-                <Button variant="dangerFill" data-confirm-promote={e.id} disabled={disabled} onClick={() => void setRole(e, "owner")}>Make owner</Button>
-                <Button variant="quiet" disabled={disabled} onClick={() => setPromoting(null)}>Cancel</Button>
+                <span className={styles.ask}>
+                  {ROLE_HELP.owner} Make {who} an owner?
+                </span>
+                <Button
+                  variant="dangerFill"
+                  data-confirm-promote={e.id}
+                  disabled={disabled}
+                  onClick={() => void setRole(e, "owner")}
+                >
+                  Make owner
+                </Button>
+                <Button variant="quiet" disabled={disabled} onClick={() => setPromoting(null)}>
+                  Cancel
+                </Button>
               </div>
             ) : confirming === e.id ? (
               <div className={styles.actions} role="group" aria-label={`Revoke access for ${who}`}>
                 <span className={styles.ask}>Revoke their access?</span>
-                <Button variant="dangerFill" data-confirm-revoke={e.id} disabled={disabled} onClick={() => void revoke(e)}>Revoke access</Button>
-                <Button variant="quiet" disabled={disabled} onClick={() => setConfirming(null)}>Keep</Button>
+                <Button
+                  variant="dangerFill"
+                  data-confirm-revoke={e.id}
+                  disabled={disabled}
+                  onClick={() => void revoke(e)}
+                >
+                  Revoke access
+                </Button>
+                <Button variant="quiet" disabled={disabled} onClick={() => setConfirming(null)}>
+                  Keep
+                </Button>
               </div>
             ) : (
               <div className={styles.actions}>
                 {canRenew ? (
-                  <Button variant="quiet" disabled={disabled} onClick={() => void newLink(e)} aria-label={`${emailed ? "Send new link to" : "Create new link for"} ${who}`}>{emailed ? "Send new link" : "Create new link"}</Button>
+                  <Button
+                    variant="quiet"
+                    disabled={disabled}
+                    onClick={() => void newLink(e)}
+                    aria-label={`${emailed ? "Send new link to" : "Create new link for"} ${who}`}
+                  >
+                    {emailed ? "Send new link" : "Create new link"}
+                  </Button>
                 ) : null}
                 {canRevoke ? (
-                  <Button variant="danger" disabled={disabled} onClick={() => void revoke(e)} aria-label={`Revoke ${who}`}>Revoke</Button>
+                  <Button
+                    variant="danger"
+                    disabled={disabled}
+                    onClick={() => void revoke(e)}
+                    aria-label={`Revoke ${who}`}
+                  >
+                    Revoke
+                  </Button>
                 ) : null}
               </div>
             )}

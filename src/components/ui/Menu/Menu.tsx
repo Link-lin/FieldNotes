@@ -74,9 +74,22 @@ export function Menu({ open, onOpenChange, trigger, className, popupClassName, c
 }
 
 /** One action in a Menu. `danger` marks destructive actions (also said in the words). */
-export function MenuItem({ icon, danger, className, children, type = "button", ...rest }: { icon?: React.ReactNode; danger?: boolean } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
+export function MenuItem({
+  icon,
+  danger,
+  className,
+  children,
+  type = "button",
+  ...rest
+}: { icon?: React.ReactNode; danger?: boolean } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
-    <button type={type} role="menuitem" tabIndex={-1} className={cx(styles.item, danger && styles.danger, className)} {...rest}>
+    <button
+      type={type}
+      role="menuitem"
+      tabIndex={-1}
+      className={cx(styles.item, danger && styles.danger, className)}
+      {...rest}
+    >
       {icon}
       {children}
     </button>
@@ -84,7 +97,12 @@ export function MenuItem({ icon, danger, className, children, type = "button", .
 }
 
 /** One action in a Menu that goes to another page (a link, so it can also open in a new tab). */
-export function MenuLink({ icon, className, children, ...rest }: { icon?: React.ReactNode } & React.ComponentProps<typeof Link>) {
+export function MenuLink({
+  icon,
+  className,
+  children,
+  ...rest
+}: { icon?: React.ReactNode } & React.ComponentProps<typeof Link>) {
   return (
     <Link role="menuitem" tabIndex={-1} className={cx(styles.item, className)} {...rest}>
       {icon}

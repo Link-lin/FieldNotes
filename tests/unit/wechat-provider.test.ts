@@ -5,7 +5,14 @@ const env = (vars: Record<string, string | undefined>) => {
   for (const [k, v] of Object.entries(vars)) vi.stubEnv(k, v as string);
 };
 beforeEach(() => {
-  for (const k of ["AUTH_WECHAT_ID", "AUTH_WECHAT_SECRET", "AUTH_WECHAT_PLATFORM", "WECHAT_OPEN_ORIGIN", "WECHAT_API_ORIGIN"]) vi.stubEnv(k, "");
+  for (const k of [
+    "AUTH_WECHAT_ID",
+    "AUTH_WECHAT_SECRET",
+    "AUTH_WECHAT_PLATFORM",
+    "WECHAT_OPEN_ORIGIN",
+    "WECHAT_API_ORIGIN",
+  ])
+    vi.stubEnv(k, "");
 });
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -71,7 +78,9 @@ describe("the WeChat provider", () => {
 
   it("identifies the account by unionid when WeChat gives one, else by openid, with no email and no avatar", async () => {
     const profile = provider().profile!;
-    expect(await profile({ openid: "o1", unionid: "u1", nickname: "Mei 🌸", headimgurl: "http://thirdwx.qlogo.cn/x" }, {})).toEqual({ id: "u1", name: "Mei 🌸", email: null, image: null });
+    expect(
+      await profile({ openid: "o1", unionid: "u1", nickname: "Mei 🌸", headimgurl: "http://thirdwx.qlogo.cn/x" }, {}),
+    ).toEqual({ id: "u1", name: "Mei 🌸", email: null, image: null });
     expect(await profile({ openid: "o2" }, {})).toEqual({ id: "o2", name: null, email: null, image: null });
   });
 
@@ -79,10 +88,15 @@ describe("the WeChat provider", () => {
     const seen: string[] = [];
     vi.stubGlobal("fetch", async (url: URL) => {
       seen.push(String(url));
-      return new Response(JSON.stringify({ openid: "o1", nickname: "Mei" }), { headers: { "content-type": "text/plain" } });
+      return new Response(JSON.stringify({ openid: "o1", nickname: "Mei" }), {
+        headers: { "content-type": "text/plain" },
+      });
     });
     const userinfo = provider().userinfo as { url: string; request: (ctx: unknown) => Promise<unknown> };
-    const ctx = { tokens: { access_token: "tok", openid: "o1" }, provider: { userinfo: { url: new URL(userinfo.url) } } };
+    const ctx = {
+      tokens: { access_token: "tok", openid: "o1" },
+      provider: { userinfo: { url: new URL(userinfo.url) } },
+    };
     expect(await userinfo.request(ctx)).toEqual({ openid: "o1", nickname: "Mei" });
     expect(new URL(seen[0]!).searchParams.get("access_token")).toBe("tok");
     expect(new URL(seen[0]!).searchParams.get("openid")).toBe("o1");
@@ -103,12 +117,25 @@ describe("WeChat's token endpoint", () => {
   };
 
   it("is asked the way WeChat documents it: a GET with the code in the query string", async () => {
-    const calls = stub(() => new Response(JSON.stringify({ access_token: "tok", expires_in: 7200, openid: "o1" }), { headers: { "content-type": "text/plain" } }));
-    const res = await weChatFetch(tokenUrl, { method: "POST", body: new URLSearchParams({ code: "abc", redirect_uri: "https://x", grant_type: "authorization_code" }) });
+    const calls = stub(
+      () =>
+        new Response(JSON.stringify({ access_token: "tok", expires_in: 7200, openid: "o1" }), {
+          headers: { "content-type": "text/plain" },
+        }),
+    );
+    const res = await weChatFetch(tokenUrl, {
+      method: "POST",
+      body: new URLSearchParams({ code: "abc", redirect_uri: "https://x", grant_type: "authorization_code" }),
+    });
     expect(calls).toHaveLength(1);
     expect(calls[0]!.method).toBe("GET");
     const asked = new URL(calls[0]!.url);
-    expect(Object.fromEntries(asked.searchParams)).toEqual({ appid: "wx123", secret: "s3cret", code: "abc", grant_type: "authorization_code" });
+    expect(Object.fromEntries(asked.searchParams)).toEqual({
+      appid: "wx123",
+      secret: "s3cret",
+      code: "abc",
+      grant_type: "authorization_code",
+    });
     // Its text/plain JSON becomes an answer Auth.js accepts.
     expect(res.headers.get("content-type")).toBe("application/json");
     expect(await res.json()).toEqual({ access_token: "tok", expires_in: 7200, openid: "o1", token_type: "bearer" });

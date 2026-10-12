@@ -12,7 +12,15 @@ export type { PanelRequest, TripFocus };
 
 type Panel =
   // `fresh`: just added or duplicated here, so not yet among the page's events until the refresh brings it.
-  | { kind: "event"; id: string; open: boolean; snapshot: PlanItemDTO; focusTitle: boolean; trigger: string; fresh?: boolean }
+  | {
+      kind: "event";
+      id: string;
+      open: boolean;
+      snapshot: PlanItemDTO;
+      focusTitle: boolean;
+      trigger: string;
+      fresh?: boolean;
+    }
   | { kind: "add"; open: boolean; date: string; trigger: string | null }
   | { kind: "trip"; open: boolean; focus: TripFocus; trigger: string | null }
   | { kind: "share"; open: boolean; trigger: string | null };
@@ -29,7 +37,8 @@ function urlFor(panel: Panel | null): string {
   return `${url.pathname}${url.search}${url.hash}`;
 }
 
-const sameKind = (a: PanelRequest | null, b: Panel | null) => !!a && !!b && a.kind === b.kind && (a.kind !== "event" || (b.kind === "event" && a.id === b.id));
+const sameKind = (a: PanelRequest | null, b: Panel | null) =>
+  !!a && !!b && a.kind === b.kind && (a.kind !== "event" || (b.kind === "event" && a.id === b.id));
 
 /**
  * The trip page's side panels (TRIP-1, TRIP-9, TRIP-10, DASH-6, ACCESS-3): an event, a new event, the trip's details
@@ -42,7 +51,15 @@ const sameKind = (a: PanelRequest | null, b: Panel | null) => !!a && !!b && a.ki
 
 /** How a panel came to open: from the page (no value), from the page's address on arrival, or by Back or Forward. */
 type From = "address" | "history";
-export function useTripPanels({ tripId, items, shown, day, view, allows, closeMenu }: {
+export function useTripPanels({
+  tripId,
+  items,
+  shown,
+  day,
+  view,
+  allows,
+  closeMenu,
+}: {
   tripId: string;
   items: PlanItemDTO[];
   shown: PlanItemDTO[];
@@ -64,7 +81,8 @@ export function useTripPanels({ tripId, items, shown, day, view, allows, closeMe
 
   const current = panel?.kind === "event" ? items.find((candidate) => candidate.id === panel.id) : undefined;
   // Keep the last known event visible while a refresh or concurrent edit changes its version.
-  const item = panel?.kind === "event" ? (current && current.version >= panel.snapshot.version ? current : panel.snapshot) : null;
+  const item =
+    panel?.kind === "event" ? (current && current.version >= panel.snapshot.version ? current : panel.snapshot) : null;
   // The open event was deleted elsewhere (TRIP-11): the panel keeps its last view and says so.
   const gone = panel?.kind === "event" && !current && !panel.fresh;
   // A new or duplicated event has arrived with the refresh; from now on its absence means it was deleted.
@@ -83,7 +101,8 @@ export function useTripPanels({ tripId, items, shown, day, view, allows, closeMe
   }
   // A panel replaces one that is open, or its own entry that Back, Forward or a reload came back to; arriving at its
   // address afresh, it goes over an entry for the page without it; otherwise it adds a history entry.
-  const how = (from?: From) => (from === "address" ? "arrive" : from === "history" || live.current.panel?.open ? "replace" : "push");
+  const how = (from?: From) =>
+    from === "address" ? "arrive" : from === "history" || live.current.panel?.open ? "replace" : "push";
 
   function phoneEvent(event: PlanItemDTO, editing: boolean, replace: boolean) {
     const query = new URLSearchParams();
@@ -98,10 +117,23 @@ export function useTripPanels({ tripId, items, shown, day, view, allows, closeMe
     }
   }
 
-  function openEvent(event: PlanItemDTO, { focusTitle = false, trigger, from }: { focusTitle?: boolean; trigger?: string; from?: From } = {}) {
+  function openEvent(
+    event: PlanItemDTO,
+    { focusTitle = false, trigger, from }: { focusTitle?: boolean; trigger?: string; from?: From } = {},
+  ) {
     closeMenu();
     if (isPhoneWidth()) return phoneEvent(event, focusTitle, !!from);
-    show({ kind: "event", id: event.id, open: true, snapshot: event, focusTitle, trigger: trigger ?? (focusTitle ? `[data-menu="${event.id}"]` : `[data-details="${event.id}"]`) }, how(from));
+    show(
+      {
+        kind: "event",
+        id: event.id,
+        open: true,
+        snapshot: event,
+        focusTitle,
+        trigger: trigger ?? (focusTitle ? `[data-menu="${event.id}"]` : `[data-details="${event.id}"]`),
+      },
+      how(from),
+    );
   }
   function openAdd(date: string, trigger: string | null, from?: From) {
     closeMenu();
@@ -211,8 +243,21 @@ export function useTripPanels({ tripId, items, shown, day, view, allows, closeMe
     close,
     exited: () => setPanel((state) => (state && !state.open ? null : state)),
     /** Shows another event in the open panel; `fresh` for one just made here (a duplicate). */
-    go: (event: PlanItemDTO, fresh = false) => show({ kind: "event", id: event.id, open: true, snapshot: event, focusTitle: false, fresh, trigger: view === "bookings" ? `[data-task-open="${event.id}"]` : `[data-details="${event.id}"]` }, "replace"),
-    acceptSaved: (saved: PlanItemDTO) => setPanel((state) => (state?.kind === "event" && state.id === saved.id ? { ...state, snapshot: saved } : state)),
+    go: (event: PlanItemDTO, fresh = false) =>
+      show(
+        {
+          kind: "event",
+          id: event.id,
+          open: true,
+          snapshot: event,
+          focusTitle: false,
+          fresh,
+          trigger: view === "bookings" ? `[data-task-open="${event.id}"]` : `[data-details="${event.id}"]`,
+        },
+        "replace",
+      ),
+    acceptSaved: (saved: PlanItemDTO) =>
+      setPanel((state) => (state?.kind === "event" && state.id === saved.id ? { ...state, snapshot: saved } : state)),
     /** A new event was added from the add panel: show it there (on phones, as its page). */
     created: (saved: PlanItemDTO) => {
       if (isPhoneWidth()) {
@@ -222,7 +267,18 @@ export function useTripPanels({ tripId, items, shown, day, view, allows, closeMe
         router.replace(`/trips/${tripId}/items/${saved.id}${day !== "all" ? `?day=${encodeURIComponent(day)}` : ""}`);
         return;
       }
-      show({ kind: "event", id: saved.id, open: true, snapshot: saved, focusTitle: false, fresh: true, trigger: `[data-details="${saved.id}"]` }, "replace");
+      show(
+        {
+          kind: "event",
+          id: saved.id,
+          open: true,
+          snapshot: saved,
+          focusTitle: false,
+          fresh: true,
+          trigger: `[data-details="${saved.id}"]`,
+        },
+        "replace",
+      );
     },
   };
 }

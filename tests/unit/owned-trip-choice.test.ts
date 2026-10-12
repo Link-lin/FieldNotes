@@ -1,14 +1,29 @@
 import { describe, expect, it } from "vitest";
 import type { OwnedTripDTO } from "@/shared/dto";
-import { defaultChoice, namesText, toDecision, validChoice } from "@/components/layout/AppHeader/AccountMenu/DeleteAccountDialog/owned-trip-choice";
+import {
+  defaultChoice,
+  namesText,
+  toDecision,
+  validChoice,
+} from "@/components/layout/AppHeader/AccountMenu/DeleteAccountDialog/owned-trip-choice";
 
-const trip = (over: Partial<OwnedTripDTO> = {}): OwnedTripDTO => ({ id: "t1", title: "Hawaii", startDate: "2026-10-19", endDate: "2026-10-26", otherOwners: [], people: [], ...over });
+const trip = (over: Partial<OwnedTripDTO> = {}): OwnedTripDTO => ({
+  id: "t1",
+  title: "Hawaii",
+  startDate: "2026-10-19",
+  endDate: "2026-10-26",
+  otherOwners: [],
+  people: [],
+  ...over,
+});
 const sam = { id: "p-sam", name: "sam@example.com", role: "editor" as const };
 const riley = { id: "p-riley", name: "riley@example.com", role: "viewer" as const };
 
 describe("where a trip starts", () => {
-  it("stays with its other owners", () => expect(defaultChoice(trip({ otherOwners: ["Jordan"], people: [sam] }))).toBe("keep"));
-  it("goes to the next person in line when nobody else owns it", () => expect(defaultChoice(trip({ people: [sam, riley] }))).toBe("p-sam"));
+  it("stays with its other owners", () =>
+    expect(defaultChoice(trip({ otherOwners: ["Jordan"], people: [sam] }))).toBe("keep"));
+  it("goes to the next person in line when nobody else owns it", () =>
+    expect(defaultChoice(trip({ people: [sam, riley] }))).toBe("p-sam"));
   it("is deleted when nobody else is on it", () => expect(defaultChoice(trip())).toBe("delete"));
 });
 
@@ -41,7 +56,11 @@ describe("what is sent", () => {
     expect(toDecision(trip({ otherOwners: ["Jordan"] }), "delete")).toEqual({ tripId: "t1", action: "delete" });
   });
   it("sends a transfer for a chosen person", () => {
-    expect(toDecision(trip({ people: [sam, riley] }), "p-riley")).toEqual({ tripId: "t1", action: "transfer", personId: "p-riley" });
+    expect(toDecision(trip({ people: [sam, riley] }), "p-riley")).toEqual({
+      tripId: "t1",
+      action: "transfer",
+      personId: "p-riley",
+    });
   });
 });
 

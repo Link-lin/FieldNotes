@@ -109,10 +109,13 @@ export function EventPanel(props: Props) {
   // a save (Duplicate, Delete) sends the version the server has now.
   const latestSaved = useRef<PlanItemDTO | null>(null);
   const remember = (saved: PlanItemDTO) => {
-    if (!latestSaved.current || latestSaved.current.id !== saved.id || saved.version > latestSaved.current.version) latestSaved.current = saved;
+    if (!latestSaved.current || latestSaved.current.id !== saved.id || saved.version > latestSaved.current.version)
+      latestSaved.current = saved;
   };
   const freshest = (...candidates: Array<PlanItemDTO | null | undefined>): PlanItemDTO | null =>
-    [item, latestSaved.current, ...candidates].filter((c): c is PlanItemDTO => !!c && c.id === item?.id).sort((a, b) => b.version - a.version)[0] ?? item;
+    [item, latestSaved.current, ...candidates]
+      .filter((c): c is PlanItemDTO => !!c && c.id === item?.id)
+      .sort((a, b) => b.version - a.version)[0] ?? item;
   const onSaved = (saved: PlanItemDTO) => {
     remember(saved);
     props.onSaved(saved);
@@ -179,8 +182,14 @@ export function EventPanel(props: Props) {
 
   function requestClose() {
     if (creating) return;
-    if (unsavedExit) { setUnsavedExit(null); return; }
-    if (discard) { setDiscard(null); return; }
+    if (unsavedExit) {
+      setUnsavedExit(null);
+      return;
+    }
+    if (discard) {
+      setDiscard(null);
+      return;
+    }
     void leave(() => props.onClose());
   }
 
@@ -205,7 +214,9 @@ export function EventPanel(props: Props) {
       requestAnimationFrame(() => {
         const panel = ref.current;
         if (!panel || panel.contains(document.activeElement)) return;
-        const pick = ["[data-step]:not([disabled])", "[data-panel-close]"].map((q) => panel.querySelector<HTMLElement>(q)).find(Boolean);
+        const pick = ["[data-step]:not([disabled])", "[data-panel-close]"]
+          .map((q) => panel.querySelector<HTMLElement>(q))
+          .find(Boolean);
         pick?.focus();
       });
     });
@@ -220,7 +231,8 @@ export function EventPanel(props: Props) {
     remember(saved);
     setReviewedHere(reviewed ? saved.id : null);
     // The control is in the bar, or under the tags on a phone: focus the one on screen.
-    const shown = (selector: string) => [...(ref.current?.querySelectorAll<HTMLElement>(selector) ?? [])].find((el) => el.getClientRects().length > 0);
+    const shown = (selector: string) =>
+      [...(ref.current?.querySelectorAll<HTMLElement>(selector) ?? [])].find((el) => el.getClientRects().length > 0);
     requestAnimationFrame(() => shown(reviewed ? "[data-review-undo]" : "[data-review]")?.focus());
   }
 
@@ -230,11 +242,20 @@ export function EventPanel(props: Props) {
     setTypeError(null);
     // A flight needs booking until its airports and times are in, which the change clears (FLIGHT-2).
     const status = bookingForType(item.bookingStatus, typeAcross === "flight");
-    const pending = saveEventFields(trip.id, item.id, { type: typeAcross, bookingStatus: status }, { type: item.type, bookingStatus: item.bookingStatus }, { confirmTypeChange: true });
+    const pending = saveEventFields(
+      trip.id,
+      item.id,
+      { type: typeAcross, bookingStatus: status },
+      { type: item.type, bookingStatus: item.bookingStatus },
+      { confirmTypeChange: true },
+    );
     edits.track(pending);
     const r = await pending;
     setTypeBusy(false);
-    if (!r.ok) { setTypeError(r.message); return; }
+    if (!r.ok) {
+      setTypeError(r.message);
+      return;
+    }
     setTypeAcross(null);
     onSaved(r.item);
   }
@@ -242,17 +263,50 @@ export function EventPanel(props: Props) {
   const notices = (
     <>
       {discard ? (
-        <PanelNotice actions={<><Button data-discard-keep variant="quiet" onClick={() => setDiscard(null)}>Keep editing</Button><Button variant="danger" onClick={confirmDiscard}>Discard changes</Button></>}>
+        <PanelNotice
+          actions={
+            <>
+              <Button data-discard-keep variant="quiet" onClick={() => setDiscard(null)}>
+                Keep editing
+              </Button>
+              <Button variant="danger" onClick={confirmDiscard}>
+                Discard changes
+              </Button>
+            </>
+          }
+        >
           You have unsaved changes. Discard them?
         </PanelNotice>
       ) : null}
       {unsavedExit ? (
-        <PanelNotice actions={<><Button data-discard-keep variant="quiet" onClick={() => setUnsavedExit(null)}>Stay</Button><Button variant="danger" onClick={leaveWithoutNotes}>Leave without saving</Button></>}>
+        <PanelNotice
+          actions={
+            <>
+              <Button data-discard-keep variant="quiet" onClick={() => setUnsavedExit(null)}>
+                Stay
+              </Button>
+              <Button variant="danger" onClick={leaveWithoutNotes}>
+                Leave without saving
+              </Button>
+            </>
+          }
+        >
           Your notes haven&apos;t been saved. Stay to try again or copy them, or leave without them.
         </PanelNotice>
       ) : null}
-      {waiting ? <p className={styles.waiting} role="status">Saving…</p> : null}
-      {gone ? <div className={styles.gone}><Banner tone="info" role="status">This event was deleted elsewhere: in another tab or window, by someone you share the trip with, or by a connected chat.</Banner></div> : null}
+      {waiting ? (
+        <p className={styles.waiting} role="status">
+          Saving…
+        </p>
+      ) : null}
+      {gone ? (
+        <div className={styles.gone}>
+          <Banner tone="info" role="status">
+            This event was deleted elsewhere: in another tab or window, by someone you share the trip with, or by a
+            connected chat.
+          </Banner>
+        </div>
+      ) : null}
     </>
   );
 
@@ -274,8 +328,12 @@ export function EventPanel(props: Props) {
         notices={notices}
         footer={
           <>
-            <Button variant="quiet" onClick={requestClose} disabled={creating}>Cancel</Button>
-            <Button variant="fill" type="submit" form={formId} disabled={creating}>{creating ? "Adding…" : "Add to itinerary"}</Button>
+            <Button variant="quiet" onClick={requestClose} disabled={creating}>
+              Cancel
+            </Button>
+            <Button variant="fill" type="submit" form={formId} disabled={creating}>
+              {creating ? "Adding…" : "Add to itinerary"}
+            </Button>
           </>
         }
       >
@@ -286,8 +344,13 @@ export function EventPanel(props: Props) {
           recentCurrencies={props.recentCurrencies}
           placeLookup={props.placeLookup ?? false}
           formId={formId}
-          onCreated={(saved) => { newDirty.current = false; props.onCreated?.(saved); }}
-          onDirty={(dirty) => { newDirty.current = dirty; }}
+          onCreated={(saved) => {
+            newDirty.current = false;
+            props.onCreated?.(saved);
+          }}
+          onDirty={(dirty) => {
+            newDirty.current = dirty;
+          }}
           onBusy={setCreating}
         />
       </SidePanel>
@@ -297,123 +360,223 @@ export function EventPanel(props: Props) {
   const f = item.flightDetails;
   const day = item.timelineDate;
   const draft = isAiDraft(item);
-  const reviewControl = !canEdit || !props.onReview ? null : draft ? (
-    <Button data-review onClick={() => void review(true)} disabled={reviewBusy || waiting}><CheckIcon /> Mark as reviewed</Button>
-  ) : reviewedHere === item.id ? (
-    <Button variant="quiet" data-review-undo onClick={() => void review(false)} disabled={reviewBusy || waiting}>Undo review</Button>
-  ) : null;
-  const when = [day ? dayTag(trip, day) : null, day ? fmtDay(day) : null, eventTimeText(item, trip.timeZone)].filter(Boolean).join(" · ");
+  const reviewControl =
+    !canEdit || !props.onReview ? null : draft ? (
+      <Button data-review onClick={() => void review(true)} disabled={reviewBusy || waiting}>
+        <CheckIcon /> Mark as reviewed
+      </Button>
+    ) : reviewedHere === item.id ? (
+      <Button variant="quiet" data-review-undo onClick={() => void review(false)} disabled={reviewBusy || waiting}>
+        Undo review
+      </Button>
+    ) : null;
+  const when = [day ? dayTag(trip, day) : null, day ? fmtDay(day) : null, eventTimeText(item, trip.timeZone)]
+    .filter(Boolean)
+    .join(" · ");
   const canChange = canEdit && (props.onDuplicate || props.onDelete);
 
   return (
     <PanelEdits.Provider value={edits}>
-    <SidePanel
-      open={open}
-      onClose={requestClose}
-      onExited={props.onExited}
-      presentation={presentation}
-      size="wide"
-      labelledBy={titleId}
-      closeLabel={presentation === "page" ? "Back to trip" : "Close event"}
-      closeText="← Trip"
-      closeDisabled={waiting}
-      triggerSelector={props.triggerSelector ?? `[data-details="${item.id}"]`}
-      initialFocus={props.focusTitle && canEdit ? () => ref.current?.querySelector<HTMLElement>("#ev-title") ?? null : undefined}
-      panelRef={ref}
-      contentKey={item.id}
-      barWraps
-      bar={
-        <div className={styles.step}>
-          <Button variant="quiet" data-step="prev" disabled={!props.prev || waiting} onClick={() => props.prev && go(props.prev)} aria-label={props.prev ? `Previous event: ${props.prev.title}` : "No previous event"}>‹ Previous</Button>
-          <Button variant="quiet" data-step="next" disabled={!props.next || waiting} onClick={() => props.next && go(props.next)} aria-label={props.next ? `Next event: ${props.next.title}` : "No next event"}>Next ›</Button>
-        </div>
-      }
-      actions={
-        <>
-          {/* IMPORT-7: in the bar (under the tags on a phone, where the bar has no room). */}
-          {reviewControl ? <span className={styles.reviewInBar}>{reviewControl}</span> : null}
-          {canChange ? (
-            <Menu
-              open={menuOpen}
-              onOpenChange={setMenuOpen}
-              className={styles.moreMenu}
-              popupClassName={styles.menuPopup}
-              trigger={(p) => <button type="button" className={styles.more} data-event-menu aria-label={`More actions for ${item.title}`} {...p}><DotsIcon /></button>}
+      <SidePanel
+        open={open}
+        onClose={requestClose}
+        onExited={props.onExited}
+        presentation={presentation}
+        size="wide"
+        labelledBy={titleId}
+        closeLabel={presentation === "page" ? "Back to trip" : "Close event"}
+        closeText="← Trip"
+        closeDisabled={waiting}
+        triggerSelector={props.triggerSelector ?? `[data-details="${item.id}"]`}
+        initialFocus={
+          props.focusTitle && canEdit ? () => ref.current?.querySelector<HTMLElement>("#ev-title") ?? null : undefined
+        }
+        panelRef={ref}
+        contentKey={item.id}
+        barWraps
+        bar={
+          <div className={styles.step}>
+            <Button
+              variant="quiet"
+              data-step="prev"
+              disabled={!props.prev || waiting}
+              onClick={() => props.prev && go(props.prev)}
+              aria-label={props.prev ? `Previous event: ${props.prev.title}` : "No previous event"}
             >
-              {props.onDuplicate ? <MenuItem icon={<CopyIcon />} onClick={() => { setMenuOpen(false); void leave((fresh) => props.onDuplicate!(fresh ?? item)); }}>Duplicate</MenuItem> : null}
-              {props.onDelete ? <MenuItem icon={<TrashIcon />} danger onClick={() => { setMenuOpen(false); void leave((fresh) => props.onDelete!(fresh ?? item)); }}>Delete event</MenuItem> : null}
-            </Menu>
-          ) : null}
-        </>
-      }
-      notices={notices}
-    >
-      <header className={styles.head}>
-        <p className={styles.when}>
-          {props.num ? <StopNumber n={props.num.n} need={props.num.need} /> : null}
-          <span>{when}</span>
-        </p>
-        <EventTitle tripId={trip.id} item={item} canEdit={canEdit} headingId={titleId} startOpen={props.focusTitle} onSaved={onSaved} />
-        <div className={styles.tags}>
-          {item.bookingStatus === "needs_booking" ? <Tag tone="need">Needs booking</Tag> : null}
-          {item.bookingStatus === "booked" ? <Tag tone="booked">Booked</Tag> : null}
-          {draft ? <Tag tone="soft">AI draft, unverified</Tag> : null}
-        </div>
-        {reviewControl ? <p className={styles.reviewInHead}>{reviewControl}</p> : null}
-        <span role="status" className="visually-hidden">{!draft && reviewedHere === item.id ? "Marked as reviewed. The price stays an estimate until you confirm it." : ""}</span>
-      </header>
-
-      <EventMap item={item} destination={trip.destination} mapsKey={props.mapsKey} />
-
-      <section className={styles.section} aria-label="Details">
-        <EventProperties tripId={trip.id} item={item} canEdit={canEdit} defaultCurrency={props.defaultCurrency} recentCurrencies={props.recentCurrencies} onSaved={onSaved} onTypeAcross={(type) => { setTypeError(null); setTypeAcross(type); }} />
-      </section>
-
-      {f ? (
-        <FlightSection trip={trip} item={item} canEdit={canEdit} onSaved={onSaved} />
-      ) : (
-        <WhenSection trip={trip} item={item} canEdit={canEdit} onSaved={onSaved} />
-      )}
-
-      <PlaceSection trip={trip} item={item} canEdit={canEdit} placeLookup={props.placeLookup ?? false} onSaved={onSaved} />
-
-      {item.links.length ? (
-        <section className={styles.section} aria-labelledby={`${titleId}-links`}>
-          <h3 className={styles.label} id={`${titleId}-links`}>Links</h3>
-          <div className={styles.links}>
-            {item.links.map((l, i) => (
-              <ButtonLink key={i} variant="quiet" external href={l.url}>{l.label} · {providerLabel(l.url)} ↗</ButtonLink>
-            ))}
+              ‹ Previous
+            </Button>
+            <Button
+              variant="quiet"
+              data-step="next"
+              disabled={!props.next || waiting}
+              onClick={() => props.next && go(props.next)}
+              aria-label={props.next ? `Next event: ${props.next.title}` : "No next event"}
+            >
+              Next ›
+            </Button>
           </div>
-        </section>
-      ) : null}
+        }
+        actions={
+          <>
+            {/* IMPORT-7: in the bar (under the tags on a phone, where the bar has no room). */}
+            {reviewControl ? <span className={styles.reviewInBar}>{reviewControl}</span> : null}
+            {canChange ? (
+              <Menu
+                open={menuOpen}
+                onOpenChange={setMenuOpen}
+                className={styles.moreMenu}
+                popupClassName={styles.menuPopup}
+                trigger={(p) => (
+                  <button
+                    type="button"
+                    className={styles.more}
+                    data-event-menu
+                    aria-label={`More actions for ${item.title}`}
+                    {...p}
+                  >
+                    <DotsIcon />
+                  </button>
+                )}
+              >
+                {props.onDuplicate ? (
+                  <MenuItem
+                    icon={<CopyIcon />}
+                    onClick={() => {
+                      setMenuOpen(false);
+                      void leave((fresh) => props.onDuplicate!(fresh ?? item));
+                    }}
+                  >
+                    Duplicate
+                  </MenuItem>
+                ) : null}
+                {props.onDelete ? (
+                  <MenuItem
+                    icon={<TrashIcon />}
+                    danger
+                    onClick={() => {
+                      setMenuOpen(false);
+                      void leave((fresh) => props.onDelete!(fresh ?? item));
+                    }}
+                  >
+                    Delete event
+                  </MenuItem>
+                ) : null}
+              </Menu>
+            ) : null}
+          </>
+        }
+        notices={notices}
+      >
+        <header className={styles.head}>
+          <p className={styles.when}>
+            {props.num ? <StopNumber n={props.num.n} need={props.num.need} /> : null}
+            <span>{when}</span>
+          </p>
+          <EventTitle
+            tripId={trip.id}
+            item={item}
+            canEdit={canEdit}
+            headingId={titleId}
+            startOpen={props.focusTitle}
+            onSaved={onSaved}
+          />
+          <div className={styles.tags}>
+            {item.bookingStatus === "needs_booking" ? <Tag tone="need">Needs booking</Tag> : null}
+            {item.bookingStatus === "booked" ? <Tag tone="booked">Booked</Tag> : null}
+            {draft ? <Tag tone="soft">AI draft, unverified</Tag> : null}
+          </div>
+          {reviewControl ? <p className={styles.reviewInHead}>{reviewControl}</p> : null}
+          <span role="status" className="visually-hidden">
+            {!draft && reviewedHere === item.id
+              ? "Marked as reviewed. The price stays an estimate until you confirm it."
+              : ""}
+          </span>
+        </header>
 
-      {canEdit ? (
-        <NotesEditor ref={notesRef} tripId={trip.id} item={item} onSaved={onNotesSaved} />
-      ) : (
-        <section className={styles.section} aria-labelledby={`${titleId}-notes`}>
-          <h3 className={styles.label} id={`${titleId}-notes`}>Notes</h3>
-          {item.notes ? <p className={styles.notes}>{item.notes}</p> : <p className="note">No notes.</p>}
-        </section>
-      )}
+        <EventMap item={item} destination={trip.destination} mapsKey={props.mapsKey} />
 
-      {typeAcross ? (
-        <Modal
-          title={typeAcross === "flight" ? "Make this a flight?" : `Make this ${TYPE_LABEL[typeAcross].toLowerCase()} instead of a flight?`}
-          onClose={() => setTypeAcross(null)}
-          fallbackFocus={() => ref.current?.querySelector<HTMLElement>('[data-inline-edit="Type"]') ?? null}
-          subtitle={typeAcross === "flight"
-            ? `A flight keeps its airports and local times instead of a date and time, so this event's date, time, zone and duration are cleared. Add the flight's details afterwards.${item.bookingStatus === "booked" ? " It's marked booked, and a flight counts as booked only once both airports and times are in, so it will need booking again until you add them." : ""}`
-            : "This clears the flight's airline, number, airports and times. Add the date and time afterwards."}
-        >
-          {typeError ? <FormError>{typeError}</FormError> : null}
-          <ModalActions>
-            <Button variant="quiet" onClick={() => setTypeAcross(null)} disabled={typeBusy}>Keep the type</Button>
-            <Button variant="dangerFill" onClick={() => void changeTypeAcross()} disabled={typeBusy}>{typeBusy ? "Changing…" : "Change type and clear times"}</Button>
-          </ModalActions>
-        </Modal>
-      ) : null}
-    </SidePanel>
+        <section className={styles.section} aria-label="Details">
+          <EventProperties
+            tripId={trip.id}
+            item={item}
+            canEdit={canEdit}
+            defaultCurrency={props.defaultCurrency}
+            recentCurrencies={props.recentCurrencies}
+            onSaved={onSaved}
+            onTypeAcross={(type) => {
+              setTypeError(null);
+              setTypeAcross(type);
+            }}
+          />
+        </section>
+
+        {f ? (
+          <FlightSection trip={trip} item={item} canEdit={canEdit} onSaved={onSaved} />
+        ) : (
+          <WhenSection trip={trip} item={item} canEdit={canEdit} onSaved={onSaved} />
+        )}
+
+        <PlaceSection
+          trip={trip}
+          item={item}
+          canEdit={canEdit}
+          placeLookup={props.placeLookup ?? false}
+          onSaved={onSaved}
+        />
+
+        {item.links.length ? (
+          <section className={styles.section} aria-labelledby={`${titleId}-links`}>
+            <h3 className={styles.label} id={`${titleId}-links`}>
+              Links
+            </h3>
+            <div className={styles.links}>
+              {item.links.map((l, i) => (
+                <ButtonLink key={i} variant="quiet" external href={l.url}>
+                  {l.label} · {providerLabel(l.url)} ↗
+                </ButtonLink>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
+        {canEdit ? (
+          <NotesEditor ref={notesRef} tripId={trip.id} item={item} onSaved={onNotesSaved} />
+        ) : (
+          <section className={styles.section} aria-labelledby={`${titleId}-notes`}>
+            <h3 className={styles.label} id={`${titleId}-notes`}>
+              Notes
+            </h3>
+            {item.notes ? <p className={styles.notes}>{item.notes}</p> : <p className="note">No notes.</p>}
+          </section>
+        )}
+
+        {typeAcross ? (
+          <Modal
+            title={
+              typeAcross === "flight"
+                ? "Make this a flight?"
+                : `Make this ${TYPE_LABEL[typeAcross].toLowerCase()} instead of a flight?`
+            }
+            onClose={() => setTypeAcross(null)}
+            fallbackFocus={() => ref.current?.querySelector<HTMLElement>('[data-inline-edit="Type"]') ?? null}
+            subtitle={
+              typeAcross === "flight"
+                ? `A flight keeps its airports and local times instead of a date and time, so this event's date, time, zone and duration are cleared. Add the flight's details afterwards.${item.bookingStatus === "booked" ? " It's marked booked, and a flight counts as booked only once both airports and times are in, so it will need booking again until you add them." : ""}`
+                : "This clears the flight's airline, number, airports and times. Add the date and time afterwards."
+            }
+          >
+            {typeError ? <FormError>{typeError}</FormError> : null}
+            <ModalActions>
+              <Button variant="quiet" onClick={() => setTypeAcross(null)} disabled={typeBusy}>
+                Keep the type
+              </Button>
+              <Button variant="dangerFill" onClick={() => void changeTypeAcross()} disabled={typeBusy}>
+                {typeBusy ? "Changing…" : "Change type and clear times"}
+              </Button>
+            </ModalActions>
+          </Modal>
+        ) : null}
+      </SidePanel>
     </PanelEdits.Provider>
   );
 }

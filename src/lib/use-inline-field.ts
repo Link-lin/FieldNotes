@@ -7,13 +7,20 @@ import { sameValue } from "@/shared/fields";
  * What a save says back: done, with an optional note and Undo, or why it failed (the draft stays). `conflict`: the value
  * was changed elsewhere meanwhile, so trying the same save again can't work.
  */
-export type FieldSaveResult = { ok: true; note?: string; undo?: () => Promise<FieldSaveResult> } | { ok: false; message: string; fields?: Array<{ path: string; message: string }>; conflict?: boolean };
+export type FieldSaveResult =
+  | { ok: true; note?: string; undo?: () => Promise<FieldSaveResult> }
+  | { ok: false; message: string; fields?: Array<{ path: string; message: string }>; conflict?: boolean };
 /** An error can carry `undo` when an Undo failed and may be tried again. */
 export type FieldStatus =
   | { state: "idle" }
   | { state: "saving" }
   | { state: "saved"; note?: string; undo?: () => Promise<FieldSaveResult> }
-  | { state: "error"; message: string; fields?: Array<{ path: string; message: string }>; undo?: () => Promise<FieldSaveResult> };
+  | {
+      state: "error";
+      message: string;
+      fields?: Array<{ path: string; message: string }>;
+      undo?: () => Promise<FieldSaveResult>;
+    };
 
 const SAVED_MS = 3500;
 const UNDO_MS = 12000;
@@ -58,7 +65,17 @@ export function usePanelEdits() {
  * that as the field's starting value. A failed save keeps the draft open with its error. Also used for a section edited
  * as a group, whose Save and Cancel call `commit` and `cancel`. Inside a panel it reports its saves and unsaved changes.
  */
-export function useInlineField<T>({ read, save, same = sameValue, initiallyOpen = false }: { read: () => T; save: (draft: T, start: T) => Promise<FieldSaveResult>; same?: (a: T, b: T) => boolean; initiallyOpen?: boolean }) {
+export function useInlineField<T>({
+  read,
+  save,
+  same = sameValue,
+  initiallyOpen = false,
+}: {
+  read: () => T;
+  save: (draft: T, start: T) => Promise<FieldSaveResult>;
+  same?: (a: T, b: T) => boolean;
+  initiallyOpen?: boolean;
+}) {
   const edits = useContext(PanelEdits);
   const [editing, setEditingState] = useState(initiallyOpen);
   const [draft, setDraftState] = useState<T>(read);
@@ -146,7 +163,12 @@ export function useInlineField<T>({ read, save, same = sameValue, initiallyOpen 
     const r = await pending;
     busy.current = false;
     if (r.ok) setStatus({ state: "saved", note: "Undone." });
-    else if (r.conflict) setStatus({ state: "error", message: "Couldn't undo: it was changed elsewhere meanwhile (in another tab or window, by someone you share the trip with, or by a connected chat)." });
+    else if (r.conflict)
+      setStatus({
+        state: "error",
+        message:
+          "Couldn't undo: it was changed elsewhere meanwhile (in another tab or window, by someone you share the trip with, or by a connected chat).",
+      });
     else setStatus({ state: "error", message: `Couldn't undo. ${r.message}`, undo: fn });
   }
 
@@ -164,6 +186,9 @@ export function useInlineField<T>({ read, save, same = sameValue, initiallyOpen 
     /** Open with a change that isn't saved yet. */
     dirty: editing && !same(draft, startValue),
     /** The server's message for one field path, after a failed save. */
-    error: (path: string) => (status.state === "error" ? status.fields?.find((f) => f.path === path || f.path.startsWith(`${path}.`))?.message : undefined),
+    error: (path: string) =>
+      status.state === "error"
+        ? status.fields?.find((f) => f.path === path || f.path.startsWith(`${path}.`))?.message
+        : undefined,
   };
 }

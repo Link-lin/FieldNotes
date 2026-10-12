@@ -19,7 +19,12 @@ function startTime(item: PlanItemDTO, tripZone: string): string | null {
   return zone && zone !== tripZone ? `${at} ${zone.split("/").pop()!.replace(/_/g, " ")} time` : at;
 }
 
-type Props = { trip: TripDetailDTO["trip"]; items: PlanItemDTO[]; onOpen: (item: PlanItemDTO) => void; className?: string };
+type Props = {
+  trip: TripDetailDTO["trip"];
+  items: PlanItemDTO[];
+  onOpen: (item: PlanItemDTO) => void;
+  className?: string;
+};
 
 /**
  * The next event, from stored data only: the trip's first event before it starts, the next one
@@ -37,16 +42,28 @@ export function UpNext({ trip, items, onOpen, className }: Props) {
   return (
     <section className={cx(styles.next, className)} aria-label="Up next">
       <button type="button" className={styles.event} data-up-next aria-haspopup="dialog" onClick={() => onOpen(item)}>
-        <span className={cx("mono", styles.when)}>Up next · {label}{time ? ` · ${time}` : ""}</span>
+        <span className={cx("mono", styles.when)}>
+          Up next · {label}
+          {time ? ` · ${time}` : ""}
+        </span>
         <span className={styles.title}>{item.title}</span>
         {item.location || item.bookingStatus !== "not_required" ? (
           <span className={styles.meta}>
             {item.location ? <span>{item.location}</span> : null}
-            {item.bookingStatus === "needs_booking" ? <Tag tone="need">Needs booking</Tag> : item.bookingStatus === "booked" ? <Tag tone="booked">Booked</Tag> : null}
+            {item.bookingStatus === "needs_booking" ? (
+              <Tag tone="need">Needs booking</Tag>
+            ) : item.bookingStatus === "booked" ? (
+              <Tag tone="booked">Booked</Tag>
+            ) : null}
           </span>
         ) : null}
       </button>
-      {route ? <p className={cx("mono", styles.route)}><span className="visually-hidden">Flights: </span>{route}</p> : null}
+      {route ? (
+        <p className={cx("mono", styles.route)}>
+          <span className="visually-hidden">Flights: </span>
+          {route}
+        </p>
+      ) : null}
     </section>
   );
 }

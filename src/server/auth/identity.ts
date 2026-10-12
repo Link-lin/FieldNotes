@@ -18,6 +18,9 @@ export function verifiedEmail(provider: string | undefined, claims: EmailClaims)
   const { email } = claims;
   if (typeof email !== "string" || email.trim() === "") return null;
   if (provider === "google") return claims.email_verified === true ? email : null;
-  if (provider === "apple") return isTrue(claims.email_verified) && !isTrue(claims.is_private_email) && !APPLE_RELAY.test(email.trim()) ? email : null;
+  if (provider === "apple")
+    return isTrue(claims.email_verified) && !isTrue(claims.is_private_email) && !APPLE_RELAY.test(email.trim())
+      ? email
+      : null;
   return null;
 }

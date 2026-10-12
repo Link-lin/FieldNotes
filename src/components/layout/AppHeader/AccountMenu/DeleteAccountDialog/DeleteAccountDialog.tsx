@@ -17,7 +17,13 @@ import styles from "./DeleteAccountDialog.module.css";
  * ACCESS-10: confirms account deletion by typing DELETE, after the person has chosen what happens to each trip
  * they own: another owner keeps it, a new owner is chosen (the next in line is suggested), or it is deleted.
  */
-export function DeleteAccountDialog({ onClose, returnFocus }: { onClose: () => void; returnFocus: () => HTMLElement | null }) {
+export function DeleteAccountDialog({
+  onClose,
+  returnFocus,
+}: {
+  onClose: () => void;
+  returnFocus: () => HTMLElement | null;
+}) {
   const router = useRouter();
   const id = useId();
   const [trips, setTrips] = useState<OwnedTripDTO[] | null>(null);
@@ -44,7 +50,9 @@ export function DeleteAccountDialog({ onClose, returnFocus }: { onClose: () => v
       }
       setTrips(r.data);
       // Keep the choices that still fit; everything else starts at its default.
-      setChoices((old) => Object.fromEntries(r.data.map((t) => [t.id, validChoice(t, old[t.id]) ? old[t.id]! : defaultChoice(t)])));
+      setChoices((old) =>
+        Object.fromEntries(r.data.map((t) => [t.id, validChoice(t, old[t.id]) ? old[t.id]! : defaultChoice(t)])),
+      );
     });
     return () => {
       live = false;
@@ -84,33 +92,57 @@ export function DeleteAccountDialog({ onClose, returnFocus }: { onClose: () => v
       {loadError ? (
         <div className={styles.loadError}>
           <FormError>{loadError}</FormError>
-          <Button variant="quiet" onClick={reload}>Try again</Button>
+          <Button variant="quiet" onClick={reload}>
+            Try again
+          </Button>
         </div>
       ) : trips === null ? (
-        <p className="muted" role="status">Checking your trips…</p>
+        <p className="muted" role="status">
+          Checking your trips…
+        </p>
       ) : trips.length ? (
         <section className={styles.section} aria-labelledby={`${id}-trips`}>
-          <h3 id={`${id}-trips`} className={styles.heading}>Trips you own</h3>
-          <p className="note">Choose what happens to each one. A trip nobody else owns needs a new owner, or it can be deleted for everyone.</p>
+          <h3 id={`${id}-trips`} className={styles.heading}>
+            Trips you own
+          </h3>
+          <p className="note">
+            Choose what happens to each one. A trip nobody else owns needs a new owner, or it can be deleted for
+            everyone.
+          </p>
           <ul className={styles.trips}>
             {trips.map((t) => (
-              <OwnedTripChoice key={t.id} trip={t} choice={choiceFor(t)} onChange={(c) => setChoices((all) => ({ ...all, [t.id]: c }))} />
+              <OwnedTripChoice
+                key={t.id}
+                trip={t}
+                choice={choiceFor(t)}
+                onChange={(c) => setChoices((all) => ({ ...all, [t.id]: c }))}
+              />
             ))}
           </ul>
         </section>
       ) : null}
       {deleting.length ? (
         <Banner tone="warn">
-          {deleting.length === 1 ? "This trip" : `These ${plural(deleting.length, "trip")}`} will be permanently deleted for everyone {deleting.length === 1 ? "it is" : "they are"} shared with:{" "}
+          {deleting.length === 1 ? "This trip" : `These ${plural(deleting.length, "trip")}`} will be permanently deleted
+          for everyone {deleting.length === 1 ? "it is" : "they are"} shared with:{" "}
           {deleting.map((t) => t.title).join(", ")}.
         </Banner>
       ) : null}
       <Field label="Type DELETE to confirm" htmlFor="acct-confirm">
-        <input id="acct-confirm" value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" aria-invalid={error ? true : undefined} aria-describedby={error ? "acct-err" : undefined} />
+        <input
+          id="acct-confirm"
+          value={typed}
+          onChange={(e) => setTyped(e.target.value)}
+          autoComplete="off"
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? "acct-err" : undefined}
+        />
       </Field>
       {error ? <FormError id="acct-err">{error}</FormError> : null}
       <ModalActions>
-        <Button variant="quiet" onClick={onClose}>Cancel</Button>
+        <Button variant="quiet" onClick={onClose}>
+          Cancel
+        </Button>
         <Button variant="dangerFill" onClick={deleteAccount} disabled={busy || trips === null}>
           {busy ? "Deleting…" : "Delete my account"}
         </Button>

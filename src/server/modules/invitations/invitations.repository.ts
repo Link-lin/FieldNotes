@@ -8,7 +8,10 @@ type Conn = Kysely<DB> | Transaction<DB>;
 export type InvitationRow = Selectable<TripViewersTable>;
 
 /** The trip's entries, oldest first, with the name of the account that accepted each (for a link entry, to show who joined). */
-export async function tripInvitations(db: Conn, tripId: string): Promise<Array<InvitationRow & { joined_name: string | null }>> {
+export async function tripInvitations(
+  db: Conn,
+  tripId: string,
+): Promise<Array<InvitationRow & { joined_name: string | null }>> {
   return db
     .selectFrom("trip_viewers")
     .leftJoin("User", "User.id", "trip_viewers.viewer_user_id")
@@ -25,24 +28,56 @@ export async function tripInvitations(db: Conn, tripId: string): Promise<Array<I
  * googlemail.com count as the same address, so one person never gets two entries. An accepted entry
  * wins if (from before this rule) there are several.
  */
-export async function invitationForEmail(tx: Transaction<DB>, tripId: string, email: string): Promise<InvitationRow | undefined> {
+export async function invitationForEmail(
+  tx: Transaction<DB>,
+  tripId: string,
+  email: string,
+): Promise<InvitationRow | undefined> {
   const key = emailKey(email);
-  const rows = (await tx.selectFrom("trip_viewers").selectAll().where("trip_id", "=", tripId).orderBy("created_at").orderBy("id").forUpdate().execute()).filter(
-    (r) => r.invitee_email_normalized !== null && emailKey(r.invitee_email_normalized) === key,
-  );
+  const rows = (
+    await tx
+      .selectFrom("trip_viewers")
+      .selectAll()
+      .where("trip_id", "=", tripId)
+      .orderBy("created_at")
+      .orderBy("id")
+      .forUpdate()
+      .execute()
+  ).filter((r) => r.invitee_email_normalized !== null && emailKey(r.invitee_email_normalized) === key);
   return rows.find((r) => r.status === "accepted") ?? rows[0];
 }
 
-export async function insertInvitation(tx: Transaction<DB>, tripId: string, email: string, role: Role, hash: Buffer, expiresAt: Date): Promise<InvitationRow> {
+export async function insertInvitation(
+  tx: Transaction<DB>,
+  tripId: string,
+  email: string,
+  role: Role,
+  hash: Buffer,
+  expiresAt: Date,
+): Promise<InvitationRow> {
   return tx
     .insertInto("trip_viewers")
-    .values({ trip_id: tripId, invitee_email_normalized: email, role, status: "pending", invitation_token_hash: hash, expires_at: expiresAt })
+    .values({
+      trip_id: tripId,
+      invitee_email_normalized: email,
+      role,
+      status: "pending",
+      invitation_token_hash: hash,
+      expires_at: expiresAt,
+    })
     .returningAll()
     .executeTakeFirstOrThrow();
 }
 
 /** An invitation by link: a label instead of an address, for someone the owner will message themselves. */
-export async function insertLinkInvitation(tx: Transaction<DB>, tripId: string, label: string, role: Role, hash: Buffer, expiresAt: Date): Promise<InvitationRow> {
+export async function insertLinkInvitation(
+  tx: Transaction<DB>,
+  tripId: string,
+  label: string,
+  role: Role,
+  hash: Buffer,
+  expiresAt: Date,
+): Promise<InvitationRow> {
   return tx
     .insertInto("trip_viewers")
     .values({ trip_id: tripId, label, role, status: "pending", invitation_token_hash: hash, expires_at: expiresAt })
@@ -51,18 +86,44 @@ export async function insertLinkInvitation(tx: Transaction<DB>, tripId: string, 
 }
 
 /** Reissue: a new token, expiry and the chosen role in the same row. Any previous link and binding stop working. */
-export async function reissueInvitation(tx: Transaction<DB>, id: string, role: Role, hash: Buffer, expiresAt: Date, now: Date): Promise<InvitationRow> {
+export async function reissueInvitation(
+  tx: Transaction<DB>,
+  id: string,
+  role: Role,
+  hash: Buffer,
+  expiresAt: Date,
+  now: Date,
+): Promise<InvitationRow> {
   return tx
     .updateTable("trip_viewers")
-    .set({ role, status: "pending", invitation_token_hash: hash, expires_at: expiresAt, viewer_user_id: null, accepted_at: null, revoked_at: null, updated_at: now })
+    .set({
+      role,
+      status: "pending",
+      invitation_token_hash: hash,
+      expires_at: expiresAt,
+      viewer_user_id: null,
+      accepted_at: null,
+      revoked_at: null,
+      updated_at: now,
+    })
     .where("id", "=", id)
     .returningAll()
     .executeTakeFirstOrThrow();
 }
 
 /** Locks one entry of the trip; undefined when it does not exist. */
-export async function invitationForUpdate(tx: Transaction<DB>, tripId: string, id: string): Promise<InvitationRow | undefined> {
-  return tx.selectFrom("trip_viewers").selectAll().where("id", "=", id).where("trip_id", "=", tripId).forUpdate().executeTakeFirst();
+export async function invitationForUpdate(
+  tx: Transaction<DB>,
+  tripId: string,
+  id: string,
+): Promise<InvitationRow | undefined> {
+  return tx
+    .selectFrom("trip_viewers")
+    .selectAll()
+    .where("id", "=", id)
+    .where("trip_id", "=", tripId)
+    .forUpdate()
+    .executeTakeFirst();
 }
 
 /**
@@ -75,11 +136,26 @@ export async function setInvitationRole(tx: Transaction<DB>, id: string, role: R
 }
 
 /** Revoke a pending or accepted entry. Returns false when no such entry exists on the trip. */
-export async function revokeInvitationRow(tx: Transaction<DB>, tripId: string, id: string, now: Date): Promise<boolean> {
-  const row = await tx.selectFrom("trip_viewers").select(["id", "status"]).where("id", "=", id).where("trip_id", "=", tripId).forUpdate().executeTakeFirst();
+export async function revokeInvitationRow(
+  tx: Transaction<DB>,
+  tripId: string,
+  id: string,
+  now: Date,
+): Promise<boolean> {
+  const row = await tx
+    .selectFrom("trip_viewers")
+    .select(["id", "status"])
+    .where("id", "=", id)
+    .where("trip_id", "=", tripId)
+    .forUpdate()
+    .executeTakeFirst();
   if (!row) return false;
   if (row.status !== "revoked") {
-    await tx.updateTable("trip_viewers").set({ status: "revoked", invitation_token_hash: null, revoked_at: now, updated_at: now }).where("id", "=", id).execute();
+    await tx
+      .updateTable("trip_viewers")
+      .set({ status: "revoked", invitation_token_hash: null, revoked_at: now, updated_at: now })
+      .where("id", "=", id)
+      .execute();
   }
   return true;
 }

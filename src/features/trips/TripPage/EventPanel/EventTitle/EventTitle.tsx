@@ -44,8 +44,22 @@ export function EventTitle({ tripId, item, canEdit, headingId, startOpen = false
       onCancel={field.cancel}
       status={field.status}
       controls={({ describedBy }) => (
-        <Field label="Event title" htmlFor={fieldId("title")} className={styles.field} error={field.error("title")} errorId={errorId("title")}>
-          <textarea id={fieldId("title")} rows={1} value={field.draft} maxLength={200} onChange={(e) => field.setDraft(e.target.value)} aria-describedby={[field.error("title") ? errorId("title") : null, describedBy].filter(Boolean).join(" ")} aria-invalid={field.error("title") ? true : undefined} />
+        <Field
+          label="Event title"
+          htmlFor={fieldId("title")}
+          className={styles.field}
+          error={field.error("title")}
+          errorId={errorId("title")}
+        >
+          <textarea
+            id={fieldId("title")}
+            rows={1}
+            value={field.draft}
+            maxLength={200}
+            onChange={(e) => field.setDraft(e.target.value)}
+            aria-describedby={[field.error("title") ? errorId("title") : null, describedBy].filter(Boolean).join(" ")}
+            aria-invalid={field.error("title") ? true : undefined}
+          />
         </Field>
       )}
     >

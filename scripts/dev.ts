@@ -29,7 +29,9 @@ if (isLocalDbUrl(url, port) && !(await isListening(port))) {
 }
 
 const db = new Kysely<unknown>({
-  dialect: new PostgresDialect({ pool: new pg.Pool({ connectionString: process.env.MIGRATION_DATABASE_URL || url, max: 1 }) }),
+  dialect: new PostgresDialect({
+    pool: new pg.Pool({ connectionString: process.env.MIGRATION_DATABASE_URL || url, max: 1 }),
+  }),
 });
 try {
   const applied = await migrateToLatest(db);

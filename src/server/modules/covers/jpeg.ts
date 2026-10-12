@@ -13,7 +13,8 @@ const FRAMES = new Set([0xc0, 0xc1, 0xc2]);
 // Every other frame: lossless, hierarchical and arithmetic-coded (0xc4 is DHT, 0xc8 reserved and 0xcc DAC).
 const OTHER_FRAMES = new Set([0xc3, 0xc5, 0xc6, 0xc7, 0xc9, 0xca, 0xcb, 0xcd, 0xce, 0xcf]);
 const isRestart = (code: number) => code >= 0xd0 && code <= 0xd7;
-const startsWith = (body: Uint8Array, text: string) => body.length >= text.length && [...text].every((c, i) => body[i] === c.charCodeAt(0));
+const startsWith = (body: Uint8Array, text: string) =>
+  body.length >= text.length && [...text].every((c, i) => body[i] === c.charCodeAt(0));
 
 /**
  * The JFIF header without the thumbnail it may carry: identifier, version, units and densities, and a 0 × 0 thumbnail.

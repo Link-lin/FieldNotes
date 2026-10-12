@@ -12,7 +12,9 @@ const POPULAR = ["USD", "EUR", "GBP", "JPY", "CNY", "AUD", "CAD", "CHF", "HKD", 
  */
 export function CurrencyOptions({ recent, value }: { recent: string[]; value: string }) {
   const groups = useMemo(() => {
-    const mine = [...new Set([...recent, ...(recent.includes(value) || POPULAR.includes(value) ? [] : [value])])].filter((c) => CURRENCY_CODES.includes(c as never));
+    const mine = [
+      ...new Set([...recent, ...(recent.includes(value) || POPULAR.includes(value) ? [] : [value])]),
+    ].filter((c) => CURRENCY_CODES.includes(c as never));
     const popular = POPULAR.filter((c) => !mine.includes(c));
     const rest = CURRENCY_CODES.filter((c) => !mine.includes(c) && !popular.includes(c));
     return [

@@ -12,7 +12,11 @@ export function wechatConfig(): { appId: string; secret: string; platform: WeCha
   const appId = process.env.AUTH_WECHAT_ID?.trim();
   const secret = process.env.AUTH_WECHAT_SECRET?.trim();
   if (!appId || !secret) return null;
-  return { appId, secret, platform: process.env.AUTH_WECHAT_PLATFORM?.trim() === "WebsiteApp" ? "WebsiteApp" : "OfficialAccount" };
+  return {
+    appId,
+    secret,
+    platform: process.env.AUTH_WECHAT_PLATFORM?.trim() === "WebsiteApp" ? "WebsiteApp" : "OfficialAccount",
+  };
 }
 
 export const wechatEnabled = (): boolean => wechatConfig() !== null;
@@ -23,7 +27,10 @@ export const wechatEnabled = (): boolean => wechatConfig() !== null;
  */
 export function wechatOrigins(): { open: string; api: string } {
   const clean = (value: string | undefined, fallback: string) => (value?.trim() || fallback).replace(/\/+$/, "");
-  return { open: clean(process.env.WECHAT_OPEN_ORIGIN, "https://open.weixin.qq.com"), api: clean(process.env.WECHAT_API_ORIGIN, "https://api.weixin.qq.com") };
+  return {
+    open: clean(process.env.WECHAT_OPEN_ORIGIN, "https://open.weixin.qq.com"),
+    api: clean(process.env.WECHAT_API_ORIGIN, "https://api.weixin.qq.com"),
+  };
 }
 
 /** WeChat answers JSON as text/plain, and reports errors as a 200 with an `errcode`; this reads either. */
@@ -36,7 +43,8 @@ async function readWeChat(res: Response): Promise<Record<string, unknown>> {
   }
 }
 
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 
 /**
  * WeChat's token endpoint is not standard OAuth, so Auth.js's request is rewritten to what WeChat documents: a GET
@@ -53,7 +61,13 @@ export async function weChatFetch(input: Parameters<typeof fetch>[0], init?: Req
   url.searchParams.set("code", form.get("code") ?? "");
   const data = await readWeChat(await fetch(url, { method: "GET", headers: { accept: "application/json" } }));
   if (typeof data.access_token !== "string" || data.errcode) {
-    return json({ error: "invalid_grant", error_description: typeof data.errmsg === "string" ? data.errmsg : "WeChat did not accept the sign-in" }, 400);
+    return json(
+      {
+        error: "invalid_grant",
+        error_description: typeof data.errmsg === "string" ? data.errmsg : "WeChat did not accept the sign-in",
+      },
+      400,
+    );
   }
   return json({ ...data, token_type: "bearer" });
 }
@@ -79,17 +93,27 @@ export function wechatProvider(): OAuth2Config<WeChatProfile> {
     clientId: config.appId,
     clientSecret: config.secret,
     // WeChat requires the fragment; `URL#toString` keeps it after the query string Auth.js adds.
-    authorization: { url: `${open}/connect/${site ? "qrconnect" : "oauth2/authorize"}#wechat_redirect`, params: { appid: config.appId, scope: site ? "snsapi_login" : "snsapi_userinfo" } },
+    authorization: {
+      url: `${open}/connect/${site ? "qrconnect" : "oauth2/authorize"}#wechat_redirect`,
+      params: { appid: config.appId, scope: site ? "snsapi_login" : "snsapi_userinfo" },
+    },
     token: { url: `${api}/sns/oauth2/access_token`, params: { appid: config.appId, secret: config.secret } },
     userinfo: {
       url: `${api}/sns/userinfo`,
-      async request({ tokens, provider }: { tokens: { access_token?: string; openid?: unknown }; provider: { userinfo?: { url?: URL | string } } }) {
+      async request({
+        tokens,
+        provider,
+      }: {
+        tokens: { access_token?: string; openid?: unknown };
+        provider: { userinfo?: { url?: URL | string } };
+      }) {
         const url = new URL(provider.userinfo!.url!);
         url.searchParams.set("access_token", String(tokens.access_token));
         url.searchParams.set("openid", String(tokens.openid));
         url.searchParams.set("lang", "zh_CN");
         const profile = await readWeChat(await fetch(url));
-        if (profile.errcode || typeof profile.openid !== "string") throw new Error("WeChat did not return the user's profile");
+        if (profile.errcode || typeof profile.openid !== "string")
+          throw new Error("WeChat did not return the user's profile");
         return profile as WeChatProfile;
       },
     },

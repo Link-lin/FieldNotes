@@ -25,12 +25,19 @@ const ownedRoute = await import("@/app/api/account/owned-trips/route");
 
 const ORIGIN = "http://localhost:3000";
 const req = (method: string, body?: unknown) =>
-  new Request(`${ORIGIN}/api/account`, { method, headers: { "content-type": "application/json", origin: ORIGIN }, body: body === undefined ? undefined : JSON.stringify(body) });
+  new Request(`${ORIGIN}/api/account`, {
+    method,
+    headers: { "content-type": "application/json", origin: ORIGIN },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
 const db = () => testDb();
 const day = (n: number) => new Date(Date.UTC(2026, 0, 1 + n)); // join times a day apart
 
 async function expectHttp(p: Promise<unknown>, status: number, code?: string) {
-  const err = await p.then(() => null, (e: unknown) => e);
+  const err = await p.then(
+    () => null,
+    (e: unknown) => e,
+  );
   expect(err, `expected HTTP ${status}`).toBeInstanceOf(HttpError);
   expect((err as HttpError).status).toBe(status);
   if (code) expect((err as HttpError).code).toBe(code);
@@ -53,19 +60,39 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-const newTrip = async (creator: Actor, title: string = tripInput.title) => (await createTrip(db(), creator, { ...tripInput, title }, NOW)).id;
+const newTrip = async (creator: Actor, title: string = tripInput.title) =>
+  (await createTrip(db(), creator, { ...tripInput, title }, NOW)).id;
 /** A trip made by someone who can't create trips (not on the allowlist), which only a direct write can produce. */
 async function tripBy(creator: Actor, title = "Made by someone off the allowlist") {
   return (
     await db()
       .insertInto("trips")
-      .values({ owner_user_id: creator.userId, title, destination: "Lisbon", start_date: "2026-12-01", end_date: "2026-12-03", time_zone: "Europe/Lisbon", budget_amount: null, budget_currency: null, atlas_latitude: null, atlas_longitude: null, atlas_source: null })
+      .values({
+        owner_user_id: creator.userId,
+        title,
+        destination: "Lisbon",
+        start_date: "2026-12-01",
+        end_date: "2026-12-03",
+        time_zone: "Europe/Lisbon",
+        budget_amount: null,
+        budget_currency: null,
+        atlas_latitude: null,
+        atlas_longitude: null,
+        atlas_source: null,
+      })
       .returning("id")
       .executeTakeFirstOrThrow()
   ).id;
 }
 const grantOf = async (tripId: string, who: Actor) =>
-  (await db().selectFrom("trip_viewers").select("id").where("trip_id", "=", tripId).where("invitee_email_normalized", "=", who.email).executeTakeFirstOrThrow()).id;
+  (
+    await db()
+      .selectFrom("trip_viewers")
+      .select("id")
+      .where("trip_id", "=", tripId)
+      .where("invitee_email_normalized", "=", who.email)
+      .executeTakeFirstOrThrow()
+  ).id;
 const tripRow = (tripId: string) => db().selectFrom("trips").selectAll().where("id", "=", tripId).executeTakeFirst();
 const userRow = (who: Actor) => db().selectFrom("User").select("id").where("id", "=", who.userId).executeTakeFirst();
 const roleOn = async (who: Actor, tripId: string) => (await getTripDetail(db(), who, tripId, NOW)).trip.role;
@@ -76,7 +103,18 @@ const ownerless = () =>
     .selectFrom("trips")
     .select("id")
     .where("owner_user_id", "is", null)
-    .where((eb) => eb.not(eb.exists(eb.selectFrom("trip_viewers").select("id").whereRef("trip_viewers.trip_id", "=", "trips.id").where("status", "=", "accepted").where("role", "=", "owner"))))
+    .where((eb) =>
+      eb.not(
+        eb.exists(
+          eb
+            .selectFrom("trip_viewers")
+            .select("id")
+            .whereRef("trip_viewers.trip_id", "=", "trips.id")
+            .where("status", "=", "accepted")
+            .where("role", "=", "owner"),
+        ),
+      ),
+    )
     .execute();
 
 /** Time for a competing request, started while a deletion is held, to finish or to be seen waiting on its locks. */
@@ -125,7 +163,16 @@ describe("what the account-deletion dialog offers", () => {
     // The same account invited under a second address at a lower role is still one person.
     await db()
       .insertInto("trip_viewers")
-      .values({ trip_id: t, invitee_email_normalized: "sam.again@example.com", viewer_user_id: editor.userId, role: "viewer", status: "accepted", invitation_token_hash: Buffer.from("again"), expires_at: day(30), accepted_at: day(1) })
+      .values({
+        trip_id: t,
+        invitee_email_normalized: "sam.again@example.com",
+        viewer_user_id: editor.userId,
+        role: "viewer",
+        status: "accepted",
+        invitation_token_hash: Buffer.from("again"),
+        expires_at: day(30),
+        accepted_at: day(1),
+      })
       .execute();
     const [plan] = await listOwnedTrips(db(), owner);
     expect(plan!.people.map((p) => [p.name, p.role])).toEqual([
@@ -166,7 +213,10 @@ describe("deleting an account", () => {
     await createItem(db(), owner, t, event());
     await grant(t, coOwner, "accepted", "owner", day(1));
     await grant(t, viewer, "accepted", "viewer", day(2));
-    await db().insertInto("Session").values({ userId: owner.userId, sessionToken: "tok", expires: day(30) }).execute();
+    await db()
+      .insertInto("Session")
+      .values({ userId: owner.userId, sessionToken: "tok", expires: day(30) })
+      .execute();
     await deleteAccount(db(), owner);
     expect(await userRow(owner)).toBeUndefined();
     expect(await tripRow(t)).toMatchObject({ owner_user_id: null });
@@ -179,9 +229,16 @@ describe("deleting an account", () => {
   it("asks about a trip nobody else owns when others are on it, and changes nothing until they choose", async () => {
     const t = await newTrip(owner);
     await grant(t, editor, "accepted", "editor");
-    const err = await deleteAccount(db(), owner).then(() => null, (e: unknown) => e);
+    const err = await deleteAccount(db(), owner).then(
+      () => null,
+      (e: unknown) => e,
+    );
     expect(err).toBeInstanceOf(HttpError);
-    expect(err).toMatchObject({ status: 409, code: "account_decision_needed", fields: [{ path: `trips.${t}`, code: "decision_needed" }] });
+    expect(err).toMatchObject({
+      status: 409,
+      code: "account_decision_needed",
+      fields: [{ path: `trips.${t}`, code: "decision_needed" }],
+    });
     expect((err as HttpError).message).toContain(tripInput.title);
     expect(await userRow(owner)).toBeDefined();
     expect(await tripRow(t)).toMatchObject({ owner_user_id: owner.userId });
@@ -195,14 +252,26 @@ describe("deleting an account", () => {
     await deleteAccount(db(), owner, [{ tripId: t, action: "transfer", personId: await grantOf(t, viewer) }]);
     expect(await roleOn(viewer, t)).toBe("owner");
     expect(await roleOn(editor, t)).toBe("editor");
-    expect((await getTripDetail(db(), viewer, t, NOW)).trip).toMatchObject({ creatorGone: true, primaryOwner: false, ownerName: null });
+    expect((await getTripDetail(db(), viewer, t, NOW)).trip).toMatchObject({
+      creatorGone: true,
+      primaryOwner: false,
+      ownerName: null,
+    });
   });
 
   it("deletes a trip the person chose to delete, for everyone, with its events and import receipts", async () => {
     const t = await newTrip(owner);
     await createItem(db(), owner, t, event());
     await grant(t, editor, "accepted", "editor");
-    await db().insertInto("import_receipts").values({ owner_user_id: owner.userId, idempotency_key: crypto.randomUUID(), payload_hash: Buffer.from("x"), trip_id: t }).execute();
+    await db()
+      .insertInto("import_receipts")
+      .values({
+        owner_user_id: owner.userId,
+        idempotency_key: crypto.randomUUID(),
+        payload_hash: Buffer.from("x"),
+        trip_id: t,
+      })
+      .execute();
     await deleteAccount(db(), owner, [{ tripId: t, action: "delete" }]);
     expect(await tripRow(t)).toBeUndefined();
     expect(await db().selectFrom("plan_items").selectAll().execute()).toEqual([]);
@@ -314,7 +383,10 @@ describe("changes made while an account is being deleted", () => {
     const deleting = deleteAccount(db(), owner);
     await pause.atRead;
     // The insert waits for the deletion's lock on the account, then is refused once the account is gone.
-    const creating = createTrip(db(), owner, tripInput, NOW).then(() => "created", () => "refused");
+    const creating = createTrip(db(), owner, tripInput, NOW).then(
+      () => "created",
+      () => "refused",
+    );
     await settle(); // without that lock the trip would be created here, before the deletion carries on
     pause.resume();
     await deleting;
@@ -330,7 +402,10 @@ describe("changes made while an account is being deleted", () => {
     const pause = pauseAfterOwnedRead(editor.userId);
     const leaving = deleteAccount(db(), editor);
     await pause.atRead;
-    const handing = deleteAccount(db(), owner, [{ tripId: t, action: "transfer", personId: person }]).then(() => null, (e: unknown) => e);
+    const handing = deleteAccount(db(), owner, [{ tripId: t, action: "transfer", personId: person }]).then(
+      () => null,
+      (e: unknown) => e,
+    );
     await settle(); // without the lock on the new owner the handover would complete here
     pause.resume();
     await leaving;
@@ -351,7 +426,10 @@ describe("changes made while an account is being deleted", () => {
     const pause = pauseAfterOwnedRead(coOwner.userId);
     const first = deleteAccount(db(), coOwner);
     await pause.atRead;
-    const second = deleteAccount(db(), other).then(() => null, (e: unknown) => e);
+    const second = deleteAccount(db(), other).then(
+      () => null,
+      (e: unknown) => e,
+    );
     await settle(); // without the trip lock the second would leave here too
     pause.resume();
     await first;
@@ -395,7 +473,11 @@ describe("a trip always keeps an owner", () => {
     const t = await newTrip(owner);
     await grant(t, coOwner, "accepted", "owner");
     vi.stubEnv("TRIP_OWNER_EMAILS", "second-owner@example.com");
-    await expectHttp(updateInvitationRole(db(), coOwner, t, await grantOf(t, coOwner), "editor", NOW), 409, "last_owner");
+    await expectHttp(
+      updateInvitationRole(db(), coOwner, t, await grantOf(t, coOwner), "editor", NOW),
+      409,
+      "last_owner",
+    );
   });
 });
 
@@ -408,7 +490,9 @@ describe("the account routes", () => {
     const res = await ownedRoute.GET(req("GET"));
     expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toContain("no-store");
-    expect(await res.json()).toMatchObject([{ id: t, otherOwners: [], people: [{ name: "editor@example.com", role: "editor" }] }]);
+    expect(await res.json()).toMatchObject([
+      { id: t, otherOwners: [], people: [{ name: "editor@example.com", role: "editor" }] },
+    ]);
     session.actor = second;
     expect(await (await ownedRoute.GET(req("GET"))).json()).toEqual([]);
   });
@@ -419,9 +503,16 @@ describe("the account routes", () => {
     session.actor = owner;
     const refused = await accountRoute.DELETE(req("DELETE", { confirm: "DELETE" }));
     expect(refused.status).toBe(409);
-    expect(await refused.json()).toMatchObject({ error: { code: "account_decision_needed", fields: [{ path: `trips.${t}` }] } });
+    expect(await refused.json()).toMatchObject({
+      error: { code: "account_decision_needed", fields: [{ path: `trips.${t}` }] },
+    });
     expect(await userRow(owner)).toBeDefined();
-    const done = await accountRoute.DELETE(req("DELETE", { confirm: "DELETE", trips: [{ tripId: t, action: "transfer", personId: await grantOf(t, editor) }] }));
+    const done = await accountRoute.DELETE(
+      req("DELETE", {
+        confirm: "DELETE",
+        trips: [{ tripId: t, action: "transfer", personId: await grantOf(t, editor) }],
+      }),
+    );
     expect(done.status).toBe(204);
     expect(done.headers.getSetCookie().join(";")).toContain("authjs.session-token=;");
     expect(await roleOn(editor, t)).toBe("owner");
@@ -432,7 +523,17 @@ describe("the account routes", () => {
     session.actor = owner;
     const send = (body: unknown) => accountRoute.DELETE(req("DELETE", body));
     expect((await send({ confirm: "DELETE", trips: [{ tripId: t, action: "archive" }] })).status).toBe(422);
-    expect((await send({ confirm: "DELETE", trips: [{ tripId: t, action: "delete" }, { tripId: t, action: "delete" }] })).status).toBe(422);
+    expect(
+      (
+        await send({
+          confirm: "DELETE",
+          trips: [
+            { tripId: t, action: "delete" },
+            { tripId: t, action: "delete" },
+          ],
+        })
+      ).status,
+    ).toBe(422);
     expect((await send({ confirm: "DELETE", trips: [{ tripId: "nope", action: "delete" }] })).status).toBe(422);
     expect((await send({ trips: [] })).status).toBe(422);
     expect(await userRow(owner)).toBeDefined();

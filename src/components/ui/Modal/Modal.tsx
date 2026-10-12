@@ -24,8 +24,17 @@ export function Modal({ title, subtitle, onClose, children, fallbackFocus, trigg
 
   return createPortal(
     <div className={styles.backdrop} data-modal onMouseDown={(e) => e.target === e.currentTarget && close()}>
-      <div className={styles.sheet} role="dialog" aria-modal="true" aria-labelledby={titleId} ref={ref} onKeyDown={onKeyDown}>
-        <h2 className={styles.title} id={titleId}>{title}</h2>
+      <div
+        className={styles.sheet}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        ref={ref}
+        onKeyDown={onKeyDown}
+      >
+        <h2 className={styles.title} id={titleId}>
+          {title}
+        </h2>
         {subtitle ? <p className={styles.subtitle}>{subtitle}</p> : null}
         {children}
       </div>

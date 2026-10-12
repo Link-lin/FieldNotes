@@ -16,7 +16,8 @@ export const COVER_RULES = { fullEdge: 2048, smallEdge: 640, minSide: 32, maxRat
 /** The upload's parts: the two images and the cover version the change started from ("" for none). */
 export type CoverParts = { full: Uint8Array; small: Uint8Array; base: string };
 
-const badForm = () => new HttpError(400, "bad_request", "The upload must hold the cover's two images and the cover it replaces.");
+const badForm = () =>
+  new HttpError(400, "bad_request", "The upload must hold the cover's two images and the cover it replaces.");
 
 /** The parts of a cover upload's form; 400 when one is missing or of the wrong kind. */
 export async function coverParts(form: FormData): Promise<CoverParts> {
@@ -27,16 +28,26 @@ export async function coverParts(form: FormData): Promise<CoverParts> {
   return { full: new Uint8Array(await full.arrayBuffer()), small: new Uint8Array(await small.arrayBuffer()), base };
 }
 
-const ratio = (img: { width: number; height: number }) => Math.max(img.width, img.height) / Math.min(img.width, img.height);
+const ratio = (img: { width: number; height: number }) =>
+  Math.max(img.width, img.height) / Math.min(img.width, img.height);
 
 /** One part as stored, without metadata; 422 when it isn't a JPEG of a size and shape the app keeps. */
 function checkedImage(path: "full" | "small", bytes: Uint8Array, maxEdge: number): CleanJpeg {
   const img = cleanJpeg(bytes);
   if (!img) throw invalid([{ path, code: "invalid_image", message: "This isn't a JPEG image the app can store." }]);
   if (Math.max(img.width, img.height) > maxEdge || Math.min(img.width, img.height) < COVER_RULES.minSide) {
-    throw invalid([{ path, code: "image_size", message: `The image must be ${COVER_RULES.minSide} to ${maxEdge} pixels on each side.` }]);
+    throw invalid([
+      {
+        path,
+        code: "image_size",
+        message: `The image must be ${COVER_RULES.minSide} to ${maxEdge} pixels on each side.`,
+      },
+    ]);
   }
-  if (ratio(img) > COVER_RULES.maxRatio) throw invalid([{ path, code: "image_shape", message: "The image can be at most three times as long as it is wide." }]);
+  if (ratio(img) > COVER_RULES.maxRatio)
+    throw invalid([
+      { path, code: "image_shape", message: "The image can be at most three times as long as it is wide." },
+    ]);
   return img;
 }
 
@@ -45,24 +56,48 @@ function checkedImage(path: "full" | "small", bytes: Uint8Array, maxEdge: number
  * must still be the one the change started from (`base`), so a change made elsewhere meanwhile is never overwritten.
  * The trip's version moves once.
  */
-export async function setTripCover(db: Kysely<DB>, actor: Actor, tripId: string, parts: CoverParts, now = new Date()): Promise<TripSummaryDTO> {
+export async function setTripCover(
+  db: Kysely<DB>,
+  actor: Actor,
+  tripId: string,
+  parts: CoverParts,
+  now = new Date(),
+): Promise<TripSummaryDTO> {
   const full = checkedImage("full", parts.full, COVER_RULES.fullEdge);
   const small = checkedImage("small", parts.small, COVER_RULES.smallEdge);
-  if (small.width > full.width || small.height > full.height || Math.abs(small.width / small.height / (full.width / full.height) - 1) > COVER_RULES.sameShape) {
-    throw invalid([{ path: "small", code: "image_shape", message: "The small image must be a smaller copy of the full one." }]);
+  if (
+    small.width > full.width ||
+    small.height > full.height ||
+    Math.abs(small.width / small.height / (full.width / full.height) - 1) > COVER_RULES.sameShape
+  ) {
+    throw invalid([
+      { path: "small", code: "image_shape", message: "The small image must be a smaller copy of the full one." },
+    ]);
   }
   const hash = createHash("sha256").update(full.bytes).digest("hex");
   return db.transaction().execute(async (tx) => {
     const access = await requireTripOwner(tx, actor, tripId, true);
     if (coverVersion(access.trip.cover_hash) !== parts.base) throw fieldConflict(["cover"]);
-    const row = await saveCover(tx, access.trip.id, access.trip.version, { hash, width: full.width, height: full.height, full: full.bytes, small: small.bytes });
+    const row = await saveCover(tx, access.trip.id, access.trip.version, {
+      hash,
+      width: full.width,
+      height: full.height,
+      full: full.bytes,
+      small: small.bytes,
+    });
     if (!row) throw conflict();
     return tripSummary({ ...row, owner_name: access.trip.owner_name }, access, now);
   });
 }
 
 /** DASH-8: removes a trip's cover, for owners, if it is still the one the change started from (`base`). */
-export async function removeTripCover(db: Kysely<DB>, actor: Actor, tripId: string, base: string, now = new Date()): Promise<TripSummaryDTO> {
+export async function removeTripCover(
+  db: Kysely<DB>,
+  actor: Actor,
+  tripId: string,
+  base: string,
+  now = new Date(),
+): Promise<TripSummaryDTO> {
   return db.transaction().execute(async (tx) => {
     const access = await requireTripOwner(tx, actor, tripId, true);
     if (coverVersion(access.trip.cover_hash) !== base) throw fieldConflict(["cover"]);
@@ -74,7 +109,12 @@ export async function removeTripCover(db: Kysely<DB>, actor: Actor, tripId: stri
 }
 
 /** DASH-8: one of the cover's images, for anyone who can read the trip; 404 like the trip, or when it has no cover. */
-export async function readTripCover(db: Kysely<DB>, actor: Actor, tripId: string, size: "full" | "small"): Promise<Buffer> {
+export async function readTripCover(
+  db: Kysely<DB>,
+  actor: Actor,
+  tripId: string,
+  size: "full" | "small",
+): Promise<Buffer> {
   const { trip } = await requireTripRead(db, actor, tripId);
   const bytes = trip.cover_hash ? await coverImage(db, trip.id, size) : null;
   if (!bytes) throw new HttpError(404, "not_found", "This trip has no cover.");

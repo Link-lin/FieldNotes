@@ -34,7 +34,11 @@ const renewRoute = await import("@/app/api/trips/[tripId]/invitations/[invitatio
 
 const ORIGIN = "http://localhost:3000";
 const req = (method: string, body?: unknown) =>
-  new Request(`${ORIGIN}/api/x`, { method, headers: { "content-type": "application/json", origin: ORIGIN }, body: body === undefined ? undefined : JSON.stringify(body) });
+  new Request(`${ORIGIN}/api/x`, {
+    method,
+    headers: { "content-type": "application/json", origin: ORIGIN },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
 const ctx = <T extends object>(p: T) => ({ params: Promise.resolve(p) });
 const db = () => testDb();
 const tokenOf = (url: string) => url.split("#")[1]!;
@@ -42,7 +46,10 @@ const sha = (token: string) => createHash("sha256").update(token).digest();
 const later = (days: number) => new Date(NOW.getTime() + days * 864e5);
 
 async function expectHttp(p: Promise<unknown>, status: number, code?: string) {
-  const err = await p.then(() => null, (e: unknown) => e);
+  const err = await p.then(
+    () => null,
+    (e: unknown) => e,
+  );
   expect(err).toBeInstanceOf(HttpError);
   expect((err as HttpError).status).toBe(status);
   if (code) expect((err as HttpError).code).toBe(code);
@@ -65,7 +72,17 @@ describe("inviting by link", () => {
     expect(link.delivery).toBe("off");
     expect(link.invitationUrl).toMatch(/^http:\/\/localhost:3000\/invite#[A-Za-z0-9_-]{43}$/);
     expect(link.expiresAt).toBe(later(7).toISOString());
-    expect(link.invitation).toEqual({ id: link.invitationId, email: null, label: "Mei, on WeChat", joinedAs: null, role: "editor", status: "pending", expiresAt: link.expiresAt, acceptedAt: null, revokedAt: null });
+    expect(link.invitation).toEqual({
+      id: link.invitationId,
+      email: null,
+      label: "Mei, on WeChat",
+      joinedAs: null,
+      role: "editor",
+      status: "pending",
+      expiresAt: link.expiresAt,
+      acceptedAt: null,
+      revokedAt: null,
+    });
     const row = await db().selectFrom("trip_viewers").selectAll().executeTakeFirstOrThrow();
     expect(row).toMatchObject({ invitee_email_normalized: null, label: "Mei, on WeChat" });
     expect(row.invitation_token_hash).toEqual(sha(tokenOf(link.invitationUrl))); // only the hash is stored
@@ -73,7 +90,19 @@ describe("inviting by link", () => {
   });
 
   it("is for owners only", async () => {
-    await db().insertInto("trip_viewers").values({ trip_id: tripId, invitee_email_normalized: "editor@example.com", viewer_user_id: editor.userId, role: "editor", status: "accepted", invitation_token_hash: Buffer.from("x"), expires_at: later(7), accepted_at: NOW }).execute();
+    await db()
+      .insertInto("trip_viewers")
+      .values({
+        trip_id: tripId,
+        invitee_email_normalized: "editor@example.com",
+        viewer_user_id: editor.userId,
+        role: "editor",
+        status: "accepted",
+        invitation_token_hash: Buffer.from("x"),
+        expires_at: later(7),
+        accepted_at: NOW,
+      })
+      .execute();
     await expectHttp(createLinkInvitation(db(), editor, tripId, "Mei", NOW), 403);
     await expectHttp(createLinkInvitation(db(), google, tripId, "Mei", NOW), 404);
   });
@@ -86,7 +115,14 @@ describe("inviting by link", () => {
     expect((await getTripDetail(db(), mei, tripId, NOW)).trip).toMatchObject({ role: "editor", ownerName: "Link Lin" });
     await createItem(db(), mei, tripId, event({ title: "Added by Mei" }));
     expect(await listInvitations(db(), owner, tripId, NOW)).toEqual([
-      expect.objectContaining({ label: "Mei", email: null, status: "accepted", role: "editor", joinedAs: "Mei (WeChat)", expiresAt: null }),
+      expect.objectContaining({
+        label: "Mei",
+        email: null,
+        status: "accepted",
+        role: "editor",
+        joinedAs: "Mei (WeChat)",
+        expiresAt: null,
+      }),
     ]);
   });
 
@@ -122,7 +158,9 @@ describe("inviting by link", () => {
     expect(renewed.invitation).toMatchObject({ label: "Mei", role: "editor", status: "pending" });
     expect(renewed.expiresAt).toBe(later(15).toISOString());
     await expectHttp(stageInvitation(db(), tokenOf(first.invitationUrl), later(8)), 404);
-    expect(await stageInvitation(db(), tokenOf(renewed.invitationUrl), later(8))).toEqual(sha(tokenOf(renewed.invitationUrl)));
+    expect(await stageInvitation(db(), tokenOf(renewed.invitationUrl), later(8))).toEqual(
+      sha(tokenOf(renewed.invitationUrl)),
+    );
     expect(await listInvitations(db(), owner, tripId, later(8))).toHaveLength(1);
   });
 
@@ -143,7 +181,11 @@ describe("inviting by link", () => {
     expect((await getTripDetail(db(), mei, tripId, NOW)).trip.role).toBe("editor");
     await revokeInvitation(db(), owner, tripId, link.invitationId, NOW);
     await expectHttp(getTripDetail(db(), mei, tripId, NOW), 404);
-    expect((await listInvitations(db(), owner, tripId, NOW))[0]).toMatchObject({ status: "revoked", joinedAs: null, label: "Mei" });
+    expect((await listInvitations(db(), owner, tripId, NOW))[0]).toMatchObject({
+      status: "revoked",
+      joinedAs: null,
+      label: "Mei",
+    });
   });
 
   it("counts as an owner once accepted, so it can be the last one left", async () => {
@@ -160,11 +202,23 @@ describe("the invitation routes", () => {
     const p = ctx({ tripId });
     const byLabel = await list.POST(req("POST", { label: "  Mei, on WeChat  ", role: "editor" }), p);
     expect(byLabel.status).toBe(201);
-    expect(await byLabel.json()).toMatchObject({ delivery: "off", invitation: { label: "Mei, on WeChat", email: null, role: "editor" } });
+    expect(await byLabel.json()).toMatchObject({
+      delivery: "off",
+      invitation: { label: "Mei, on WeChat", email: null, role: "editor" },
+    });
     const byEmail = await list.POST(req("POST", { email: "newcomer@example.com" }), p);
     expect(byEmail.status).toBe(201);
-    expect(await byEmail.json()).toMatchObject({ invitation: { label: null, email: "newcomer@example.com", role: "viewer" } });
-    for (const body of [{}, { role: "viewer" }, { email: "a@example.com", label: "A" }, { label: "   " }, { label: "x".repeat(81) }, { label: "A", extra: true }]) {
+    expect(await byEmail.json()).toMatchObject({
+      invitation: { label: null, email: "newcomer@example.com", role: "viewer" },
+    });
+    for (const body of [
+      {},
+      { role: "viewer" },
+      { email: "a@example.com", label: "A" },
+      { label: "   " },
+      { label: "x".repeat(81) },
+      { label: "A", extra: true },
+    ]) {
       expect((await list.POST(req("POST", body), p)).status, JSON.stringify(body)).toBe(422);
     }
     expect(await listInvitations(db(), owner, tripId, NOW)).toHaveLength(2);
@@ -184,7 +238,13 @@ describe("the invitation routes", () => {
 });
 
 describe("the sign-in gate and an invitation by link", () => {
-  const attempt = (over: Record<string, unknown> = {}) => ({ provider: "google", providerAccountId: "sub-new", email: "new@example.com", emailVerified: true, ...over });
+  const attempt = (over: Record<string, unknown> = {}) => ({
+    provider: "google",
+    providerAccountId: "sub-new",
+    email: "new@example.com",
+    emailVerified: true,
+    ...over,
+  });
 
   it("admits a new Google account that arrives with an unused link, but not without it", async () => {
     const link = await createLinkInvitation(db(), owner, tripId, "Mei", NOW);

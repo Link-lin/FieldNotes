@@ -103,7 +103,11 @@ export function localCandidates(date: string, time: string, zone: string): numbe
   const [y, mo, d] = date.split("-").map(Number) as [number, number, number];
   const [h, mi] = time.split(":").map(Number) as [number, number];
   const naive = Date.UTC(y, mo - 1, d, h, mi);
-  const offsets = new Set([offsetMs(zone, naive - 86_400_000), offsetMs(zone, naive), offsetMs(zone, naive + 86_400_000)]);
+  const offsets = new Set([
+    offsetMs(zone, naive - 86_400_000),
+    offsetMs(zone, naive),
+    offsetMs(zone, naive + 86_400_000),
+  ]);
   const out: number[] = [];
   for (const off of offsets) {
     const t = naive - off;
@@ -114,8 +118,7 @@ export function localCandidates(date: string, time: string, zone: string): numbe
 }
 
 export type InstantResult =
-  | { ok: true; epochMs: number; ambiguous: boolean }
-  | { ok: false; reason: "gap" | "ambiguous" };
+  { ok: true; epochMs: number; ambiguous: boolean } | { ok: false; reason: "gap" | "ambiguous" };
 
 /** Resolve a local time to one instant, requiring a choice for repeated times. */
 export function resolveLocal(date: string, time: string, zone: string, choice: Disambiguation | null): InstantResult {

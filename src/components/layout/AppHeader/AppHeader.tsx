@@ -24,9 +24,19 @@ export function AppHeader({ name, email, ownedCount, sharedCount, signOut, metho
       <Logo href="/" />
       <div className={styles.right}>
         <nav className={`mono ${styles.nav}`} aria-label="Main">
-          <Link href="/" className={styles.atlas}>Atlas</Link>
+          <Link href="/" className={styles.atlas}>
+            Atlas
+          </Link>
         </nav>
-        <AccountMenu name={name} email={email} ownedCount={ownedCount} sharedCount={sharedCount} signOut={signOut} methods={methods} connectorUrl={connectorUrl} />
+        <AccountMenu
+          name={name}
+          email={email}
+          ownedCount={ownedCount}
+          sharedCount={sharedCount}
+          signOut={signOut}
+          methods={methods}
+          connectorUrl={connectorUrl}
+        />
       </div>
     </header>
   );

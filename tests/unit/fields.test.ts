@@ -49,7 +49,11 @@ describe("field-level saves (TRIP-10)", () => {
 
   it("reports a changed field that was changed elsewhere and merges nothing", () => {
     const current = { ...itemInputOf(activity), title: "Changed by a chat" };
-    const r = mergeItemFields(current, { title: "Mine", location: "Kyoto" }, { title: "Fushimi Inari at sunrise", location: "Fushimi Inari Taisha, Kyoto" });
+    const r = mergeItemFields(
+      current,
+      { title: "Mine", location: "Kyoto" },
+      { title: "Fushimi Inari at sunrise", location: "Fushimi Inari Taisha, Kyoto" },
+    );
     expect(r.conflicts).toEqual(["title"]);
     expect(r.merged.title).toBe("Changed by a chat");
   });
@@ -62,10 +66,20 @@ describe("field-level saves (TRIP-10)", () => {
   });
 
   it("swaps the schedule fields when an event becomes a flight, keeping what the save sets", () => {
-    const r = mergeItemFields(itemInputOf(activity), { type: "flight", bookingStatus: "needs_booking", airline: "JAL" }, { type: "activity", bookingStatus: "not_required", airline: null });
+    const r = mergeItemFields(
+      itemInputOf(activity),
+      { type: "flight", bookingStatus: "needs_booking", airline: "JAL" },
+      { type: "activity", bookingStatus: "not_required", airline: null },
+    );
     expect(r.merged).not.toHaveProperty("localDate");
     expect(r.merged).not.toHaveProperty("durationMinutes");
-    expect(r.merged).toMatchObject({ type: "flight", airline: "JAL", plannedDepartureDate: null, departure: { airportCode: null }, arrival: { localDateTime: null } });
+    expect(r.merged).toMatchObject({
+      type: "flight",
+      airline: "JAL",
+      plannedDepartureDate: null,
+      departure: { airportCode: null },
+      arrival: { localDateTime: null },
+    });
     expect(itemInputSchema.safeParse(r.merged).success).toBe(true);
   });
 
@@ -97,7 +111,15 @@ describe("field-level saves (TRIP-10)", () => {
   });
 
   it("merges trip fields the same way", () => {
-    const trip = tripFieldsOf({ title: "Kyoto", destination: "Kyoto, Japan", startDate: "2026-11-15", endDate: "2026-11-20", timeZone: "Asia/Tokyo", budget: null, atlasLocation: { latitude: 35, longitude: 135.7 } });
+    const trip = tripFieldsOf({
+      title: "Kyoto",
+      destination: "Kyoto, Japan",
+      startDate: "2026-11-15",
+      endDate: "2026-11-20",
+      timeZone: "Asia/Tokyo",
+      budget: null,
+      atlasLocation: { latitude: 35, longitude: 135.7 },
+    });
     const ok = mergeFields(trip, { budget: { amount: "3000", currency: "USD" } }, { budget: null });
     expect(ok.conflicts).toEqual([]);
     expect(tripFieldsSchema.safeParse(ok.merged).success).toBe(true);
@@ -111,9 +133,18 @@ describe("field-level saves (TRIP-10)", () => {
     expect(itemFieldsPatchSchema.safeParse({ changes: { title: "A" }, base: { title: "B" } }).success).toBe(true);
     expect(itemFieldsPatchSchema.safeParse({ changes: {}, base: {} }).success).toBe(false);
     expect(itemFieldsPatchSchema.safeParse({ changes: { title: "A" }, base: {} }).success).toBe(false);
-    expect(itemFieldsPatchSchema.safeParse({ changes: { source: "manual" }, base: { source: "ai" } }).success).toBe(false);
-    expect(itemFieldsPatchSchema.safeParse({ changes: { reviewedAt: null }, base: { reviewedAt: "x" } }).success).toBe(false);
-    expect(tripFieldsPatchSchema.safeParse({ changes: { atlasLocation: null }, base: { atlasLocation: { latitude: 1, longitude: 2 } } }).success).toBe(true);
+    expect(itemFieldsPatchSchema.safeParse({ changes: { source: "manual" }, base: { source: "ai" } }).success).toBe(
+      false,
+    );
+    expect(itemFieldsPatchSchema.safeParse({ changes: { reviewedAt: null }, base: { reviewedAt: "x" } }).success).toBe(
+      false,
+    );
+    expect(
+      tripFieldsPatchSchema.safeParse({
+        changes: { atlasLocation: null },
+        base: { atlasLocation: { latitude: 1, longitude: 2 } },
+      }).success,
+    ).toBe(true);
     expect(tripFieldsPatchSchema.safeParse({ changes: { version: 9 }, base: { version: 8 } }).success).toBe(false);
   });
 });

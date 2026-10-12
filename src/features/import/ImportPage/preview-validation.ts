@@ -4,7 +4,7 @@ import { importCommitSchema, tripDraftSchema, type ImportPreviewDTO } from "@/sh
 type ItemRow = ImportPreviewDTO["items"][number];
 
 function asRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 }
 
 function setPath(values: Record<string, unknown>, path: string, value: unknown): Record<string, unknown> {
@@ -20,12 +20,21 @@ function setPath(values: Record<string, unknown>, path: string, value: unknown):
 }
 
 function valueAt(values: Record<string, unknown>, path: string): unknown {
-  return path.replace(/\[(\d+)\]/g, ".$1").split(".").reduce<unknown>((part, key) => asRecord(part)[key], values);
+  return path
+    .replace(/\[(\d+)\]/g, ".$1")
+    .split(".")
+    .reduce<unknown>((part, key) => asRecord(part)[key], values);
 }
 
-function fieldErrors(issues: Array<{ path: PropertyKey[]; code: string; message: string }>, prefix: string): FieldError[] {
+function fieldErrors(
+  issues: Array<{ path: PropertyKey[]; code: string; message: string }>,
+  prefix: string,
+): FieldError[] {
   return issues.map((issue) => ({
-    path: issue.path.reduce<string>((path, part) => typeof part === "number" ? `${path}[${part}]` : `${path}.${String(part)}`, prefix),
+    path: issue.path.reduce<string>(
+      (path, part) => (typeof part === "number" ? `${path}[${part}]` : `${path}.${String(part)}`),
+      prefix,
+    ),
     code: issue.code === "custom" ? "invalid" : issue.code,
     message: issue.message,
   }));
@@ -39,7 +48,8 @@ function draftErrors(row: ItemRow, trip: ImportPreviewDTO["trip"]["values"]): Fi
     items: [row.values],
   });
   if (checked.success) return [];
-  const issues = checked.error.issues.filter((issue) => issue.path[0] === "items" && issue.path[1] === 0)
+  const issues = checked.error.issues
+    .filter((issue) => issue.path[0] === "items" && issue.path[1] === 0)
     .map((issue) => ({ ...issue, path: issue.path.slice(2) }));
   return fieldErrors(issues, `items[${row.index}]`);
 }
@@ -73,29 +83,48 @@ export function hasRemovableEmptySourceValues(row: ItemRow, trip: ImportPreviewD
 function addressedByEdit(error: FieldError, index: number, path: string): boolean {
   if (error.code === "unknown_field") return false; // Explicit removal or skip is required.
   const full = `items[${index}].${path}`;
-  if (error.path === full || error.path.startsWith(`${full}.`) || error.path.startsWith(`${full}[`) ||
-      full.startsWith(`${error.path}.`) || full.startsWith(`${error.path}[`)) return true;
+  if (
+    error.path === full ||
+    error.path.startsWith(`${full}.`) ||
+    error.path.startsWith(`${full}[`) ||
+    full.startsWith(`${error.path}.`) ||
+    full.startsWith(`${error.path}[`)
+  )
+    return true;
   // These source errors describe a relationship; editing either side can resolve it.
   const relative = error.path.replace(`items[${index}].`, "");
   if (relative === "localDate" && path === "localTime") return true;
   if (relative === "bookingStatus" && path === "type") return true;
   if (relative === "flightDetails" && path === "type") return true;
-  if (relative === "flightDetails.plannedDepartureDate" && path === "flightDetails.departure.localDateTime") return true;
-  if (/^flightDetails\.(departure|arrival)\.timeZone$/.test(relative) && path === relative.replace(/timeZone$/, "localDateTime")) return true;
+  if (relative === "flightDetails.plannedDepartureDate" && path === "flightDetails.departure.localDateTime")
+    return true;
+  if (
+    /^flightDetails\.(departure|arrival)\.timeZone$/.test(relative) &&
+    path === relative.replace(/timeZone$/, "localDateTime")
+  )
+    return true;
   return false;
 }
 
 /** Keep source-contract errors until their own field is edited; refresh draft/DST errors live. */
-export function editPreviewItem(preview: ImportPreviewDTO, index: number, path: string, value: unknown): ImportPreviewDTO {
-  return { ...preview, items: preview.items.map((row) => {
-    if (row.index !== index) return row;
-    const next = {
-      ...row,
-      values: setPath(row.values, path, value),
-      sourceErrors: row.sourceErrors.filter((error) => !addressedByEdit(error, index, path)),
-    };
-    return withDraftErrors(next, preview.trip.values);
-  }) };
+export function editPreviewItem(
+  preview: ImportPreviewDTO,
+  index: number,
+  path: string,
+  value: unknown,
+): ImportPreviewDTO {
+  return {
+    ...preview,
+    items: preview.items.map((row) => {
+      if (row.index !== index) return row;
+      const next = {
+        ...row,
+        values: setPath(row.values, path, value),
+        sourceErrors: row.sourceErrors.filter((error) => !addressedByEdit(error, index, path)),
+      };
+      return withDraftErrors(next, preview.trip.values);
+    }),
+  };
 }
 
 export function editPreviewTrip(preview: ImportPreviewDTO, path: string, value: unknown): ImportPreviewDTO {
@@ -105,21 +134,38 @@ export function editPreviewTrip(preview: ImportPreviewDTO, path: string, value: 
   return {
     ...preview,
     trip: { ...preview.trip, values, errors: checked.success ? [] : fieldErrors(checked.error.issues, "trip") },
-    items: path === "timeZone" || tripBecameValid ? preview.items.map((row) => withDraftErrors(row, values)) : preview.items,
+    items:
+      path === "timeZone" || tripBecameValid ? preview.items.map((row) => withDraftErrors(row, values)) : preview.items,
   };
 }
 
 export function removePreviewUnknownFields(preview: ImportPreviewDTO, index: number): ImportPreviewDTO {
-  return { ...preview, items: preview.items.map((row) => row.index === index ? withDraftErrors({
-    ...row,
-    sourceErrors: row.sourceErrors.filter((error) => error.code !== "unknown_field"),
-  }, preview.trip.values) : row) };
+  return {
+    ...preview,
+    items: preview.items.map((row) =>
+      row.index === index
+        ? withDraftErrors(
+            {
+              ...row,
+              sourceErrors: row.sourceErrors.filter((error) => error.code !== "unknown_field"),
+            },
+            preview.trip.values,
+          )
+        : row,
+    ),
+  };
 }
 
 export function removePreviewEmptySourceValues(preview: ImportPreviewDTO, index: number): ImportPreviewDTO {
-  return { ...preview, items: preview.items.map((row) => {
-    if (row.index !== index) return row;
-    const removable = new Set(removableEmptySourceErrors(row, preview.trip.values));
-    return withDraftErrors({ ...row, sourceErrors: row.sourceErrors.filter((error) => !removable.has(error)) }, preview.trip.values);
-  }) };
+  return {
+    ...preview,
+    items: preview.items.map((row) => {
+      if (row.index !== index) return row;
+      const removable = new Set(removableEmptySourceErrors(row, preview.trip.values));
+      return withDraftErrors(
+        { ...row, sourceErrors: row.sourceErrors.filter((error) => !removable.has(error)) },
+        preview.trip.values,
+      );
+    }),
+  };
 }

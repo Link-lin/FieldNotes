@@ -26,11 +26,23 @@ const endpointPatch = z
 export const aiItemPatchSchema = z
   .object({
     title: z.string().max(200).optional(),
-    type: z.enum(["lodging", "transport", "meal", "activity", "other"], { message: "An item can't become a flight, and a flight can't become another type. Delete it and add the right one." }).optional(),
+    type: z
+      .enum(["lodging", "transport", "meal", "activity", "other"], {
+        message:
+          "An item can't become a flight, and a flight can't become another type. Delete it and add the right one.",
+      })
+      .optional(),
     location: z.string().max(500).nullable().optional(),
     notes: z.string().max(5000).nullable().optional(),
-    links: z.array(z.object({ label: z.string().max(80), url: z.string().max(2048) }).strict()).max(20).optional(),
-    plannedPrice: z.object({ amount: z.string().max(40), currency: z.string().max(3) }).strict().nullable().optional(),
+    links: z
+      .array(z.object({ label: z.string().max(80), url: z.string().max(2048) }).strict())
+      .max(20)
+      .optional(),
+    plannedPrice: z
+      .object({ amount: z.string().max(40), currency: z.string().max(3) })
+      .strict()
+      .nullable()
+      .optional(),
     localDate: z.string().max(10).nullable().optional(),
     localTime: z.string().max(5).nullable().optional(),
     timeZone: z.string().max(100).nullable().optional(),
@@ -50,7 +62,8 @@ export const aiItemPatchSchema = z
   .strict();
 export type AiItemPatch = z.infer<typeof aiItemPatchSchema>;
 
-const blank = (v: string | null | undefined): string | null => (v === undefined || v === null || v.trim() === "" ? null : v.trim());
+const blank = (v: string | null | undefined): string | null =>
+  v === undefined || v === null || v.trim() === "" ? null : v.trim();
 
 export type AiPatchResult = { input: ItemInput; clearedPin: boolean } | { errors: FieldError[] };
 
@@ -74,7 +87,8 @@ export function applyAiPatch(current: PlanItemDTO, patch: AiItemPatch): AiPatchR
 
   if (flight) {
     for (const key of ["localDate", "localTime", "timeZone", "durationMinutes"] as const) {
-      if (patch[key] !== undefined) refuse(key, "A flight uses flightDetails (airports and local times) instead of this field.");
+      if (patch[key] !== undefined)
+        refuse(key, "A flight uses flightDetails (airports and local times) instead of this field.");
     }
     const details = patch.flightDetails;
     if (details && input.type === "flight") {
@@ -98,9 +112,18 @@ export function applyAiPatch(current: PlanItemDTO, patch: AiItemPatch): AiPatchR
     if (input.type !== "flight") {
       const when = input as Extract<ItemInput, { localDate: unknown }>;
       let rescheduled = false;
-      if (patch.localDate !== undefined) { when.localDate = patch.localDate; rescheduled = true; }
-      if (patch.localTime !== undefined) { when.localTime = patch.localTime; rescheduled = true; }
-      if (patch.timeZone !== undefined) { when.timeZone = patch.timeZone; rescheduled = true; }
+      if (patch.localDate !== undefined) {
+        when.localDate = patch.localDate;
+        rescheduled = true;
+      }
+      if (patch.localTime !== undefined) {
+        when.localTime = patch.localTime;
+        rescheduled = true;
+      }
+      if (patch.timeZone !== undefined) {
+        when.timeZone = patch.timeZone;
+        rescheduled = true;
+      }
       if (patch.durationMinutes !== undefined) when.durationMinutes = patch.durationMinutes;
       // An earlier/later choice belonged to the old time.
       if (rescheduled) when.timeDisambiguation = null;
@@ -116,7 +139,8 @@ export function applyAiPatch(current: PlanItemDTO, patch: AiItemPatch): AiPatchR
 
   // Booking: an AI can say an item needs booking or not, never that it is booked, and never undo a person's Booked.
   if (patch.bookingStatus !== undefined) {
-    if (current.bookingStatus === "booked") refuse("bookingStatus", "This item is marked Booked, which only a person can change in Field Notes.");
+    if (current.bookingStatus === "booked")
+      refuse("bookingStatus", "This item is marked Booked, which only a person can change in Field Notes.");
     else {
       input.bookingStatus = patch.bookingStatus === "Needs booking" ? "needs_booking" : "not_required";
       if (input.bookingStatus !== "needs_booking") input.bookingDueDate = null;
@@ -127,9 +151,16 @@ export function applyAiPatch(current: PlanItemDTO, patch: AiItemPatch): AiPatchR
     if (patch.plannedPrice === null) input.plannedPrice = null;
     else {
       const old = current.plannedPrice;
-      const same = old && old.currency === patch.plannedPrice.currency && trimAmount(old.amount) === trimAmount(patch.plannedPrice.amount);
+      const same =
+        old &&
+        old.currency === patch.plannedPrice.currency &&
+        trimAmount(old.amount) === trimAmount(patch.plannedPrice.amount);
       // Saying the same price again keeps whatever it already was (a person's quote stays a quote).
-      input.plannedPrice = { amount: patch.plannedPrice.amount, currency: patch.plannedPrice.currency, label: same ? old.label : "estimate" };
+      input.plannedPrice = {
+        amount: patch.plannedPrice.amount,
+        currency: patch.plannedPrice.currency,
+        label: same ? old.label : "estimate",
+      };
     }
   }
 
@@ -140,5 +171,9 @@ export function applyAiPatch(current: PlanItemDTO, patch: AiItemPatch): AiPatchR
 export function priceChanged(before: PlanItemDTO["plannedPrice"], after: ItemInput["plannedPrice"]): boolean {
   if (!after) return false;
   if (!before) return true;
-  return before.currency !== after.currency || trimAmount(before.amount) !== trimAmount(after.amount) || before.label !== after.label;
+  return (
+    before.currency !== after.currency ||
+    trimAmount(before.amount) !== trimAmount(after.amount) ||
+    before.label !== after.label
+  );
 }

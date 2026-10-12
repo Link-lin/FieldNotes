@@ -18,7 +18,10 @@ vi.mock("@/server/core/mail", () => ({
 
 const db = () => testDb();
 async function expectHttp(p: Promise<unknown>, status: number, code?: string) {
-  const err = await p.then(() => null, (e: unknown) => e);
+  const err = await p.then(
+    () => null,
+    (e: unknown) => e,
+  );
   expect(err).toBeInstanceOf(HttpError);
   expect((err as HttpError).status).toBe(status);
   if (code) expect((err as HttpError).code).toBe(code);
@@ -28,7 +31,16 @@ async function expectHttp(p: Promise<unknown>, status: number, code?: string) {
 async function giveRole(tripId: string, who: Actor, role: "viewer" | "editor" | "owner") {
   await db()
     .insertInto("trip_viewers")
-    .values({ trip_id: tripId, invitee_email_normalized: `grant-${role}@example.com`, viewer_user_id: who.userId, role, status: "accepted", invitation_token_hash: Buffer.from(crypto.randomUUID()), expires_at: new Date(NOW.getTime() + 864e5), accepted_at: NOW })
+    .values({
+      trip_id: tripId,
+      invitee_email_normalized: `grant-${role}@example.com`,
+      viewer_user_id: who.userId,
+      role,
+      status: "accepted",
+      invitation_token_hash: Buffer.from(crypto.randomUUID()),
+      expires_at: new Date(NOW.getTime() + 864e5),
+      accepted_at: NOW,
+    })
     .execute();
 }
 

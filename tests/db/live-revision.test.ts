@@ -25,7 +25,10 @@ const dashboardRoute = await import("@/app/api/dashboard/revision/route");
 const get = () => new Request("http://localhost:3000/api/x");
 const ctx = (tripId: string) => ({ params: Promise.resolve({ tripId }) });
 
-async function tripRev(as: Actor | null, tripId: string): Promise<{ status: number; revision?: string; cache: string | null }> {
+async function tripRev(
+  as: Actor | null,
+  tripId: string,
+): Promise<{ status: number; revision?: string; cache: string | null }> {
   session.actor = as;
   const res = await tripRoute.GET(get(), ctx(tripId));
   const body = res.status === 200 ? ((await res.json()) as { revision: string }) : null;
@@ -73,7 +76,11 @@ describe("trip revision (TRIP-11)", () => {
     const third = (await tripRev(editor, t.id)).revision;
     expect(third).not.toBe(second);
     expect((await tripRev(editor, t.id)).revision).toBe(third);
-    await testDb().updateTable("trip_viewers").set({ role: "viewer" }).where("viewer_user_id", "=", editor.userId).execute();
+    await testDb()
+      .updateTable("trip_viewers")
+      .set({ role: "viewer" })
+      .where("viewer_user_id", "=", editor.userId)
+      .execute();
     expect((await tripRev(editor, t.id)).revision).not.toBe(third);
   });
 
@@ -83,7 +90,11 @@ describe("trip revision (TRIP-11)", () => {
     expect((await tripRev(stranger, t.id)).status).toBe(404);
     expect((await tripRev(owner, "not-a-uuid")).status).toBe(404);
     expect((await tripRev(null, t.id)).status).toBe(401);
-    await testDb().updateTable("trip_viewers").set({ status: "revoked", invitation_token_hash: null, revoked_at: new Date() }).where("viewer_user_id", "=", viewer.userId).execute();
+    await testDb()
+      .updateTable("trip_viewers")
+      .set({ status: "revoked", invitation_token_hash: null, revoked_at: new Date() })
+      .where("viewer_user_id", "=", viewer.userId)
+      .execute();
     expect((await tripRev(viewer, t.id)).status).toBe(404);
   });
 });
@@ -107,10 +118,18 @@ describe("dashboard revision (TRIP-11)", () => {
     await grant(t.id, viewer);
     const b = await dashRev(viewer);
     expect(b).not.toBe(a);
-    await testDb().updateTable("trip_viewers").set({ role: "editor" }).where("viewer_user_id", "=", viewer.userId).execute();
+    await testDb()
+      .updateTable("trip_viewers")
+      .set({ role: "editor" })
+      .where("viewer_user_id", "=", viewer.userId)
+      .execute();
     const c = await dashRev(viewer);
     expect(c).not.toBe(b);
-    await testDb().updateTable("trip_viewers").set({ status: "revoked", invitation_token_hash: null, revoked_at: new Date() }).where("viewer_user_id", "=", viewer.userId).execute();
+    await testDb()
+      .updateTable("trip_viewers")
+      .set({ status: "revoked", invitation_token_hash: null, revoked_at: new Date() })
+      .where("viewer_user_id", "=", viewer.userId)
+      .execute();
     expect(await dashRev(viewer)).toBe(a);
   });
 });

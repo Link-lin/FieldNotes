@@ -46,7 +46,21 @@ const FRESH_MS = 2400;
  * costs, bookings and globe location. This component holds the page state and actions; each part
  * renders itself.
  */
-export function TripPage({ data, initialDay, initialView, mapsKey, canEmail, placeLookup }: { data: TripDetailDTO; initialDay: string | null; initialView: TripView; mapsKey: string | null; canEmail: boolean; placeLookup: boolean }) {
+export function TripPage({
+  data,
+  initialDay,
+  initialView,
+  mapsKey,
+  canEmail,
+  placeLookup,
+}: {
+  data: TripDetailDTO;
+  initialDay: string | null;
+  initialView: TripView;
+  mapsKey: string | null;
+  canEmail: boolean;
+  placeLookup: boolean;
+}) {
   const router = useRouter();
   const toast = useToast();
   const { trip, items } = data;
@@ -114,9 +128,15 @@ export function TripPage({ data, initialDay, initialView, mapsKey, canEmail, pla
     const el = root.current;
     if (!el) return;
     // A marker for several stops at nearly one place also lights for each of them (data-hl-also).
-    const set = (id: string, on: boolean) => el.querySelectorAll(`[data-hl="${CSS.escape(id)}"], [data-hl-also~="${CSS.escape(id)}"]`).forEach((x) => x.toggleAttribute(LIT, on));
+    const set = (id: string, on: boolean) =>
+      el
+        .querySelectorAll(`[data-hl="${CSS.escape(id)}"], [data-hl-also~="${CSS.escape(id)}"]`)
+        .forEach((x) => x.toggleAttribute(LIT, on));
     const over = (e: Event) => {
-      const { light, look } = pointing({ type: e.type, target: e.target as Element, relatedTarget: (e as MouseEvent | FocusEvent).relatedTarget }, window.matchMedia("(any-hover: hover)").matches);
+      const { light, look } = pointing(
+        { type: e.type, target: e.target as Element, relatedTarget: (e as MouseEvent | FocusEvent).relatedTarget },
+        window.matchMedia("(any-hover: hover)").matches,
+      );
       if (light) set(light.id, light.on);
       if (look !== undefined) mapFocus.set(look);
     };
@@ -125,7 +145,8 @@ export function TripPage({ data, initialDay, initialView, mapsKey, canEmail, pla
     return () => kinds.forEach((t) => el.removeEventListener(t, over));
   }, [mapFocus]);
 
-  const rowOf = (id: string) => root.current?.querySelector<HTMLElement>(`[data-timeline] [data-hl="${CSS.escape(id)}"]`) ?? null;
+  const rowOf = (id: string) =>
+    root.current?.querySelector<HTMLElement>(`[data-timeline] [data-hl="${CSS.escape(id)}"]`) ?? null;
 
   // What a refresh brought that this tab didn't do itself: light those rows and stop lines for a moment, and say what changed.
   const loaded = useRef(data);
@@ -136,7 +157,9 @@ export function TripPage({ data, initialDay, initialView, mapsKey, canEmail, pla
     const changes = liveChanges(before.items, data.items);
     const message = changesMessage(changes, before.trip, data.trip);
     if (message) toast({ message, quiet: true });
-    const lit = [...changes.added, ...changes.changed, ...changes.pinned].flatMap((id) => [...(root.current?.querySelectorAll<HTMLElement>(`[data-hl="${CSS.escape(id)}"]:not([data-pin])`) ?? [])]);
+    const lit = [...changes.added, ...changes.changed, ...changes.pinned].flatMap((id) => [
+      ...(root.current?.querySelectorAll<HTMLElement>(`[data-hl="${CSS.escape(id)}"]:not([data-pin])`) ?? []),
+    ]);
     lit.forEach((el) => el.toggleAttribute(LIT, true));
     const off = () => lit.forEach((el) => el.toggleAttribute(LIT, false));
     const t = setTimeout(off, FRESH_MS);
@@ -205,13 +228,19 @@ export function TripPage({ data, initialDay, initialView, mapsKey, canEmail, pla
       message: one ? `"${saved[0]!.title}" marked as reviewed.` : `${saved.length} events marked as reviewed.`,
       actionLabel: "Undo",
       afterFocus,
-      onAction: () => void review(saved, false).then((back) => back && toast({ message: one ? "It is an AI draft again." : `${back.length} events are AI drafts again.` })),
+      onAction: () =>
+        void review(saved, false).then(
+          (back) =>
+            back && toast({ message: one ? "It is an AI draft again." : `${back.length} events are AI drafts again.` }),
+        ),
     });
   }
 
   async function duplicateEvent(item: PlanItemDTO, fromPanel = false) {
     setMenuFor(null);
-    const r = await api<PlanItemDTO>("POST", `/api/trips/${trip.id}/items/${item.id}/duplicate`, { expectedVersion: item.version });
+    const r = await api<PlanItemDTO>("POST", `/api/trips/${trip.id}/items/${item.id}/duplicate`, {
+      expectedVersion: item.version,
+    });
     if (!r.ok) {
       toast({ message: r.message });
       return;
@@ -229,23 +258,28 @@ export function TripPage({ data, initialDay, initialView, mapsKey, canEmail, pla
 
   // A new price defaults to the currency last used on this trip, then the trip budget, then the owner's latest.
   const lastPriced = [...items].filter((i) => i.plannedPrice).sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1))[0];
-  const defaultCurrency = lastPriced?.plannedPrice?.currency ?? trip.budget?.currency ?? data.recentCurrencies[0] ?? "USD";
+  const defaultCurrency =
+    lastPriced?.plannedPrice?.currency ?? trip.budget?.currency ?? data.recentCurrencies[0] ?? "USD";
 
   // Events in the order the current tab shows them, for the panel's Previous and Next.
-  const shown = view === "bookings" ? [...toBook].sort((a, b) => (a.bookingDueDate ?? "9999").localeCompare(b.bookingDueDate ?? "9999")) : [
-    ...(all ? days : [day]).flatMap((d) => {
-      const list = byDate.get(d) ?? [];
-      return [...list.filter((i) => i.sortInstant), ...list.filter((i) => !i.sortInstant)];
-    }),
-    ...(all ? [...undatedFlights, ...undated] : []),
-  ];
+  const shown =
+    view === "bookings"
+      ? [...toBook].sort((a, b) => (a.bookingDueDate ?? "9999").localeCompare(b.bookingDueDate ?? "9999"))
+      : [
+          ...(all ? days : [day]).flatMap((d) => {
+            const list = byDate.get(d) ?? [];
+            return [...list.filter((i) => i.sortInstant), ...list.filter((i) => !i.sortInstant)];
+          }),
+          ...(all ? [...undatedFlights, ...undated] : []),
+        ];
   const panels = useTripPanels({
     tripId: trip.id,
     items,
     shown,
     day,
     view,
-    allows: (want) => (want.kind === "trip" || want.kind === "share" ? canManage : want.kind === "add" ? canEdit : true),
+    allows: (want) =>
+      want.kind === "trip" || want.kind === "share" ? canManage : want.kind === "add" ? canEdit : true,
     closeMenu: () => setMenuFor(null),
   });
   const openPin = (id: string) => {
@@ -274,7 +308,17 @@ export function TripPage({ data, initialDay, initialView, mapsKey, canEmail, pla
       <article className={styles.trip}>
         <div className={styles.hero} data-view={view}>
           <div className={styles.heading}>
-            <TripHeader trip={trip} canEdit={canEdit} canManage={canManage} compact={view === "bookings"} items={items} onOpenEvent={(i) => panels.openEvent(i, { trigger: "[data-up-next]" })} onAdd={() => panels.openAdd(all ? "" : day, "[data-add-top]")} onEdit={() => panels.openTrip("details", "[data-edit-trip]")} onShare={() => panels.openShare("[data-share-trip]")} />
+            <TripHeader
+              trip={trip}
+              canEdit={canEdit}
+              canManage={canManage}
+              compact={view === "bookings"}
+              items={items}
+              onOpenEvent={(i) => panels.openEvent(i, { trigger: "[data-up-next]" })}
+              onAdd={() => panels.openAdd(all ? "" : day, "[data-add-top]")}
+              onEdit={() => panels.openTrip("details", "[data-edit-trip]")}
+              onShare={() => panels.openShare("[data-share-trip]")}
+            />
           </div>
           <div className={styles.sectionNav}>
             <TripViewNav selected={view} toBook={toBook.length} overdue={overdueCount} onSelect={selectView} />
@@ -282,11 +326,26 @@ export function TripPage({ data, initialDay, initialView, mapsKey, canEmail, pla
           </div>
         </div>
         {view === "bookings" ? (
-          <BookingList trip={trip} items={items} canEdit={canEdit} onOpen={(i) => panels.openEvent(i, { trigger: `[data-task-open="${i.id}"]` })} />
+          <BookingList
+            trip={trip}
+            items={items}
+            canEdit={canEdit}
+            onOpen={(i) => panels.openEvent(i, { trigger: `[data-task-open="${i.id}"]` })}
+          />
         ) : (
           <>
-            {canEdit && drafts.length ? <DraftsNote count={drafts.length} busy={reviewing} onReviewAll={() => void reviewEvents(drafts)} /> : null}
-            <DayTabs trip={trip} days={days} byDate={byDate} eventCount={items.length} pinCount={allStops.length} selected={day} onSelect={selectDay} />
+            {canEdit && drafts.length ? (
+              <DraftsNote count={drafts.length} busy={reviewing} onReviewAll={() => void reviewEvents(drafts)} />
+            ) : null}
+            <DayTabs
+              trip={trip}
+              days={days}
+              byDate={byDate}
+              eventCount={items.length}
+              pinCount={allStops.length}
+              selected={day}
+              onSelect={selectDay}
+            />
 
             <div id="trip-panel" role="tabpanel" aria-labelledby={`tab-${day}`} className={styles.grid}>
               <div className={styles.mainColumn}>
@@ -300,7 +359,14 @@ export function TripPage({ data, initialDay, initialView, mapsKey, canEmail, pla
                       <DaySection
                         key={d}
                         title={fmtDay(d)}
-                        meta={<>{outside ? "Outside trip dates" : `Day ${pad2(dayNumber(trip, d))} of ${pad2(inRange.length)}`}{d === trip.today ? <TodayMark /> : null}</>}
+                        meta={
+                          <>
+                            {outside
+                              ? "Outside trip dates"
+                              : `Day ${pad2(dayNumber(trip, d))} of ${pad2(inRange.length)}`}
+                            {d === trip.today ? <TodayMark /> : null}
+                          </>
+                        }
                         outside={outside}
                         empty={!list.length}
                         onAdd={canEdit ? () => panels.openAdd(d, `[data-add-day="${d}"]`) : undefined}
@@ -324,18 +390,32 @@ export function TripPage({ data, initialDay, initialView, mapsKey, canEmail, pla
                     );
                   })}
                   {all && undatedFlights.length ? (
-                    <DaySection title="Undated flights" meta="No departure date yet" note="Flights still to be scheduled. Edit one to add a planned date or its times.">
+                    <DaySection
+                      title="Undated flights"
+                      meta="No departure date yet"
+                      note="Flights still to be scheduled. Edit one to add a planned date or its times."
+                    >
                       {timeline(undatedFlights, false)}
                     </DaySection>
                   ) : null}
                   {all && undated.length ? (
-                    <DaySection title="Undated" meta="No date yet" note="These events have no date. Edit one to place it on a day.">
+                    <DaySection
+                      title="Undated"
+                      meta="No date yet"
+                      note="These events have no date. Edit one to place it on a day."
+                    >
                       {timeline(undated, false)}
                     </DaySection>
                   ) : null}
-                  {canEdit && recentlyDeleted.length ? <RecentlyDeleted items={recentlyDeleted} onRestore={restoreEvent} /> : null}
+                  {canEdit && recentlyDeleted.length ? (
+                    <RecentlyDeleted items={recentlyDeleted} onRestore={restoreEvent} />
+                  ) : null}
                 </div>
-                <CostsSection data={data} canManage={canManage} onSetBudget={() => panels.openTrip("budget", "[data-set-budget]")} />
+                <CostsSection
+                  data={data}
+                  canManage={canManage}
+                  onSetBudget={() => panels.openTrip("budget", "[data-set-budget]")}
+                />
               </div>
               <MapPanel key={day} day={day} stops={stops} focus={mapFocus} onPin={openPin} mapsKey={mapsKey} />
             </div>
@@ -373,7 +453,10 @@ export function TripPage({ data, initialDay, initialView, mapsKey, canEmail, pla
           onCreated={(saved) => {
             panels.created(saved);
             router.refresh();
-            toast({ message: `Event added${saved.coordinates?.source === "map_link" ? " and pinned on the map" : saved.mapUrl && !saved.coordinates ? ". The map link has no coordinates the app can read, so it is not on the map" : ""}.`, quiet: true });
+            toast({
+              message: `Event added${saved.coordinates?.source === "map_link" ? " and pinned on the map" : saved.mapUrl && !saved.coordinates ? ". The map link has no coordinates the app can read, so it is not on the map" : ""}.`,
+              quiet: true,
+            });
           }}
           onNotesSaved={(saved) => {
             panels.acceptSaved(saved);
@@ -385,7 +468,15 @@ export function TripPage({ data, initialDay, initialView, mapsKey, canEmail, pla
         />
       ) : null}
       {panels.panel?.kind === "share" && canManage ? (
-        <ShareDialog trip={trip} canEmail={canEmail} open={panels.panel.open} triggerSelector={panels.panel.trigger} guardRef={panels.guard} onClose={() => void panels.close()} onExited={panels.exited} />
+        <ShareDialog
+          trip={trip}
+          canEmail={canEmail}
+          open={panels.panel.open}
+          triggerSelector={panels.panel.trigger}
+          guardRef={panels.guard}
+          onClose={() => void panels.close()}
+          onExited={panels.exited}
+        />
       ) : null}
       {panels.panel?.kind === "trip" && canManage ? (
         <TripDetails

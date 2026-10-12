@@ -48,7 +48,18 @@ type Props = {
  * the foot and asks for the trip's name. A new trip uses the same layout with every section open and one Create trip
  * button.
  */
-export function TripDetails({ trip, itemDates = [], recentCurrencies, open, focus = "details", triggerSelector, guardRef, onClose, onCreated, onExited }: Props) {
+export function TripDetails({
+  trip,
+  itemDates = [],
+  recentCurrencies,
+  open,
+  focus = "details",
+  triggerSelector,
+  guardRef,
+  onClose,
+  onCreated,
+  onExited,
+}: Props) {
   const ref = useRef<HTMLElement>(null);
   const formId = useId();
   const titleId = useId();
@@ -84,7 +95,10 @@ export function TripDetails({ trip, itemDates = [], recentCurrencies, open, focu
   // unsaved is asked about.
   async function requestClose() {
     if (busy || leaving.current) return;
-    if (discard) { setDiscard(null); return; }
+    if (discard) {
+      setDiscard(null);
+      return;
+    }
     leaving.current = true;
     if (edits.busy()) {
       setWaiting(true);
@@ -96,8 +110,31 @@ export function TripDetails({ trip, itemDates = [], recentCurrencies, open, focu
     else onClose();
   }
 
-  const notice = waiting ? <p className={styles.waiting} role="status">Saving…</p> : discard ? (
-    <PanelNotice actions={<><Button data-discard-keep variant="quiet" onClick={() => setDiscard(null)}>Keep editing</Button><Button variant="danger" onClick={() => { const go = discard; setDiscard(null); newDirty.current = false; go(); }}>Discard changes</Button></>}>
+  const notice = waiting ? (
+    <p className={styles.waiting} role="status">
+      Saving…
+    </p>
+  ) : discard ? (
+    <PanelNotice
+      actions={
+        <>
+          <Button data-discard-keep variant="quiet" onClick={() => setDiscard(null)}>
+            Keep editing
+          </Button>
+          <Button
+            variant="danger"
+            onClick={() => {
+              const go = discard;
+              setDiscard(null);
+              newDirty.current = false;
+              go();
+            }}
+          >
+            Discard changes
+          </Button>
+        </>
+      }
+    >
       You have unsaved changes. Discard them?
     </PanelNotice>
   ) : null;
@@ -118,55 +155,93 @@ export function TripDetails({ trip, itemDates = [], recentCurrencies, open, focu
         notices={notice}
         footer={
           <>
-            <Button variant="quiet" onClick={() => void requestClose()} disabled={busy}>Cancel</Button>
-            <Button variant="fill" type="submit" form={formId} disabled={busy}>{busy ? "Creating…" : "Create trip"}</Button>
+            <Button variant="quiet" onClick={() => void requestClose()} disabled={busy}>
+              Cancel
+            </Button>
+            <Button variant="fill" type="submit" form={formId} disabled={busy}>
+              {busy ? "Creating…" : "Create trip"}
+            </Button>
           </>
         }
       >
-        <NewTrip formId={formId} recentCurrencies={recentCurrencies} onDirty={(dirty) => { newDirty.current = dirty; }} onBusy={setBusy} onCreated={onCreated} />
+        <NewTrip
+          formId={formId}
+          recentCurrencies={recentCurrencies}
+          onDirty={(dirty) => {
+            newDirty.current = dirty;
+          }}
+          onBusy={setBusy}
+          onCreated={onCreated}
+        />
       </SidePanel>
     );
   }
 
   return (
     <PanelEdits.Provider value={edits}>
-    <SidePanel
-      open={open}
-      onClose={() => void requestClose()}
-      onExited={onExited}
-      labelledBy={titleId}
-      closeLabel="Close trip details"
-      triggerSelector={triggerSelector}
-      initialFocus={focus === "budget" ? () => ref.current?.querySelector<HTMLElement>("#td-budget") ?? null : focus === "globe" ? () => ref.current?.querySelector<HTMLElement>("#td-place") ?? null : undefined}
-      panelRef={ref}
-      bar={<span className={styles.barTitle}>Trip details</span>}
-      notices={notice}
-    >
-      <header className={styles.head}>
-        <p className={styles.eyebrow}>Trip</p>
-        <TripTitleField tripId={trip.id} title={trip.title} canEdit as="h2" headingId={titleId} className={styles.title} />
-        <DestinationField trip={trip} />
-      </header>
+      <SidePanel
+        open={open}
+        onClose={() => void requestClose()}
+        onExited={onExited}
+        labelledBy={titleId}
+        closeLabel="Close trip details"
+        triggerSelector={triggerSelector}
+        initialFocus={
+          focus === "budget"
+            ? () => ref.current?.querySelector<HTMLElement>("#td-budget") ?? null
+            : focus === "globe"
+              ? () => ref.current?.querySelector<HTMLElement>("#td-place") ?? null
+              : undefined
+        }
+        panelRef={ref}
+        bar={<span className={styles.barTitle}>Trip details</span>}
+        notices={notice}
+      >
+        <header className={styles.head}>
+          <p className={styles.eyebrow}>Trip</p>
+          <TripTitleField
+            tripId={trip.id}
+            title={trip.title}
+            canEdit
+            as="h2"
+            headingId={titleId}
+            className={styles.title}
+          />
+          <DestinationField trip={trip} />
+        </header>
 
-      <DatesSection tripId={trip.id} dates={trip} dayCount={trip.dayCount} itemDates={itemDates} />
-      <ZoneSection tripId={trip.id} zone={trip.timeZone} version={trip.version} />
+        <DatesSection tripId={trip.id} dates={trip} dayCount={trip.dayCount} itemDates={itemDates} />
+        <ZoneSection tripId={trip.id} zone={trip.timeZone} version={trip.version} />
 
-      <SectionFrame title="Budget">
-        <BudgetField trip={trip} recentCurrencies={recentCurrencies} startOpen={focus === "budget"} />
-        <p className="note">Planned prices are compared with the budget only in its currency; other currencies are never converted.</p>
-      </SectionFrame>
+        <SectionFrame title="Budget">
+          <BudgetField trip={trip} recentCurrencies={recentCurrencies} startOpen={focus === "budget"} />
+          <p className="note">
+            Planned prices are compared with the budget only in its currency; other currencies are never converted.
+          </p>
+        </SectionFrame>
 
-      <GlobePoint tripId={trip.id} point={trip.atlasLocation} setByYou={trip.primaryOwner} startOpen={focus === "globe"} />
-      <CoverSection trip={trip} />
+        <GlobePoint
+          tripId={trip.id}
+          point={trip.atlasLocation}
+          setByYou={trip.primaryOwner}
+          startOpen={focus === "globe"}
+        />
+        <CoverSection trip={trip} />
 
-      <section className={styles.danger} aria-labelledby={`${titleId}-danger`}>
-        <h3 id={`${titleId}-danger`}>Delete this trip</h3>
-        <p className="note">Removes the trip, its events and booking list, and revokes every invitation. This cannot be undone.</p>
-        <div><Button variant="danger" data-delete-trip onClick={() => setDeleting(true)}>Delete trip…</Button></div>
-      </section>
+        <section className={styles.danger} aria-labelledby={`${titleId}-danger`}>
+          <h3 id={`${titleId}-danger`}>Delete this trip</h3>
+          <p className="note">
+            Removes the trip, its events and booking list, and revokes every invitation. This cannot be undone.
+          </p>
+          <div>
+            <Button variant="danger" data-delete-trip onClick={() => setDeleting(true)}>
+              Delete trip…
+            </Button>
+          </div>
+        </section>
 
-      {deleting ? <DeleteTripDialog trip={trip} onCancel={() => setDeleting(false)} /> : null}
-    </SidePanel>
+        {deleting ? <DeleteTripDialog trip={trip} onCancel={() => setDeleting(false)} /> : null}
+      </SidePanel>
     </PanelEdits.Provider>
   );
 }
@@ -180,7 +255,13 @@ function DestinationField({ trip }: { trip: Trip }) {
       const r = await saveTripFields(trip.id, { destination: next }, { destination: start });
       if (!r.ok) return tripFailure(r);
       router.refresh();
-      return { ok: true, note: trip.atlasLocation?.source === "owner" ? "Saved. The globe point was set by hand, so check it below." : undefined };
+      return {
+        ok: true,
+        note:
+          trip.atlasLocation?.source === "owner"
+            ? "Saved. The globe point was set by hand, so check it below."
+            : undefined,
+      };
     },
   });
   return (
@@ -195,8 +276,22 @@ function DestinationField({ trip }: { trip: Trip }) {
       onCancel={field.cancel}
       status={field.status}
       controls={({ describedBy }) => (
-        <Field label="Main destination" htmlFor="td-destination" error={field.error("destination")} errorId="td-destination-err">
-          <DestinationInput id="td-destination" value={field.draft} onChange={field.setDraft} onPick={(p) => field.setDraft(p.label)} invalid={!!field.error("destination")} describedBy={[field.error("destination") ? "td-destination-err" : null, describedBy].filter(Boolean).join(" ")} />
+        <Field
+          label="Main destination"
+          htmlFor="td-destination"
+          error={field.error("destination")}
+          errorId="td-destination-err"
+        >
+          <DestinationInput
+            id="td-destination"
+            value={field.draft}
+            onChange={field.setDraft}
+            onPick={(p) => field.setDraft(p.label)}
+            invalid={!!field.error("destination")}
+            describedBy={[field.error("destination") ? "td-destination-err" : null, describedBy]
+              .filter(Boolean)
+              .join(" ")}
+          />
         </Field>
       )}
     >
@@ -206,13 +301,25 @@ function DestinationField({ trip }: { trip: Trip }) {
 }
 
 /** The optional budget (BUDGET-2), edited in place; an empty amount removes it. */
-function BudgetField({ trip, recentCurrencies, startOpen }: { trip: Trip; recentCurrencies: string[]; startOpen: boolean }) {
+function BudgetField({
+  trip,
+  recentCurrencies,
+  startOpen,
+}: {
+  trip: Trip;
+  recentCurrencies: string[];
+  startOpen: boolean;
+}) {
   const router = useRouter();
   const field = useInlineField({
     initiallyOpen: startOpen,
-    read: () => ({ amount: trip.budget?.amount ?? "", currency: trip.budget?.currency ?? defaultCurrency(recentCurrencies) }),
+    read: () => ({
+      amount: trip.budget?.amount ?? "",
+      currency: trip.budget?.currency ?? defaultCurrency(recentCurrencies),
+    }),
     save: async (next, start) => {
-      const money = (d: { amount: string; currency: string }): MoneyDTO | null => (d.amount.trim() ? { amount: d.amount.trim(), currency: d.currency } : null);
+      const money = (d: { amount: string; currency: string }): MoneyDTO | null =>
+        d.amount.trim() ? { amount: d.amount.trim(), currency: d.currency } : null;
       const r = await saveTripFields(trip.id, { budget: money(next) }, { budget: money(start) });
       if (!r.ok) return tripFailure(r);
       router.refresh();

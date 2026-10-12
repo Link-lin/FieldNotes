@@ -27,7 +27,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     const had = box.current?.contains(document.activeElement);
     setToast((cur) => {
       if (refocus && had) {
-        const next = (cur?.afterFocus && document.querySelector<HTMLElement>(cur.afterFocus)) || document.querySelector<HTMLElement>("h1[tabindex]");
+        const next =
+          (cur?.afterFocus && document.querySelector<HTMLElement>(cur.afterFocus)) ||
+          document.querySelector<HTMLElement>("h1[tabindex]");
         requestAnimationFrame(() => next?.focus());
       }
       return null;
@@ -39,7 +41,8 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       const schedule = (delay: number) => {
         if (timer.current) clearTimeout(timer.current);
         timer.current = setTimeout(() => {
-          if (box.current && (box.current.matches(":hover") || box.current.contains(document.activeElement))) schedule(1500);
+          if (box.current && (box.current.matches(":hover") || box.current.contains(document.activeElement)))
+            schedule(1500);
           else hide(true);
         }, delay);
       };
@@ -48,7 +51,10 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     [hide],
   );
 
-  const show = useCallback((t: ToastSpec) => setToast((cur) => (t.quiet && cur?.actionLabel ? cur : { ...t, key: Date.now() })), []);
+  const show = useCallback(
+    (t: ToastSpec) => setToast((cur) => (t.quiet && cur?.actionLabel ? cur : { ...t, key: Date.now() })),
+    [],
+  );
 
   useEffect(() => {
     if (!toast) return;
@@ -62,7 +68,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastContext.Provider value={show}>
       {children}
-      <div aria-live="polite" role="status" className="visually-hidden">{toast?.message}</div>
+      <div aria-live="polite" role="status" className="visually-hidden">
+        {toast?.message}
+      </div>
       {toast ? (
         <div
           className={styles.toast}

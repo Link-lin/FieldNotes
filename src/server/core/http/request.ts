@@ -7,7 +7,8 @@ import { HttpError, invalid } from "./errors";
 /** CSRF defense for every state-changing request: Origin must equal the canonical origin. */
 export function assertSameOrigin(req: Request): void {
   const origin = req.headers.get("origin");
-  if (!origin || origin !== appOrigin()) throw new HttpError(403, "bad_origin", "This request did not come from the app.");
+  if (!origin || origin !== appOrigin())
+    throw new HttpError(403, "bad_origin", "This request did not come from the app.");
 }
 
 export const MAX_BODY_BYTES = 1024 * 1024;

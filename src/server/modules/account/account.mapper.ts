@@ -4,7 +4,15 @@ import type { OwnedTripRow } from "./account.repository";
 import type { Person } from "./account.rules";
 
 /** A trip the person owns, with who else is on it and who would keep owning it, for the account-deletion choice. */
-export function ownedTripDto({ trip, people, otherOwners }: { trip: OwnedTripRow; people: Person[]; otherOwners: string[] }): OwnedTripDTO {
+export function ownedTripDto({
+  trip,
+  people,
+  otherOwners,
+}: {
+  trip: OwnedTripRow;
+  people: Person[];
+  otherOwners: string[];
+}): OwnedTripDTO {
   return {
     id: trip.id,
     title: trip.title,

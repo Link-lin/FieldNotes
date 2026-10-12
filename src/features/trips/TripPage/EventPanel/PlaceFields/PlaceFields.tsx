@@ -25,7 +25,17 @@ type Props = {
 };
 
 /** Where an event is (MAP-1, MAP-2): its place name, a lookup of that name, and the map link or coordinates that pin it. */
-export function PlaceFields({ value: v, onChange, error, placeLookup, isFlight, tripDestination, links, autoPin, disabled = false }: Props) {
+export function PlaceFields({
+  value: v,
+  onChange,
+  error,
+  placeLookup,
+  isFlight,
+  tripDestination,
+  links,
+  autoPin,
+  disabled = false,
+}: Props) {
   const [finding, setFinding] = useState(false);
   const [matches, setMatches] = useState<ImportLocationCandidate[]>([]);
   const [query, setQuery] = useState("");
@@ -33,7 +43,12 @@ export function PlaceFields({ value: v, onChange, error, placeLookup, isFlight, 
   const [message, setMessage] = useState<string | null>(null);
   const [lookupUrl, setLookupUrl] = useState<string | null>(null);
   const request = useRef(0);
-  useEffect(() => () => { request.current++; }, []);
+  useEffect(
+    () => () => {
+      request.current++;
+    },
+    [],
+  );
 
   async function findPlace() {
     const location = v.location.trim();
@@ -42,10 +57,16 @@ export function PlaceFields({ value: v, onChange, error, placeLookup, isFlight, 
     setFinding(true);
     setMessage(null);
     setMatches([]);
-    const result = await api<ImportLocationResult>("POST", "/api/places/resolve", { location, destination: tripDestination });
+    const result = await api<ImportLocationResult>("POST", "/api/places/resolve", {
+      location,
+      destination: tripDestination,
+    });
     if (mine !== request.current) return;
     setFinding(false);
-    if (!result.ok) { setMessage(result.message); return; }
+    if (!result.ok) {
+      setMessage(result.message);
+      return;
+    }
     setQuery(location);
     setMatches(result.data.candidates);
     setChosen(result.data.suggestedIndex ?? null);
@@ -66,11 +87,21 @@ export function PlaceFields({ value: v, onChange, error, placeLookup, isFlight, 
         ? `Pins the stop at ${pin[0].toFixed(5)}, ${pin[1].toFixed(5)}.`
         : "This link has no coordinates the app can read, so the event won't be on the day map. Try Find place on map above.";
   const imported = links.filter((l) => providerLabel(l.url) && l.url.startsWith("https://") && l.url !== v.mapUrl);
-  const match = chosen === null ? null : matches[chosen] ?? null;
+  const match = chosen === null ? null : (matches[chosen] ?? null);
 
   return (
     <FieldGrid>
-      <Field label={<>Place <span className="muted">optional</span></>} htmlFor={fieldId("location")} wide error={error("location")} errorId={errorId("location")}>
+      <Field
+        label={
+          <>
+            Place <span className="muted">optional</span>
+          </>
+        }
+        htmlFor={fieldId("location")}
+        wide
+        error={error("location")}
+        errorId={errorId("location")}
+      >
         <input
           id={fieldId("location")}
           value={v.location}
@@ -90,24 +121,80 @@ export function PlaceFields({ value: v, onChange, error, placeLookup, isFlight, 
       </Field>
       {!isFlight && placeLookup && v.location.trim() ? (
         <div className={styles.finder}>
-          <Button variant="quiet" onClick={findPlace} disabled={finding || disabled}>{finding ? "Finding place…" : "Find place on map"}</Button>
-          <span className="note">Sends this place and the trip destination to Geoapify. You choose the match before saving.</span>
-          {message ? <span className="note" role="status">{message}</span> : null}
+          <Button variant="quiet" onClick={findPlace} disabled={finding || disabled}>
+            {finding ? "Finding place…" : "Find place on map"}
+          </Button>
+          <span className="note">
+            Sends this place and the trip destination to Geoapify. You choose the match before saving.
+          </span>
+          {message ? (
+            <span className="note" role="status">
+              {message}
+            </span>
+          ) : null}
           {matches.length && query === v.location.trim() ? (
             <div className={styles.choices}>
               <label htmlFor="ev-place-match">Matching places</label>
-              <select id="ev-place-match" value={chosen ?? ""} onChange={(e) => setChosen(e.target.value === "" ? null : Number(e.target.value))}>
+              <select
+                id="ev-place-match"
+                value={chosen ?? ""}
+                onChange={(e) => setChosen(e.target.value === "" ? null : Number(e.target.value))}
+              >
                 <option value="">Choose a place</option>
-                {matches.map((m, index) => <option key={`${m.latitude}-${m.longitude}-${index}`} value={index}>{m.label}</option>)}
+                {matches.map((m, index) => (
+                  <option key={`${m.latitude}-${m.longitude}-${index}`} value={index}>
+                    {m.label}
+                  </option>
+                ))}
               </select>
-              <Button variant="outline" disabled={!match} onClick={() => { if (match) { const url = openStreetMapPointUrl(match.latitude, match.longitude); setLookupUrl(url); onChange({ mapUrl: url }); } }}>Use this location</Button>
-              {match ? <a href={openStreetMapPointUrl(match.latitude, match.longitude)} target="_blank" rel="noopener noreferrer">View this match on a map ↗</a> : null}
-              <span className="note"><a href="https://www.geoapify.com/" target="_blank" rel="noopener noreferrer">Powered by Geoapify</a> · <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap contributors</a></span>
+              <Button
+                variant="outline"
+                disabled={!match}
+                onClick={() => {
+                  if (match) {
+                    const url = openStreetMapPointUrl(match.latitude, match.longitude);
+                    setLookupUrl(url);
+                    onChange({ mapUrl: url });
+                  }
+                }}
+              >
+                Use this location
+              </Button>
+              {match ? (
+                <a
+                  href={openStreetMapPointUrl(match.latitude, match.longitude)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  View this match on a map ↗
+                </a>
+              ) : null}
+              <span className="note">
+                <a href="https://www.geoapify.com/" target="_blank" rel="noopener noreferrer">
+                  Powered by Geoapify
+                </a>{" "}
+                ·{" "}
+                <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">
+                  © OpenStreetMap contributors
+                </a>
+              </span>
             </div>
           ) : null}
         </div>
       ) : null}
-      <Field label={<>Map link or coordinates <span className="muted">optional</span></>} htmlFor={fieldId("mapUrl")} wide hint={hint} hintId={`${fieldId("mapUrl")}-hint`} error={error("mapUrl")} errorId={errorId("mapUrl")}>
+      <Field
+        label={
+          <>
+            Map link or coordinates <span className="muted">optional</span>
+          </>
+        }
+        htmlFor={fieldId("mapUrl")}
+        wide
+        hint={hint}
+        hintId={`${fieldId("mapUrl")}-hint`}
+        error={error("mapUrl")}
+        errorId={errorId("mapUrl")}
+      >
         <input
           id={fieldId("mapUrl")}
           inputMode="url"
@@ -115,7 +202,10 @@ export function PlaceFields({ value: v, onChange, error, placeLookup, isFlight, 
           spellCheck={false}
           value={v.mapUrl}
           placeholder="Choose a place above or paste a map link"
-          onChange={(e) => { setLookupUrl(null); onChange({ mapUrl: e.target.value }); }}
+          onChange={(e) => {
+            setLookupUrl(null);
+            onChange({ mapUrl: e.target.value });
+          }}
           aria-invalid={error("mapUrl") ? true : undefined}
           aria-describedby={error("mapUrl") ? errorId("mapUrl") : `${fieldId("mapUrl")}-hint`}
         />
@@ -125,7 +215,9 @@ export function PlaceFields({ value: v, onChange, error, placeLookup, isFlight, 
           <span className="muted">Links on this event:</span>
           <div className="cluster">
             {imported.map((l, i) => (
-              <Button key={i} variant="quiet" onClick={() => onChange({ mapUrl: l.url })}>Use {providerLabel(l.url)} link as map link</Button>
+              <Button key={i} variant="quiet" onClick={() => onChange({ mapUrl: l.url })}>
+                Use {providerLabel(l.url)} link as map link
+              </Button>
             ))}
           </div>
         </div>

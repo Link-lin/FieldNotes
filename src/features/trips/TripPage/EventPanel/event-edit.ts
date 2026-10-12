@@ -34,17 +34,33 @@ export const whenFields = (d: WhenDraft) => ({
   durationMinutes: d.duration ? Number(d.duration) : null,
 });
 
-const endpointOf = (e?: { airportCode: string | null; localDateTime: string | null; timeZone: string | null; timeDisambiguation: "earlier" | "later" | null }): Endpoint => ({
+const endpointOf = (e?: {
+  airportCode: string | null;
+  localDateTime: string | null;
+  timeZone: string | null;
+  timeDisambiguation: "earlier" | "later" | null;
+}): Endpoint => ({
   code: e?.airportCode ?? "",
   dt: e?.localDateTime ?? "",
   zone: e?.timeZone ?? "",
   choice: e?.timeDisambiguation ?? "",
 });
-const endpointFields = (x: Endpoint) => ({ airportCode: x.code.trim() || null, localDateTime: x.dt || null, timeZone: x.zone || null, timeDisambiguation: x.dt && x.choice ? x.choice : null });
+const endpointFields = (x: Endpoint) => ({
+  airportCode: x.code.trim() || null,
+  localDateTime: x.dt || null,
+  timeZone: x.zone || null,
+  timeDisambiguation: x.dt && x.choice ? x.choice : null,
+});
 
 export const flightDraftOf = (item: PlanItemDTO | null, defaultDate = ""): FlightDraft => {
   const f = item?.flightDetails;
-  return { airline: f?.airline ?? "", flightNumber: f?.flightNumber ?? "", plannedDate: f ? (f.plannedDepartureDate ?? "") : defaultDate, dep: endpointOf(f?.departure), arr: endpointOf(f?.arrival) };
+  return {
+    airline: f?.airline ?? "",
+    flightNumber: f?.flightNumber ?? "",
+    plannedDate: f ? (f.plannedDepartureDate ?? "") : defaultDate,
+    dep: endpointOf(f?.departure),
+    arr: endpointOf(f?.arrival),
+  };
 };
 export const flightFields = (d: FlightDraft) => ({
   plannedDepartureDate: d.dep.dt ? null : d.plannedDate || null,
@@ -54,8 +70,14 @@ export const flightFields = (d: FlightDraft) => ({
   arrival: endpointFields(d.arr),
 });
 
-export const placeDraftOf = (item: PlanItemDTO | null): PlaceDraft => ({ location: item?.location ?? "", mapUrl: item?.mapUrl ?? "" });
-export const placeFields = (d: PlaceDraft) => ({ location: d.location.trim() || null, mapUrl: d.mapUrl.trim() || null });
+export const placeDraftOf = (item: PlanItemDTO | null): PlaceDraft => ({
+  location: item?.location ?? "",
+  mapUrl: item?.mapUrl ?? "",
+});
+export const placeFields = (d: PlaceDraft) => ({
+  location: d.location.trim() || null,
+  mapUrl: d.mapUrl.trim() || null,
+});
 
 export const bookingDraftOf = (item: PlanItemDTO | null, type: ItemType = item?.type ?? "activity"): BookingDraft => ({
   status: item?.bookingStatus ?? (type === "flight" ? "needs_booking" : "not_required"),
@@ -66,20 +88,29 @@ export const bookingDraftOf = (item: PlanItemDTO | null, type: ItemType = item?.
  * booked only with both airports, local times and zones. An event becoming a flight starts without them, so Nothing to
  * book and Booked both become Needs booking.
  */
-export function bookingForType(status: PlanItemDTO["bookingStatus"], toFlight: boolean, flightReady = false): PlanItemDTO["bookingStatus"] {
+export function bookingForType(
+  status: PlanItemDTO["bookingStatus"],
+  toFlight: boolean,
+  flightReady = false,
+): PlanItemDTO["bookingStatus"] {
   if (!toFlight) return status;
   if (status === "not_required") return "needs_booking";
   if (status === "booked" && !flightReady) return "needs_booking";
   return status;
 }
-export const bookingFields = (d: BookingDraft) => ({ bookingStatus: d.status, bookingDueDate: d.status === "needs_booking" && d.due ? d.due : null });
+export const bookingFields = (d: BookingDraft) => ({
+  bookingStatus: d.status,
+  bookingDueDate: d.status === "needs_booking" && d.due ? d.due : null,
+});
 
 export const priceDraftOf = (item: PlanItemDTO | null, defaultCurrency: string): PriceDraft => ({
   amount: item?.plannedPrice?.amount ?? "",
   currency: item?.plannedPrice?.currency ?? defaultCurrency,
   label: item?.plannedPrice?.label ?? "estimate",
 });
-export const priceFields = (d: PriceDraft) => ({ plannedPrice: d.amount.trim() ? { amount: d.amount.trim(), currency: d.currency, label: d.label } : null });
+export const priceFields = (d: PriceDraft) => ({
+  plannedPrice: d.amount.trim() ? { amount: d.amount.trim(), currency: d.currency, label: d.label } : null,
+});
 
 /** The fields whose value differs from where the edit began. */
 export function changedFields(next: Record<string, unknown>, start: Record<string, unknown>): Record<string, unknown> {
@@ -90,14 +121,28 @@ export function changedFields(next: Record<string, unknown>, start: Record<strin
 export const fieldId = (path: string) => `ev-${path.replace(/[^a-zA-Z0-9]/g, "-")}`;
 export const errorId = (path: string) => `${fieldId(path)}-err`;
 
-export type EventSaveResult = { ok: true; item: PlanItemDTO } | { ok: false; status: number; code: string; message: string; fields: FieldError[] };
+export type EventSaveResult =
+  { ok: true; item: PlanItemDTO } | { ok: false; status: number; code: string; message: string; fields: FieldError[] };
 
 /** Saves the changed fields of an event (TRIP-10), each with the value it had when the edit began. */
-export async function saveEventFields(tripId: string, itemId: string, next: Record<string, unknown>, start: Record<string, unknown>, opts: { confirmTypeChange?: boolean; confirmPrice?: boolean } = {}): Promise<EventSaveResult> {
+export async function saveEventFields(
+  tripId: string,
+  itemId: string,
+  next: Record<string, unknown>,
+  start: Record<string, unknown>,
+  opts: { confirmTypeChange?: boolean; confirmPrice?: boolean } = {},
+): Promise<EventSaveResult> {
   const changes = changedFields(next, start);
-  if (!Object.keys(changes).length && !opts.confirmPrice) return { ok: false, status: 0, code: "unchanged", message: "Nothing changed.", fields: [] };
+  if (!Object.keys(changes).length && !opts.confirmPrice)
+    return { ok: false, status: 0, code: "unchanged", message: "Nothing changed.", fields: [] };
   const base = Object.fromEntries(Object.keys(changes).map((k) => [k, start[k] ?? null]));
-  const body = Object.keys(changes).length ? { changes, base, ...opts } : { changes: { plannedPrice: start.plannedPrice ?? null }, base: { plannedPrice: start.plannedPrice ?? null }, ...opts };
+  const body = Object.keys(changes).length
+    ? { changes, base, ...opts }
+    : {
+        changes: { plannedPrice: start.plannedPrice ?? null },
+        base: { plannedPrice: start.plannedPrice ?? null },
+        ...opts,
+      };
   const r = await api<PlanItemDTO>("PATCH", `/api/trips/${tripId}/items/${itemId}/fields`, body);
   return r.ok ? { ok: true, item: r.data } : r;
 }
@@ -105,7 +150,13 @@ export async function saveEventFields(tripId: string, itemId: string, next: Reco
 /** What a failed save tells the person, as a field's or section's message. */
 export function saveFailure(r: Extract<EventSaveResult, { ok: false }>): Extract<FieldSaveResult, { ok: false }> {
   if (r.code === "field_conflict") {
-    return { ok: false, conflict: true, message: "This was changed elsewhere (in another tab or window, by someone you share the trip with, or by a connected chat) while you were editing, so yours wasn't saved. Cancel to see it as it is now, then make your change again.", fields: r.fields };
+    return {
+      ok: false,
+      conflict: true,
+      message:
+        "This was changed elsewhere (in another tab or window, by someone you share the trip with, or by a connected chat) while you were editing, so yours wasn't saved. Cancel to see it as it is now, then make your change again.",
+      fields: r.fields,
+    };
   }
   return { ok: false, message: r.message, fields: r.fields };
 }

@@ -13,8 +13,16 @@ describe("external AI prompts", () => {
 
   it("includes an owner-supplied budget in a new planning prompt", () => {
     const prompt = buildImportPrompt({
-      title: "Kyoto week", destination: "Kyoto, Japan", startDate: "2027-04-14", endDate: "2027-04-18",
-      timeZone: "Asia/Tokyo", interests: "Temples", pace: "Relaxed", constraints: "", budgetAmount: "1200", budgetCurrency: "USD",
+      title: "Kyoto week",
+      destination: "Kyoto, Japan",
+      startDate: "2027-04-14",
+      endDate: "2027-04-18",
+      timeZone: "Asia/Tokyo",
+      interests: "Temples",
+      pace: "Relaxed",
+      constraints: "",
+      budgetAmount: "1200",
+      budgetCurrency: "USD",
     });
     expect(prompt).toContain("Owner-supplied budget: 1200 USD");
     expect(prompt).toContain("Trip title: Kyoto week");

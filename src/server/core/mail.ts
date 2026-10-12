@@ -17,7 +17,15 @@ const globalForMail = globalThis as unknown as { __fnMail?: { url: string; trans
 function transport(): Transporter {
   const url = process.env.SMTP_URL!.trim();
   if (globalForMail.__fnMail?.url !== url) {
-    globalForMail.__fnMail = { url, transport: nodemailer.createTransport({ url, connectionTimeout: 10_000, greetingTimeout: 10_000, socketTimeout: 20_000 }) };
+    globalForMail.__fnMail = {
+      url,
+      transport: nodemailer.createTransport({
+        url,
+        connectionTimeout: 10_000,
+        greetingTimeout: 10_000,
+        socketTimeout: 20_000,
+      }),
+    };
   }
   return globalForMail.__fnMail.transport;
 }

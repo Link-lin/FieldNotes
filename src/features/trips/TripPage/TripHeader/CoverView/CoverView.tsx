@@ -12,7 +12,9 @@ export function CoverView({ title, cover, onClose }: { title: string; cover: Tri
     <Modal title={title} subtitle="Cover" onClose={onClose} triggerSelector="[data-cover-open]">
       <TripCover cover={cover} size="full" alt={`The cover of ${title}`} className={styles.image} />
       <ModalActions>
-        <Button variant="fill" onClick={onClose}>Close</Button>
+        <Button variant="fill" onClick={onClose}>
+          Close
+        </Button>
       </ModalActions>
     </Modal>
   );

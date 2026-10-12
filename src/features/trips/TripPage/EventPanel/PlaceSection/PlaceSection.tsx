@@ -34,9 +34,11 @@ export function PlaceSection({ trip, item, canEdit, placeLookup, onSaved }: Prop
       if (!r.ok) return r;
       const before = placeFields(start);
       const after = placeFields(next);
-      if (before.mapUrl && !after.mapUrl && before.location === after.location) return { ok: true, note: "Pin removed.", undo: () => save(start, next) };
+      if (before.mapUrl && !after.mapUrl && before.location === after.location)
+        return { ok: true, note: "Pin removed.", undo: () => save(start, next) };
       // MAP-2: a new place name without a map link is looked up after saving; the pin arrives as a live update.
-      if (placeLookup && !isFlight && after.location && after.location !== before.location && !after.mapUrl) return { ok: true, note: "Saved. It will be pinned on the map if the name has one clear match." };
+      if (placeLookup && !isFlight && after.location && after.location !== before.location && !after.mapUrl)
+        return { ok: true, note: "Saved. It will be pinned on the map if the name has one clear match." };
       return { ok: true };
     },
   });
@@ -55,17 +57,31 @@ export function PlaceSection({ trip, item, canEdit, placeLookup, onSaved }: Prop
       view={
         item.location || item.mapUrl ? (
           <div className={styles.view}>
-            {item.location ? <p className={styles.place}><PinIcon />{item.location}</p> : null}
+            {item.location ? (
+              <p className={styles.place}>
+                <PinIcon />
+                {item.location}
+              </p>
+            ) : null}
             {item.coordinates?.source === "lookup" ? (
-              <p className="note">Pinned automatically from the place name{canEdit ? ". If it's the wrong place, Edit changes or removes the pin." : "."}</p>
+              <p className="note">
+                Pinned automatically from the place name
+                {canEdit ? ". If it's the wrong place, Edit changes or removes the pin." : "."}
+              </p>
             ) : !item.coordinates && !isFlight ? (
-              <p className="note">Not on the map yet{canEdit ? ". Edit to find the place or paste a map link." : "."}</p>
+              <p className="note">
+                Not on the map yet{canEdit ? ". Edit to find the place or paste a map link." : "."}
+              </p>
             ) : null}
             <div className="cluster">
               {item.mapUrl ? (
-                <ButtonLink variant="quiet" external href={item.mapUrl}>Open in {item.mapProvider ?? "map"} ↗</ButtonLink>
+                <ButtonLink variant="quiet" external href={item.mapUrl}>
+                  Open in {item.mapProvider ?? "map"} ↗
+                </ButtonLink>
               ) : item.location ? (
-                <ButtonLink variant="quiet" external href={googleSearchUrl(item.location)}>Open in Google Maps ↗</ButtonLink>
+                <ButtonLink variant="quiet" external href={googleSearchUrl(item.location)}>
+                  Open in Google Maps ↗
+                </ButtonLink>
               ) : null}
             </div>
           </div>

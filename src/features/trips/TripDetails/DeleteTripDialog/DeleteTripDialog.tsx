@@ -31,14 +31,33 @@ export function DeleteTripDialog({ trip, onCancel }: { trip: TripDetailDTO["trip
   }
 
   return (
-    <Modal title="Delete this trip?" onClose={onCancel} subtitle={<>This permanently deletes <b>{trip.title}</b>, its events and booking list, and revokes every invitation. There is no undo.</>}>
+    <Modal
+      title="Delete this trip?"
+      onClose={onCancel}
+      subtitle={
+        <>
+          This permanently deletes <b>{trip.title}</b>, its events and booking list, and revokes every invitation. There
+          is no undo.
+        </>
+      }
+    >
       <Field label="Type the trip name to confirm" htmlFor="del-trip-name">
-        <input id="del-trip-name" value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" placeholder={trip.title} />
+        <input
+          id="del-trip-name"
+          value={typed}
+          onChange={(e) => setTyped(e.target.value)}
+          autoComplete="off"
+          placeholder={trip.title}
+        />
       </Field>
       {error ? <FormError>{error}</FormError> : null}
       <ModalActions>
-        <Button variant="quiet" onClick={onCancel}>Cancel</Button>
-        <Button variant="dangerFill" disabled={typed !== trip.title || busy} onClick={doDelete}>Delete permanently</Button>
+        <Button variant="quiet" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button variant="dangerFill" disabled={typed !== trip.title || busy} onClick={doDelete}>
+          Delete permanently
+        </Button>
       </ModalActions>
     </Modal>
   );

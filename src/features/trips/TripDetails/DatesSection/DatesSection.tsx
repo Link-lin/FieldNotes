@@ -21,7 +21,12 @@ export function DatesSection({ tripId, dates, dayCount, itemDates }: Props) {
       if (!r.ok) return tripFailure(r);
       router.refresh();
       const out = newlyOutside(itemDates, start, next);
-      return { ok: true, note: out ? `Saved. ${plural(out, "event")} now ${out === 1 ? "falls" : "fall"} outside the trip dates; ${out === 1 ? "it stays" : "they stay"} on the trip.` : undefined };
+      return {
+        ok: true,
+        note: out
+          ? `Saved. ${plural(out, "event")} now ${out === 1 ? "falls" : "fall"} outside the trip dates; ${out === 1 ? "it stays" : "they stay"} on the trip.`
+          : undefined,
+      };
     },
   });
   const err = (path: string) => field.error(path);
@@ -36,7 +41,11 @@ export function DatesSection({ tripId, dates, dayCount, itemDates }: Props) {
       onCancel={field.cancel}
       onSave={() => void field.commit()}
       status={field.status}
-      view={<p>{dateRangeLabel(dates)} · {plural(dayCount, "day")}</p>}
+      view={
+        <p>
+          {dateRangeLabel(dates)} · {plural(dayCount, "day")}
+        </p>
+      }
     >
       <FieldGrid>
         <Field label="Start date" htmlFor="td-startDate" error={err("startDate")} errorId="td-startDate-err">
@@ -47,17 +56,32 @@ export function DatesSection({ tripId, dates, dayCount, itemDates }: Props) {
             onChange={(e) => {
               const startDate = e.target.value;
               // The end date follows the start date, so its picker opens on the right month.
-              field.setDraft((d) => ({ startDate, endDate: startDate && (!d.endDate || d.endDate < startDate) ? startDate : d.endDate }));
+              field.setDraft((d) => ({
+                startDate,
+                endDate: startDate && (!d.endDate || d.endDate < startDate) ? startDate : d.endDate,
+              }));
             }}
             aria-invalid={err("startDate") ? true : undefined}
             aria-describedby={err("startDate") ? "td-startDate-err" : undefined}
           />
         </Field>
         <Field label="End date" htmlFor="td-endDate" error={err("endDate")} errorId="td-endDate-err">
-          <input id="td-endDate" type="date" value={field.draft.endDate} min={field.draft.startDate || undefined} onChange={(e) => field.setDraft((d) => ({ ...d, endDate: e.target.value }))} aria-invalid={err("endDate") ? true : undefined} aria-describedby={err("endDate") ? "td-endDate-err" : undefined} />
+          <input
+            id="td-endDate"
+            type="date"
+            value={field.draft.endDate}
+            min={field.draft.startDate || undefined}
+            onChange={(e) => field.setDraft((d) => ({ ...d, endDate: e.target.value }))}
+            aria-invalid={err("endDate") ? true : undefined}
+            aria-describedby={err("endDate") ? "td-endDate-err" : undefined}
+          />
         </Field>
       </FieldGrid>
-      {out ? <p className="note" role="status">{plural(out, "event")} will fall outside these dates. They stay on the trip, marked as outside the trip dates.</p> : null}
+      {out ? (
+        <p className="note" role="status">
+          {plural(out, "event")} will fall outside these dates. They stay on the trip, marked as outside the trip dates.
+        </p>
+      ) : null}
     </EditSection>
   );
 }

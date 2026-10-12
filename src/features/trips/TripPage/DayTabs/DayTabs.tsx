@@ -22,11 +22,15 @@ export function DayTabs({ trip, days, byDate, eventCount, pinCount, selected, on
   const keys = ["all", ...days];
   const index = keys.indexOf(selected);
   const list = byDate.get(selected) ?? [];
-  const summary = selected === "all"
-    ? `${plural(eventCount, "event")}, ${plural(pinCount, "pin")}`
-    : list.length ? `${plural(list.length, "event")}, ${plural(list.filter((i) => i.coordinates).length, "pin")}` : "Nothing planned";
+  const summary =
+    selected === "all"
+      ? `${plural(eventCount, "event")}, ${plural(pinCount, "pin")}`
+      : list.length
+        ? `${plural(list.length, "event")}, ${plural(list.filter((i) => i.coordinates).length, "pin")}`
+        : "Nothing planned";
 
-  const hint = selected === "all" ? summary : `${dayTag(trip, selected)}${selected === trip.today ? " · Today" : ""} · ${summary}`;
+  const hint =
+    selected === "all" ? summary : `${dayTag(trip, selected)}${selected === trip.today ? " · Today" : ""} · ${summary}`;
 
   // Keep the chosen tab in view in the scrolling strip, gliding there unless motion is reduced.
   const strip = useRef<HTMLDivElement>(null);
@@ -68,20 +72,50 @@ export function DayTabs({ trip, days, byDate, eventCount, pinCount, selected, on
     <div className={styles.days}>
       <Field className={styles.picker} label="Day view" htmlFor="trip-day" hint={hint} hintId="trip-day-summary">
         <div className={styles.controls}>
-          <Button className={styles.step} variant="quiet" aria-label={keys[index - 1] === "all" ? "Show whole trip" : "Previous day"} disabled={index === 0} onClick={() => onSelect(keys[index - 1]!, false)}>
+          <Button
+            className={styles.step}
+            variant="quiet"
+            aria-label={keys[index - 1] === "all" ? "Show whole trip" : "Previous day"}
+            disabled={index === 0}
+            onClick={() => onSelect(keys[index - 1]!, false)}
+          >
             <span aria-hidden="true">←</span>
           </Button>
-          <select id="trip-day" value={selected} aria-controls="trip-panel" aria-describedby="trip-day-summary" onChange={(e) => onSelect(e.target.value, false)}>
+          <select
+            id="trip-day"
+            value={selected}
+            aria-controls="trip-panel"
+            aria-describedby="trip-day-summary"
+            onChange={(e) => onSelect(e.target.value, false)}
+          >
             <option value="all">Whole trip</option>
-            {days.map((d) => <option key={d} value={d}>{fmtDay(d)} · {dayTag(trip, d)}{d === trip.today ? " · Today" : ""}</option>)}
+            {days.map((d) => (
+              <option key={d} value={d}>
+                {fmtDay(d)} · {dayTag(trip, d)}
+                {d === trip.today ? " · Today" : ""}
+              </option>
+            ))}
           </select>
-          <Button className={styles.step} variant="quiet" aria-label="Next day" disabled={index === keys.length - 1} onClick={() => onSelect(keys[index + 1]!, false)}>
+          <Button
+            className={styles.step}
+            variant="quiet"
+            aria-label="Next day"
+            disabled={index === keys.length - 1}
+            onClick={() => onSelect(keys[index + 1]!, false)}
+          >
             <span aria-hidden="true">→</span>
           </Button>
         </div>
       </Field>
       <div className={styles.tabs} role="tablist" aria-label="Whole trip or one day" onKeyDown={onKeyDown} ref={strip}>
-        <Tab id="all" selected={selected === "all"} onSelect={() => onSelect("all", false)} top="Whole trip" mid="All days" bottom={`${plural(eventCount, "event")}, ${plural(pinCount, "pin")}`} />
+        <Tab
+          id="all"
+          selected={selected === "all"}
+          onSelect={() => onSelect("all", false)}
+          top="Whole trip"
+          mid="All days"
+          bottom={`${plural(eventCount, "event")}, ${plural(pinCount, "pin")}`}
+        />
         {days.map((d) => {
           const list = byDate.get(d) ?? [];
           const pins = list.filter((i) => i.coordinates).length;
@@ -92,7 +126,12 @@ export function DayTabs({ trip, days, byDate, eventCount, pinCount, selected, on
               selected={selected === d}
               outside={isOutside(trip, d)}
               onSelect={() => onSelect(d, false)}
-              top={<>{dayTag(trip, d)}{d === trip.today ? <span className={styles.today}> · Today</span> : null}</>}
+              top={
+                <>
+                  {dayTag(trip, d)}
+                  {d === trip.today ? <span className={styles.today}> · Today</span> : null}
+                </>
+              }
               mid={fmtDay(d)}
               bottom={list.length ? `${plural(list.length, "event")}, ${plural(pins, "pin")}` : "Nothing planned"}
             />
@@ -103,9 +142,36 @@ export function DayTabs({ trip, days, byDate, eventCount, pinCount, selected, on
   );
 }
 
-function Tab({ id, selected, outside = false, onSelect, top, mid, bottom }: { id: string; selected: boolean; outside?: boolean; onSelect: () => void; top: React.ReactNode; mid: string; bottom: string }) {
+function Tab({
+  id,
+  selected,
+  outside = false,
+  onSelect,
+  top,
+  mid,
+  bottom,
+}: {
+  id: string;
+  selected: boolean;
+  outside?: boolean;
+  onSelect: () => void;
+  top: React.ReactNode;
+  mid: string;
+  bottom: string;
+}) {
   return (
-    <button type="button" role="tab" id={`tab-${id}`} className={styles.tab} aria-selected={selected} aria-controls="trip-panel" tabIndex={selected ? 0 : -1} data-outside={outside} data-hl-day={id === "all" ? undefined : id} onClick={onSelect}>
+    <button
+      type="button"
+      role="tab"
+      id={`tab-${id}`}
+      className={styles.tab}
+      aria-selected={selected}
+      aria-controls="trip-panel"
+      tabIndex={selected ? 0 : -1}
+      data-outside={outside}
+      data-hl-day={id === "all" ? undefined : id}
+      onClick={onSelect}
+    >
       <span className={cx("mono", styles.top)}>{top}</span>
       <b>{mid}</b>
       <small>{bottom}</small>

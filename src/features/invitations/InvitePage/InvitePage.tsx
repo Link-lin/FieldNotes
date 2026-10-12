@@ -70,11 +70,21 @@ export function InvitePage({ signedIn, signIn, signInApple, signInWeChat, wechat
 
   const action = state === "inviteWrongAccount" ? switchAccount : signIn;
   return (
-    <SignInCard state={state} action={action} appleAction={signInApple} wechatAction={signInWeChat} wechatFirst={wechatFirst}>
+    <SignInCard
+      state={state}
+      action={action}
+      appleAction={signInApple}
+      wechatAction={signInWeChat}
+      wechatFirst={wechatFirst}
+    >
       {state === "inviteError" ? (
-        <Button block onClick={() => void run()}>Try again</Button>
+        <Button block onClick={() => void run()}>
+          Try again
+        </Button>
       ) : state === "inviteInvalid" ? (
-        <ButtonLink block href="/">Go to Field Notes</ButtonLink>
+        <ButtonLink block href="/">
+          Go to Field Notes
+        </ButtonLink>
       ) : null}
     </SignInCard>
   );

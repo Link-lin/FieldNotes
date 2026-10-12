@@ -4,16 +4,44 @@ import { contentChanged } from "@/server/modules/items/items.rules";
 
 const row = (patch: Partial<PlanItemRow> = {}) =>
   ({
-    id: "i1", trip_id: "t1", version: 3, created_at: new Date("2026-10-01T00:00:00Z"), updated_at: new Date("2026-10-02T00:00:00Z"), deleted_at: null,
-    source: "ai", reviewed_at: null, person_edited_at: null, is_copy: false, type: "activity", title: "Castle", location: "Lisbon", notes: null,
-    links: [{ url: "https://example.com", label: "Site" }], map_url: null, latitude: null, longitude: null, pin_source: null,
-    booking_status: "not_required", booking_due_date: null, planned_amount: "40.00", planned_currency: "EUR", price_label: "estimate", price_source: "ai",
-    local_date: "2026-11-02", local_time: "09:00:00", ...patch,
+    id: "i1",
+    trip_id: "t1",
+    version: 3,
+    created_at: new Date("2026-10-01T00:00:00Z"),
+    updated_at: new Date("2026-10-02T00:00:00Z"),
+    deleted_at: null,
+    source: "ai",
+    reviewed_at: null,
+    person_edited_at: null,
+    is_copy: false,
+    type: "activity",
+    title: "Castle",
+    location: "Lisbon",
+    notes: null,
+    links: [{ url: "https://example.com", label: "Site" }],
+    map_url: null,
+    latitude: null,
+    longitude: null,
+    pin_source: null,
+    booking_status: "not_required",
+    booking_due_date: null,
+    planned_amount: "40.00",
+    planned_currency: "EUR",
+    price_label: "estimate",
+    price_source: "ai",
+    local_date: "2026-11-02",
+    local_time: "09:00:00",
+    ...patch,
   }) as PlanItemRow;
 
 describe("contentChanged", () => {
   it("ignores a write that only moved the version and timestamps", () => {
-    expect(contentChanged(row(), row({ version: 4, updated_at: new Date("2026-10-05T00:00:00Z"), person_edited_at: new Date() }))).toBe(false);
+    expect(
+      contentChanged(
+        row(),
+        row({ version: 4, updated_at: new Date("2026-10-05T00:00:00Z"), person_edited_at: new Date() }),
+      ),
+    ).toBe(false);
   });
 
   it("sees a changed value, link or provenance", () => {

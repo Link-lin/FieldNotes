@@ -23,7 +23,12 @@ export function itemDto(row: PlanItemRow, tripZone: string, today: string): Plan
     const dep = ts(row.departure_local_datetime);
     timelineDate = dep ? dep.slice(0, 10) : row.planned_departure_date;
     if (dep && row.departure_time_zone) {
-      const r = resolveLocal(dep.slice(0, 10), dep.slice(11, 16), row.departure_time_zone, row.departure_disambiguation);
+      const r = resolveLocal(
+        dep.slice(0, 10),
+        dep.slice(11, 16),
+        row.departure_time_zone,
+        row.departure_disambiguation,
+      );
       if (r.ok) sortInstant = new Date(r.epochMs).toISOString();
     }
   } else {
@@ -36,7 +41,11 @@ export function itemDto(row: PlanItemRow, tripZone: string, today: string): Plan
   }
   let coordinates: PlanItemDTO["coordinates"] = null;
   if (row.latitude !== null && row.longitude !== null) {
-    coordinates = { latitude: Number(row.latitude), longitude: Number(row.longitude), source: row.pin_source === "lookup" ? "lookup" : "map_link" };
+    coordinates = {
+      latitude: Number(row.latitude),
+      longitude: Number(row.longitude),
+      source: row.pin_source === "lookup" ? "lookup" : "map_link",
+    };
   } else if (isFlight && (row.source === "manual" || row.reviewed_at !== null || row.booking_status === "booked")) {
     const p = airportPoint(row.arrival_airport_code);
     if (p) coordinates = { ...p, source: "airport" };
@@ -56,10 +65,16 @@ export function itemDto(row: PlanItemRow, tripZone: string, today: string): Plan
     coordinates,
     bookingStatus: row.booking_status,
     bookingDueDate: row.booking_due_date,
-    bookingDueState: row.booking_status === "needs_booking" && row.booking_due_date ? dueState(row.booking_due_date, today) : null,
+    bookingDueState:
+      row.booking_status === "needs_booking" && row.booking_due_date ? dueState(row.booking_due_date, today) : null,
     plannedPrice:
       row.planned_amount !== null && row.planned_currency && row.price_label && row.price_source
-        ? { amount: trimAmount(row.planned_amount), currency: row.planned_currency, label: row.price_label, source: row.price_source }
+        ? {
+            amount: trimAmount(row.planned_amount),
+            currency: row.planned_currency,
+            label: row.price_label,
+            source: row.price_source,
+          }
         : null,
     localDate: row.local_date,
     localTime: hm(row.local_time),

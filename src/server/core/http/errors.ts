@@ -15,9 +15,11 @@ export class HttpError extends Error {
 
 export const notFound = () => new HttpError(404, "not_found", "That trip or event doesn't exist, or you can't see it.");
 export const forbidden = () => new HttpError(403, "forbidden", "Only the trip owner can do that.");
-export const conflict = (message = "This changed in another tab or window. Reload to see the latest, then make your change again.") =>
-  new HttpError(409, "version_conflict", message);
-export const invalid = (fields: FieldError[], message = "Correct the highlighted fields.") => new HttpError(422, "validation_error", message, fields);
+export const conflict = (
+  message = "This changed in another tab or window. Reload to see the latest, then make your change again.",
+) => new HttpError(409, "version_conflict", message);
+export const invalid = (fields: FieldError[], message = "Correct the highlighted fields.") =>
+  new HttpError(422, "validation_error", message, fields);
 /** A field-level save (TRIP-10, DASH-6) whose fields were changed elsewhere since the edit began; each is named. */
 export const fieldConflict = (paths: string[]) =>
   new HttpError(

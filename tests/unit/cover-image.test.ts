@@ -1,11 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { COVER_IMAGE, coverSizeProblem, encodeWithinBudget, fitWithin, FULL_STEPS, SMALL_QUALITY, type Size } from "@/features/trips/TripDetails/CoverSection/cover-image";
+import {
+  COVER_IMAGE,
+  coverSizeProblem,
+  encodeWithinBudget,
+  fitWithin,
+  FULL_STEPS,
+  SMALL_QUALITY,
+  type Size,
+} from "@/features/trips/TripDetails/CoverSection/cover-image";
 
 // A stand-in for the canvas: its JPEG grows with the pixels and the quality.
-const encoder = (bytesPerPixel: number, calls: Array<[number, number, number]> = []) => async (size: Size, quality: number) => {
-  calls.push([size.width, size.height, quality]);
-  return new Blob([new Uint8Array(Math.round(size.width * size.height * quality * bytesPerPixel))]);
-};
+const encoder =
+  (bytesPerPixel: number, calls: Array<[number, number, number]> = []) =>
+  async (size: Size, quality: number) => {
+    calls.push([size.width, size.height, quality]);
+    return new Blob([new Uint8Array(Math.round(size.width * size.height * quality * bytesPerPixel))]);
+  };
 
 describe("cover image (browser)", () => {
   it("fits the long edge and never enlarges", () => {

@@ -19,7 +19,12 @@ const preview = await import("@/app/api/import/preview/route");
 const commit = await import("@/app/api/import/commit/route");
 const schema = await import("@/app/api/import/schema/route");
 const origin = "http://localhost:3000";
-const request = (path: string, body: unknown, originHeader: string | null = origin, headers: Record<string, string> = {}) =>
+const request = (
+  path: string,
+  body: unknown,
+  originHeader: string | null = origin,
+  headers: Record<string, string> = {},
+) =>
   new Request(`${origin}${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...(originHeader ? { Origin: originHeader } : {}), ...headers },
@@ -62,12 +67,26 @@ describe("AI import routes", () => {
     const bad = await preview.POST(request("/api/import/preview", { ...previewBody, responseText: "{invalid" }));
     expect(bad.status).toBe(422);
     expect((await bad.json()).error.fields.length).toBeGreaterThan(0);
-    const badKey = await commit.POST(request("/api/import/commit", {
-      expectedFormatVersion: 1,
-      ownerProvidedBudget: null,
-      trip: { title: "Empty", destination: "Tokyo, Japan", startDate: "2027-01-01", endDate: "2027-01-02", timeZone: "Asia/Tokyo", budget: null },
-      items: [],
-    }, origin, { "Idempotency-Key": "not-a-uuid" }));
+    const badKey = await commit.POST(
+      request(
+        "/api/import/commit",
+        {
+          expectedFormatVersion: 1,
+          ownerProvidedBudget: null,
+          trip: {
+            title: "Empty",
+            destination: "Tokyo, Japan",
+            startDate: "2027-01-01",
+            endDate: "2027-01-02",
+            timeZone: "Asia/Tokyo",
+            budget: null,
+          },
+          items: [],
+        },
+        origin,
+        { "Idempotency-Key": "not-a-uuid" },
+      ),
+    );
     expect(badKey.status).toBe(400);
   });
 });

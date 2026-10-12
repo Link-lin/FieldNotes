@@ -34,10 +34,10 @@ type Context<P, S> = {
  * (413, 400, 422); errors become the stable JSON error body; responses are never cached.
  * The handler returns data (sent as JSON), nothing (204) or its own Response.
  */
-export function route<P extends Record<string, string> = Record<string, never>, S extends z.ZodType | undefined = undefined>(
-  options: Options<S>,
-  handler: (ctx: Context<P, S>) => Promise<unknown>,
-) {
+export function route<
+  P extends Record<string, string> = Record<string, never>,
+  S extends z.ZodType | undefined = undefined,
+>(options: Options<S>, handler: (ctx: Context<P, S>) => Promise<unknown>) {
   return (req: Request, ctx?: { params: Promise<P> }): Promise<Response> =>
     handle(async () => {
       if (req.method !== "GET" && req.method !== "HEAD") assertSameOrigin(req);
@@ -57,7 +57,10 @@ export function route<P extends Record<string, string> = Record<string, never>, 
  * (ACCESS-7: it returns no trip data). Every other rule of `route()` applies: the Origin check on
  * state-changing methods, the body limit and validation, the stable error body and no caching.
  */
-export function publicRoute<S extends z.ZodType>(options: { body: S }, handler: (ctx: { db: Kysely<DB>; body: z.infer<S>; req: Request }) => Promise<unknown>) {
+export function publicRoute<S extends z.ZodType>(
+  options: { body: S },
+  handler: (ctx: { db: Kysely<DB>; body: z.infer<S>; req: Request }) => Promise<unknown>,
+) {
   return (req: Request): Promise<Response> =>
     handle(async () => {
       if (req.method !== "GET" && req.method !== "HEAD") assertSameOrigin(req);

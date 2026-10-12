@@ -9,7 +9,10 @@ export const LIVE = {
   maxBackoff: 30000,
 } as const;
 
-export type RevisionClock = { setTimeout: (fn: () => void, ms: number) => unknown; clearTimeout: (id: unknown) => void };
+export type RevisionClock = {
+  setTimeout: (fn: () => void, ms: number) => unknown;
+  clearTimeout: (id: unknown) => void;
+};
 export type RevisionAnswer = { ok: true; revision: string } | { ok: false; status: number };
 
 export type RevisionWatcher = {

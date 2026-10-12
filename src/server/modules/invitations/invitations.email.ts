@@ -15,11 +15,28 @@ const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "
 const day = (d: Date) => `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 /** A header or one-line value: control characters (a newline would start a new header) become spaces. */
 const oneLine = (text: string) => text.replace(/[\u0000-\u001f\u007f]+/g, " ").trim();
-const escapeHtml = (text: string) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+const escapeHtml = (text: string) =>
+  text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 
 // The app's paper, ink and vermilion (src/styles/tokens.css), and font stacks that need nothing loaded: mail clients
 // drop web fonts or fetch them from elsewhere, and this email loads nothing.
-const C = { page: "#f3ecdb", card: "#fffdf6", line: "#e4d9bf", perforation: "#cbbd9c", ink: "#3a3026", ink2: "#675c4c", ink3: "#766a55", ctl: "#8e8066", accent: "#de4f2a", accentInk: "#a63615" };
+const C = {
+  page: "#f3ecdb",
+  card: "#fffdf6",
+  line: "#e4d9bf",
+  perforation: "#cbbd9c",
+  ink: "#3a3026",
+  ink2: "#675c4c",
+  ink3: "#766a55",
+  ctl: "#8e8066",
+  accent: "#de4f2a",
+  accentInk: "#a63615",
+};
 const SERIF = "'Source Serif 4','Source Serif Pro',Georgia,'Times New Roman',serif";
 const SANS = "-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif";
 const MONO = "'IBM Plex Mono','SFMono-Regular',Menlo,Consolas,monospace";

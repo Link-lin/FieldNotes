@@ -21,7 +21,9 @@ type VisibleTrip = Awaited<ReturnType<typeof visibleTrips>>[number];
 
 // Your own trips (the creator, while allowlisted) are owner trips; the rest take the role of your grant.
 const accessOf = (actor: Actor, r: VisibleTrip): { role: Role; primaryOwner: boolean } =>
-  r.owner_user_id === actor.userId && actor.isOwner ? { role: "owner", primaryOwner: true } : { role: r.member_role ?? "viewer", primaryOwner: false };
+  r.owner_user_id === actor.userId && actor.isOwner
+    ? { role: "owner", primaryOwner: true }
+    : { role: r.member_role ?? "viewer", primaryOwner: false };
 
 /** Live updates (TRIP-11): changes when a trip appears, goes, changes (its version moves with its events) or your role on one does. */
 function revisionOf(actor: Actor, rows: VisibleTrip[]): string {
@@ -56,5 +58,11 @@ export async function getDashboard(db: Kysely<DB>, actor: Actor, now = new Date(
       };
     })
     .sort(byDue);
-  return { canCreateTrips: actor.isOwner, trips, ownerBookingTasks, recentCurrencies: actor.isOwner ? await recentCurrencies(db, actor.userId) : [], revision: revisionOf(actor, rows) };
+  return {
+    canCreateTrips: actor.isOwner,
+    trips,
+    ownerBookingTasks,
+    recentCurrencies: actor.isOwner ? await recentCurrencies(db, actor.userId) : [],
+    revision: revisionOf(actor, rows),
+  };
 }

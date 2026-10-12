@@ -161,7 +161,8 @@ export function embedTarget(item: EmbedItem, destination: string): EmbedTarget |
     const one = to ?? from;
     return one ? { mode: "place", q: `${one} airport` } : null;
   }
-  if (item.coordinates) return { mode: "place", q: `${item.coordinates.latitude.toFixed(5)},${item.coordinates.longitude.toFixed(5)}` };
+  if (item.coordinates)
+    return { mode: "place", q: `${item.coordinates.latitude.toFixed(5)},${item.coordinates.longitude.toFixed(5)}` };
   const place = item.location?.trim();
   if (!place) return null;
   const city = destination.split(",")[0]?.trim().toLowerCase() ?? "";
@@ -185,7 +186,11 @@ export function googleEmbedUrl(key: string, t: EmbedTarget): string {
 export type RoutePoint = readonly [number, number] | { airport: string };
 
 /** Google-hosted road map for one route segment (up to 20 intermediate stops). */
-export function googleDayEmbedUrl(key: string, stops: ReadonlyArray<RoutePoint>, mode: "driving" | "walking"): string | null {
+export function googleDayEmbedUrl(
+  key: string,
+  stops: ReadonlyArray<RoutePoint>,
+  mode: "driving" | "walking",
+): string | null {
   const points = stops.slice(0, 22);
   const first = points[0];
   if (!first) return null;
@@ -195,8 +200,11 @@ export function googleDayEmbedUrl(key: string, stops: ReadonlyArray<RoutePoint>,
   if (points.length === 1) return `${base}place?${token}&q=${encodeURIComponent(point(first))}`;
   const last = points[points.length - 1]!;
   const middle = points.slice(1, -1).map(point);
-  return `${base}directions?${token}&origin=${encodeURIComponent(point(first))}&destination=${encodeURIComponent(point(last))}` +
-    (middle.length ? `&waypoints=${encodeURIComponent(middle.join("|"))}` : "") + `&mode=${mode}`;
+  return (
+    `${base}directions?${token}&origin=${encodeURIComponent(point(first))}&destination=${encodeURIComponent(point(last))}` +
+    (middle.length ? `&waypoints=${encodeURIComponent(middle.join("|"))}` : "") +
+    `&mode=${mode}`
+  );
 }
 
 /** Hand-off for one day (MAP-6): at most the first 10 stops. */
@@ -208,7 +216,10 @@ export function googleDayUrl(stops: ReadonlyArray<readonly [number, number]>): s
   if (s.length === 1) return googleSearchUrl(f(first));
   const last = s[s.length - 1] as readonly [number, number];
   let url =
-    "https://www.google.com/maps/dir/?api=1&origin=" + encodeURIComponent(f(first)) + "&destination=" + encodeURIComponent(f(last));
+    "https://www.google.com/maps/dir/?api=1&origin=" +
+    encodeURIComponent(f(first)) +
+    "&destination=" +
+    encodeURIComponent(f(last));
   const mid = s.slice(1, -1).map(f);
   if (mid.length) url += "&waypoints=" + encodeURIComponent(mid.join("|"));
   return url;

@@ -94,7 +94,11 @@ export type TripSpec = {
 };
 
 const usd = (amount: string, label: Price["label"] = "quote"): Price => ({ amount, currency: "USD", label });
-const flightEnd = (airportCode: string | null, localDateTime: string | null = null, timeZone: string | null = null): Endpoint => ({ airportCode, localDateTime, timeZone });
+const flightEnd = (
+  airportCode: string | null,
+  localDateTime: string | null = null,
+  timeZone: string | null = null,
+): Endpoint => ({ airportCode, localDateTime, timeZone });
 
 /** The three test trips, with dates relative to `today` (YYYY-MM-DD in Hawaii). */
 export function demoTrips(today: string): TripSpec[] {
@@ -163,14 +167,18 @@ export function demoTrips(today: string): TripSpec[] {
         title: "Check in: Outrigger Reef Waikiki (4 nights)",
         location: "2169 Kalia Rd, Honolulu, HI 96815",
         // Google place link with @lat,lon and tracking parameters that are stripped on save.
-        mapUrl: "https://www.google.com/maps/place/Outrigger+Reef+Waikiki+Beach+Resort/@21.27825,-157.83295,17z?entry=ttu&g_ep=EgoyMDI2",
+        mapUrl:
+          "https://www.google.com/maps/place/Outrigger+Reef+Waikiki+Beach+Resort/@21.27825,-157.83295,17z?entry=ttu&g_ep=EgoyMDI2",
         date: d(0),
         time: "15:00",
         bookingStatus: "booked",
         price: usd("1896.48"),
         links: [
           { label: "Reservation", url: "https://www.outrigger.com/hawaii/oahu/outrigger-reef-waikiki-beach-resort" },
-          { label: "Parking info", url: "https://www.outrigger.com/hawaii/oahu/outrigger-reef-waikiki-beach-resort/amenities" },
+          {
+            label: "Parking info",
+            url: "https://www.outrigger.com/hawaii/oahu/outrigger-reef-waikiki-beach-resort/amenities",
+          },
         ],
       },
       {
@@ -261,7 +269,8 @@ export function demoTrips(today: string): TripSpec[] {
         title: "Paradise Cove Luau",
         location: "Paradise Cove, Kapolei",
         // Google data link with !3d…!4d….
-        mapUrl: "https://www.google.com/maps/place/Paradise+Cove+Luau/data=!4m6!3m5!1s0x0:0x0!8m2!3d21.34860!4d-158.12700",
+        mapUrl:
+          "https://www.google.com/maps/place/Paradise+Cove+Luau/data=!4m6!3m5!1s0x0:0x0!8m2!3d21.34860!4d-158.12700",
         date: d(2),
         time: "17:00",
         durationMinutes: 210,
@@ -408,7 +417,8 @@ export function demoTrips(today: string): TripSpec[] {
       },
       {
         type: "activity",
-        title: "Sunset catamaran sail from Kāʻanapali Beach with a snorkel stop, live music and dinner, a deliberately long title that must wrap cleanly on phones",
+        title:
+          "Sunset catamaran sail from Kāʻanapali Beach with a snorkel stop, live music and dinner, a deliberately long title that must wrap cleanly on phones",
         location: "Kāʻanapali Beach",
         date: d(5),
         time: "16:30",
@@ -644,8 +654,24 @@ export function demoTrips(today: string): TripSpec[] {
     budget: null,
     viewers: [{ kind: "accepted-you", role: "editor" }],
     items: [
-      { type: "meal", title: "Takoyaki in Dotonbori", location: "Dotonbori, Osaka", mapUrl: "34.66870, 135.50130", date: addDays(today, 60), time: "19:00", bookingStatus: "needs_booking", bookingDueDate: addDays(today, 30), price: { amount: "2500", currency: "JPY", label: "estimate" } },
-      { type: "activity", title: "Osaka Castle morning", location: "Osaka Castle", date: addDays(today, 61), bookingStatus: "not_required" },
+      {
+        type: "meal",
+        title: "Takoyaki in Dotonbori",
+        location: "Dotonbori, Osaka",
+        mapUrl: "34.66870, 135.50130",
+        date: addDays(today, 60),
+        time: "19:00",
+        bookingStatus: "needs_booking",
+        bookingDueDate: addDays(today, 30),
+        price: { amount: "2500", currency: "JPY", label: "estimate" },
+      },
+      {
+        type: "activity",
+        title: "Osaka Castle morning",
+        location: "Osaka Castle",
+        date: addDays(today, 61),
+        bookingStatus: "not_required",
+      },
       { type: "other", title: "Buy an ICOCA card", bookingStatus: "not_required" },
     ],
   };
@@ -659,8 +685,23 @@ export function demoTrips(today: string): TripSpec[] {
     budget: { amount: "900000", currency: "KRW" },
     viewers: [{ kind: "accepted-you", role: "owner" }],
     items: [
-      { type: "lodging", title: "Hanok stay in Bukchon", location: "Bukchon Hanok Village, Seoul", date: addDays(today, 90), time: "15:00", bookingStatus: "needs_booking", price: { amount: "380000", currency: "KRW", label: "quote" } },
-      { type: "meal", title: "Korean BBQ in Mapo", location: "Mapo-gu, Seoul", date: addDays(today, 91), time: "19:30", bookingStatus: "not_required" },
+      {
+        type: "lodging",
+        title: "Hanok stay in Bukchon",
+        location: "Bukchon Hanok Village, Seoul",
+        date: addDays(today, 90),
+        time: "15:00",
+        bookingStatus: "needs_booking",
+        price: { amount: "380000", currency: "KRW", label: "quote" },
+      },
+      {
+        type: "meal",
+        title: "Korean BBQ in Mapo",
+        location: "Mapo-gu, Seoul",
+        date: addDays(today, 91),
+        time: "19:30",
+        bookingStatus: "not_required",
+      },
     ],
   };
 
@@ -712,26 +753,45 @@ function demoCover(name: NonNullable<TripSpec["cover"]>): StoredCover {
   };
   const full = image("full");
   const small = image("small");
-  return { hash: createHash("sha256").update(full.bytes).digest("hex"), width: full.width, height: full.height, full: full.bytes, small: small.bytes };
+  return {
+    hash: createHash("sha256").update(full.bytes).digest("hex"),
+    width: full.width,
+    height: full.height,
+    full: full.bytes,
+    small: small.bytes,
+  };
 }
 
 /**
  * Replaces the test trips: deletes your trips with the test titles and every trip owned by the
  * made-up friend, then inserts the three trips in one transaction. Nothing else is touched.
  */
-export async function seedDemoTrips(db: Kysely<DB>, you: { id: string; email: string }, now = new Date()): Promise<SeedResult> {
+export async function seedDemoTrips(
+  db: Kysely<DB>,
+  you: { id: string; email: string },
+  now = new Date(),
+): Promise<SeedResult> {
   const today = dateInZone(HAWAII_ZONE, now.getTime());
   const specs = demoTrips(today);
   return db.transaction().execute(async (tx) => {
     const friendRow =
       (await tx.selectFrom("User").select("id").where("email", "=", TEST_FRIEND.email).executeTakeFirst()) ??
-      (await tx.insertInto("User").values({ email: TEST_FRIEND.email, name: TEST_FRIEND.name, emailVerified: null, image: null }).returning("id").executeTakeFirstOrThrow());
+      (await tx
+        .insertInto("User")
+        .values({ email: TEST_FRIEND.email, name: TEST_FRIEND.name, emailVerified: null, image: null })
+        .returning("id")
+        .executeTakeFirstOrThrow());
     const friend = { id: friendRow.id, email: TEST_FRIEND.email };
 
     const old = await tx
       .selectFrom("trips")
       .select("id")
-      .where((eb) => eb.or([eb.and([eb("owner_user_id", "=", you.id), eb("title", "in", [HAWAII_TITLE, LISBON_TITLE, KAUAI_TITLE])]), eb("owner_user_id", "=", friend.id)]))
+      .where((eb) =>
+        eb.or([
+          eb.and([eb("owner_user_id", "=", you.id), eb("title", "in", [HAWAII_TITLE, LISBON_TITLE, KAUAI_TITLE])]),
+          eb("owner_user_id", "=", friend.id),
+        ]),
+      )
       .execute();
     for (const t of old) await deleteTripRow(tx, t.id);
 
@@ -753,9 +813,11 @@ export async function seedDemoTrips(db: Kysely<DB>, you: { id: string; email: st
 
       for (const item of spec.items) {
         const parsed = itemInputSchema.safeParse(toInput(item));
-        if (!parsed.success) throw new Error(`Test event "${item.title}" is invalid: ${JSON.stringify(toFieldErrors(parsed.error))}`);
+        if (!parsed.success)
+          throw new Error(`Test event "${item.title}" is invalid: ${JSON.stringify(toFieldErrors(parsed.error))}`);
         const schedule = scheduleErrors(parsed.data, spec.timeZone);
-        if (schedule.length) throw new Error(`Test event "${item.title}" has a schedule error: ${JSON.stringify(schedule)}`);
+        if (schedule.length)
+          throw new Error(`Test event "${item.title}" has a schedule error: ${JSON.stringify(schedule)}`);
         const values = toValues(parsed.data, null);
         if ("path" in values) throw new Error(`Test event "${item.title}" is invalid: ${values.message}`);
         if (item.ai && values.price_source) values.price_source = item.priceConfirmed ? "owner" : "ai";
@@ -763,7 +825,8 @@ export async function seedDemoTrips(db: Kysely<DB>, you: { id: string; email: st
         await insertItem(tx, trip.id, item.ai ? "ai" : "manual", values);
       }
 
-      if (spec.cover && !(await saveCover(tx, trip.id, trip.version, demoCover(spec.cover)))) throw new Error(`Couldn't store the cover of "${spec.title}".`);
+      if (spec.cover && !(await saveCover(tx, trip.id, trip.version, demoCover(spec.cover))))
+        throw new Error(`Couldn't store the cover of "${spec.title}".`);
 
       for (const v of spec.viewers) {
         const base = { trip_id: trip.id, accepted_at: null, revoked_at: null, viewer_user_id: null };
@@ -771,15 +834,68 @@ export async function seedDemoTrips(db: Kysely<DB>, you: { id: string; email: st
         const hash = () => hashInvitationToken(newInvitationToken());
         if (v.kind === "accepted-friend" || v.kind === "accepted-you") {
           const who = v.kind === "accepted-friend" ? friend : you;
-          await tx.insertInto("trip_viewers").values({ ...base, role: v.role ?? "viewer", invitee_email_normalized: who.email.trim().toLowerCase(), viewer_user_id: who.id, status: "accepted", invitation_token_hash: hash(), expires_at: days(3), accepted_at: days(-4) }).execute();
+          await tx
+            .insertInto("trip_viewers")
+            .values({
+              ...base,
+              role: v.role ?? "viewer",
+              invitee_email_normalized: who.email.trim().toLowerCase(),
+              viewer_user_id: who.id,
+              status: "accepted",
+              invitation_token_hash: hash(),
+              expires_at: days(3),
+              accepted_at: days(-4),
+            })
+            .execute();
         } else if (v.kind === "link") {
-          await tx.insertInto("trip_viewers").values({ ...base, role: v.role ?? "viewer", label: v.label, status: "pending", invitation_token_hash: hash(), expires_at: days(5) }).execute();
+          await tx
+            .insertInto("trip_viewers")
+            .values({
+              ...base,
+              role: v.role ?? "viewer",
+              label: v.label,
+              status: "pending",
+              invitation_token_hash: hash(),
+              expires_at: days(5),
+            })
+            .execute();
         } else if (v.kind === "pending") {
-          await tx.insertInto("trip_viewers").values({ ...base, role: v.role ?? "viewer", invitee_email_normalized: v.email, status: "pending", invitation_token_hash: hash(), expires_at: days(5) }).execute();
+          await tx
+            .insertInto("trip_viewers")
+            .values({
+              ...base,
+              role: v.role ?? "viewer",
+              invitee_email_normalized: v.email,
+              status: "pending",
+              invitation_token_hash: hash(),
+              expires_at: days(5),
+            })
+            .execute();
         } else if (v.kind === "expired") {
-          await tx.insertInto("trip_viewers").values({ ...base, role: v.role ?? "viewer", invitee_email_normalized: v.email, status: "pending", invitation_token_hash: hash(), expires_at: days(-2) }).execute();
+          await tx
+            .insertInto("trip_viewers")
+            .values({
+              ...base,
+              role: v.role ?? "viewer",
+              invitee_email_normalized: v.email,
+              status: "pending",
+              invitation_token_hash: hash(),
+              expires_at: days(-2),
+            })
+            .execute();
         } else {
-          await tx.insertInto("trip_viewers").values({ ...base, role: v.role ?? "viewer", invitee_email_normalized: v.email, status: "revoked", invitation_token_hash: null, expires_at: days(-1), revoked_at: days(-1) }).execute();
+          await tx
+            .insertInto("trip_viewers")
+            .values({
+              ...base,
+              role: v.role ?? "viewer",
+              invitee_email_normalized: v.email,
+              status: "revoked",
+              invitation_token_hash: null,
+              expires_at: days(-1),
+              revoked_at: days(-1),
+            })
+            .execute();
         }
       }
       result.trips.push({ id: trip.id, title: spec.title, items: spec.items.length, viewers: spec.viewers.length });

@@ -35,13 +35,38 @@ type Props = {
  * row opens the event's side panel (TRIP-10) through one stretched button; links and the menu
  * sit above it and keep working.
  */
-export function EventRow({ item, num, canEdit, tripZone, menuOpen, onMenu, onOpen, onEdit, onReview, onDuplicate, onDelete }: Props) {
+export function EventRow({
+  item,
+  num,
+  canEdit,
+  tripZone,
+  menuOpen,
+  onMenu,
+  onOpen,
+  onEdit,
+  onReview,
+  onDuplicate,
+  onDelete,
+}: Props) {
   const f = item.flightDetails;
   const draft = isAiDraft(item);
   return (
-    <li className={styles.event} data-hl={item.id} data-numbered={!!num} data-editable={canEdit} data-menu-open={menuOpen}>
+    <li
+      className={styles.event}
+      data-hl={item.id}
+      data-numbered={!!num}
+      data-editable={canEdit}
+      data-menu-open={menuOpen}
+    >
       {num ? <StopNumber n={num.n} need={num.need} className={styles.num} /> : null}
-      <button type="button" className={styles.open} data-details={item.id} aria-haspopup="dialog" aria-label={`Details for ${item.title}`} onClick={onOpen} />
+      <button
+        type="button"
+        className={styles.open}
+        data-details={item.id}
+        aria-haspopup="dialog"
+        aria-label={`Details for ${item.title}`}
+        onClick={onOpen}
+      />
       {canEdit ? (
         <Menu
           className={styles.menu}
@@ -49,15 +74,31 @@ export function EventRow({ item, num, canEdit, tripZone, menuOpen, onMenu, onOpe
           open={menuOpen}
           onOpenChange={onMenu}
           trigger={(props) => (
-            <button className={styles.kebab} type="button" data-menu={item.id} aria-label={`Actions for ${item.title}`} {...props}>
+            <button
+              className={styles.kebab}
+              type="button"
+              data-menu={item.id}
+              aria-label={`Actions for ${item.title}`}
+              {...props}
+            >
               <DotsIcon />
             </button>
           )}
         >
-          <MenuItem icon={<EditIcon />} onClick={onEdit}>Edit event</MenuItem>
-          {draft ? <MenuItem icon={<CheckIcon />} onClick={onReview}>Mark as reviewed</MenuItem> : null}
-          <MenuItem icon={<CopyIcon />} onClick={onDuplicate}>Duplicate</MenuItem>
-          <MenuItem icon={<TrashIcon />} danger onClick={onDelete}>Delete event</MenuItem>
+          <MenuItem icon={<EditIcon />} onClick={onEdit}>
+            Edit event
+          </MenuItem>
+          {draft ? (
+            <MenuItem icon={<CheckIcon />} onClick={onReview}>
+              Mark as reviewed
+            </MenuItem>
+          ) : null}
+          <MenuItem icon={<CopyIcon />} onClick={onDuplicate}>
+            Duplicate
+          </MenuItem>
+          <MenuItem icon={<TrashIcon />} danger onClick={onDelete}>
+            Delete event
+          </MenuItem>
         </Menu>
       ) : null}
       {/* Untimed rows sit under Unscheduled or Undated, which already say there is no time. */}
@@ -65,11 +106,22 @@ export function EventRow({ item, num, canEdit, tripZone, menuOpen, onMenu, onOpe
       {f ? <FlightCard item={item} className={styles.flight} /> : <span className={styles.title}>{item.title}</span>}
       {item.location || item.mapUrl ? (
         <span className={styles.links}>
-          {item.location ? <span className={styles.place}><PinIcon /><span className={styles.placeName} title={item.location}>{item.location}</span></span> : null}
+          {item.location ? (
+            <span className={styles.place}>
+              <PinIcon />
+              <span className={styles.placeName} title={item.location}>
+                {item.location}
+              </span>
+            </span>
+          ) : null}
           {item.mapUrl ? (
-            <ButtonLink variant="quiet" external href={item.mapUrl}>Open in {item.mapProvider ?? "map"} ↗</ButtonLink>
+            <ButtonLink variant="quiet" external href={item.mapUrl}>
+              Open in {item.mapProvider ?? "map"} ↗
+            </ButtonLink>
           ) : item.location ? (
-            <ButtonLink variant="quiet" external href={googleSearchUrl(item.location)}>Open in Google Maps ↗</ButtonLink>
+            <ButtonLink variant="quiet" external href={googleSearchUrl(item.location)}>
+              Open in Google Maps ↗
+            </ButtonLink>
           ) : null}
         </span>
       ) : null}

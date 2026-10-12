@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { bookingForType, changedFields, whenDraftOf, whenFields } from "@/features/trips/TripPage/EventPanel/event-edit";
+import {
+  bookingForType,
+  changedFields,
+  whenDraftOf,
+  whenFields,
+} from "@/features/trips/TripPage/EventPanel/event-edit";
 
 describe("event view edits (TRIP-9, TRIP-10)", () => {
   it("keeps an event's booking valid when it becomes a flight (FLIGHT-2)", () => {
