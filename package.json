@@ -11,6 +11,8 @@
     "dev:app": "next dev",
     "build": "next build",
     "start": "next start",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
@@ -53,6 +55,7 @@
     "embedded-postgres": "17.10.0-beta.17",
     "eslint": "9.39.5",
     "eslint-config-next": "16.3.6",
+    "prettier": "3.9.10",
     "tsx": "4.23.15",
     "typescript": "5.9.3",
     "vitest": "3.2.7"

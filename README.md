@@ -151,6 +151,7 @@ To restore a backup into an empty database (this deletes the data now in the dat
 ## Checks
 
 ```sh
+npm run format        # Prettier rewrites the TypeScript and JavaScript; format:check only checks
 npm run lint
 npm run typecheck
 npm test              # unit + PostgreSQL integration tests (starts a throwaway embedded PostgreSQL)

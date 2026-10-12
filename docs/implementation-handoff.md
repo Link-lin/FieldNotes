@@ -45,7 +45,7 @@ Last updated 9 Oct 2026. Read this first, then [AGENTS.md](../AGENTS.md). Keep t
 
 1. `npm install`, then `npm run dev`. This starts the local database if needed, applies migrations and starts the app; Ctrl+C stops both.
 2. Sign in once, then run `npm run db:seed:hawaii` in another terminal to load the test trips. Run it again to reset them.
-3. Before every commit, run `npm run lint`, `npm run typecheck`, `npm test` and `npm run build`.
+3. Before every commit, run `npm run format`, `npm run lint`, `npm run typecheck`, `npm test` and `npm run build`.
 
 `.env.local` needs `AUTH_SECRET`, `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, `TRIP_OWNER_EMAILS` and, for maps, `GOOGLE_MAPS_EMBED_API_KEY` plus optional `GEOAPIFY_API_KEY` for import place lookup and `SMTP_URL` with `MAIL_FROM` for invitation email (see the README). Never commit or overwrite it.
 
